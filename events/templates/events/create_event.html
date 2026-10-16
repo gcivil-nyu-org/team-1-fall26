@@ -19,7 +19,10 @@
         <div class="event-layout">
             <section class="panel" aria-labelledby="details-heading">
                 <h2 id="details-heading">Event details</h2>
-                <p>Fields are required unless marked optional. Saving events is not available yet.</p>
+                <p>Fields are required unless marked optional.</p>
+                {% if not can_save %}
+                    <p>You can preview event details. Your account does not currently have access to save events.</p>
+                {% endif %}
                 <p>Choose the timezone where the event takes place.</p>
 
                 {% if form.errors %}
@@ -44,10 +47,16 @@
                         </div>
                     {% endfor %}
                     <div class="form-actions">
-                        <button type="submit">Check event details</button>
+                        <button type="submit" name="action" value="preview">Check event details</button>
+                        {% if can_save %}
+                            <button type="submit" name="action" value="save">Save event</button>
+                        {% endif %}
                         <a href="{% url 'events:create' %}">Start over</a>
                     </div>
                     <p id="review-notice" role="status"></p>
+                    {% if request.user.is_authenticated %}
+                        <a href="{% url 'events:list' %}">View my events</a>
+                    {% endif %}
                 </form>
             </section>
 
@@ -55,7 +64,11 @@
                 {% timezone timezone_name %}
                 <section id="event-review" class="panel" aria-labelledby="review-heading">
                     <h2 id="review-heading">Review your event</h2>
-                    <p role="status">Event details are valid. This event has not been saved.</p>
+                    {% if not form.errors %}
+                        <p role="status">Event details are valid. This event has not been saved.</p>
+                    {% else %}
+                        <p role="status">This event has not been saved. Please review the errors.</p>
+                    {% endif %}
                     <dl>
                         <dt>Title</dt>
                         <dd>{{ event_details.title }}</dd>

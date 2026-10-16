@@ -1,10 +1,51 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo, available_timezones
 
 from django import forms
 from django.utils import timezone
 
 from .models import Event
+
+
+class EventScheduleForm(forms.Form):
+    date = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    view = forms.ChoiceField(choices=[("day", "Day"), ("week", "Week")], required=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.errors:
+            return cleaned_data
+
+        selected_date = cleaned_data.get("date") or timezone.localdate()
+        view = cleaned_data.get("view") or "day"
+        start_date = selected_date
+        days = 1
+        if view == "week":
+            start_date -= timedelta(days=start_date.weekday())
+            days = 7
+
+        try:
+            end_date = start_date + timedelta(days=days)
+            previous_date = start_date - timedelta(days=days)
+            next_date = end_date
+            datetime_field = forms.DateTimeField()
+            starts_at = datetime_field.clean(datetime.combine(start_date, time.min))
+            ends_at = datetime_field.clean(datetime.combine(end_date, time.min))
+        except (OverflowError, forms.ValidationError):
+            self.add_error("date", "Choose another date to display this schedule.")
+            return cleaned_data
+
+        cleaned_data.update(
+            date=selected_date,
+            view=view,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            start_date=start_date,
+            last_date=end_date - timedelta(days=1),
+            previous_date=previous_date,
+            next_date=next_date,
+        )
+        return cleaned_data
 
 
 class EventForm(forms.Form):

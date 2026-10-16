@@ -1,0 +1,35 @@
+{% load static tz %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ event.title }} | Syncmily</title>
+    <link rel="stylesheet" href="{% static 'events/event_form.css' %}">
+</head>
+<body>
+    <main>
+        <p class="brand">Syncmily</p>
+        {% for message in messages %}
+            <p role="status">{{ message }}</p>
+        {% endfor %}
+        <section class="panel" aria-labelledby="event-heading">
+            <h1 id="event-heading">{{ event.title }}</h1>
+            {% get_current_timezone as timezone_name %}
+            <p>Times are shown in {{ timezone_name }}.</p>
+            <dl>
+                <dt>Starts</dt>
+                <dd>{{ event.starts_at|date:"l, F j, Y" }} at {{ event.starts_at|time:"g:i A" }}</dd>
+                <dt>Ends</dt>
+                <dd>{{ event.ends_at|date:"l, F j, Y" }} at {{ event.ends_at|time:"g:i A" }}</dd>
+                <dt>Location</dt>
+                <dd>{{ event.location|default:"No location provided" }}</dd>
+            </dl>
+            <div class="form-actions">
+                <a href="{% url 'events:list' %}?{{ schedule_query }}">View this day</a>
+                <a href="{% url 'events:create' %}">Create another event</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
