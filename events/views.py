@@ -12,8 +12,10 @@ def create_event(request):
         user=request.user,
     )
     event_details = None
+    timezone_name = timezone.get_current_timezone_name()
     if request.method == "POST" and form.is_valid():
         event_details = form.event
+        timezone_name = form.cleaned_data["timezone"]
 
     return render(
         request,
@@ -21,6 +23,6 @@ def create_event(request):
         {
             "form": form,
             "event_details": event_details,
-            "timezone_name": timezone.get_current_timezone_name(),
+            "timezone_name": timezone_name,
         },
     )

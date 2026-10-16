@@ -1,4 +1,4 @@
-{% load static %}
+{% load static tz %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,7 +20,7 @@
             <section class="panel" aria-labelledby="details-heading">
                 <h2 id="details-heading">Event details</h2>
                 <p>Fields are required unless marked optional. Saving events is not available yet.</p>
-                <p>Dates and times use {{ timezone_name }}.</p>
+                <p>Choose the timezone where the event takes place.</p>
 
                 {% if form.errors %}
                     <div class="error-summary" role="alert">
@@ -52,14 +52,19 @@
             </section>
 
             {% if event_details %}
+                {% timezone timezone_name %}
                 <section id="event-review" class="panel" aria-labelledby="review-heading">
                     <h2 id="review-heading">Review your event</h2>
                     <p role="status">Event details are valid. This event has not been saved.</p>
                     <dl>
                         <dt>Title</dt>
                         <dd>{{ event_details.title }}</dd>
-                        <dt>Date</dt>
+                        <dt>Start date</dt>
                         <dd>{{ event_details.starts_at|date:"l, F j, Y" }}</dd>
+                        {% if event_details.starts_at|date:"Y-m-d" != event_details.ends_at|date:"Y-m-d" %}
+                            <dt>End date</dt>
+                            <dd>{{ event_details.ends_at|date:"l, F j, Y" }}</dd>
+                        {% endif %}
                         <dt>Time</dt>
                         <dd>{{ event_details.starts_at|time:"g:i A" }} – {{ event_details.ends_at|time:"g:i A" }} ({{ timezone_name }})</dd>
                         <dt>Location</dt>
@@ -67,6 +72,7 @@
                     </dl>
                     <p>Need to change something? Edit the form and check the details again.</p>
                 </section>
+                {% endtimezone %}
             {% endif %}
         </div>
     </main>

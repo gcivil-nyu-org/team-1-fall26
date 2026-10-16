@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone as datetime_timezone
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -48,7 +48,8 @@ class Event(models.Model):
             and isinstance(self.ends_at, datetime)
             and "starts_at" not in errors
             and "ends_at" not in errors
-            and self.ends_at <= self.starts_at
+            and self.ends_at.astimezone(datetime_timezone.utc)
+            <= self.starts_at.astimezone(datetime_timezone.utc)
         ):
             errors["ends_at"] = "End time must be after start time."
 
