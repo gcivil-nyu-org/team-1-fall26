@@ -19,6 +19,7 @@
             <section class="panel" aria-labelledby="details-heading">
                 <h2 id="details-heading">Event details</h2>
                 <p>Fields are required unless marked optional. Saving events is not available yet.</p>
+                <p>Dates and times use {{ timezone_name }}.</p>
 
                 {% if form.errors %}
                     <div class="error-summary" role="alert">
@@ -53,9 +54,9 @@
                         <dt>Title</dt>
                         <dd>{{ event_details.title }}</dd>
                         <dt>Date</dt>
-                        <dd>{{ event_details.date|date:"l, F j, Y" }}</dd>
+                        <dd>{{ event_details.starts_at|date:"l, F j, Y" }}</dd>
                         <dt>Time</dt>
-                        <dd>{{ event_details.start_time|time:"g:i A" }} – {{ event_details.end_time|time:"g:i A" }}</dd>
+                        <dd>{{ event_details.starts_at|time:"g:i A" }} – {{ event_details.ends_at|time:"g:i A" }} ({{ timezone_name }})</dd>
                         <dt>Location</dt>
                         <dd>{{ event_details.location|default:"No location provided" }}</dd>
                     </dl>

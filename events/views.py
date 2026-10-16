@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .forms import EventForm
@@ -14,5 +15,9 @@ def create_event(request):
     return render(
         request,
         "events/create_event.html",
-        {"form": form, "event_details": event_details},
+        {
+            "form": form,
+            "event_details": event_details,
+            "timezone_name": timezone.get_current_timezone_name(),
+        },
     )
