@@ -1,7 +1,9 @@
 from datetime import datetime, time, timedelta
+from uuid import uuid4
 from zoneinfo import ZoneInfo, available_timezones
 
 from django import forms
+from django.core import signing
 from django.utils import timezone
 
 from .models import Event
@@ -49,6 +51,7 @@ class EventScheduleForm(forms.Form):
 
 
 class EventForm(forms.Form):
+    submission_token = forms.CharField(required=False, widget=forms.HiddenInput)
     title = forms.CharField(max_length=200)
     date = forms.DateField(label="Start date", widget=forms.DateInput(attrs={"type": "date"}))
     start_time = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time"}))
@@ -66,6 +69,10 @@ class EventForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.user = user if user is not None and user.is_authenticated else None
         self.event = None
+        self.fields["submission_token"].initial = signing.dumps(
+            {"id": str(uuid4()), "user": self.user.pk if self.user else None},
+            salt="events.create",
+        )
         self.fields["timezone"].choices = [(name, name) for name in sorted(available_timezones())]
         self.fields["timezone"].initial = timezone.get_current_timezone_name()
 

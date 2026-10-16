@@ -1,4 +1,5 @@
 from datetime import datetime, timezone as datetime_timezone
+from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -7,6 +8,7 @@ from django.utils import timezone
 
 
 class Event(models.Model):
+    submission_id = models.UUIDField(default=uuid4, unique=True, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

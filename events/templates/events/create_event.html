@@ -41,7 +41,10 @@
 
                 <form id="event-form" method="post" action="{% url 'events:create' %}">
                     {% csrf_token %}
-                    {% for field in form %}
+                    {% for field in form.hidden_fields %}
+                        {{ field }}
+                    {% endfor %}
+                    {% for field in form.visible_fields %}
                         <div class="form-field">
                             {{ field.as_field_group }}
                         </div>

@@ -1,7 +1,9 @@
 from urllib.parse import urlencode
+from uuid import UUID
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
@@ -31,16 +33,38 @@ def create_event(request):
         timezone_name = form.cleaned_data["timezone"]
         if saving:
             try:
-                with transaction.atomic():
-                    event_details.full_clean()
-                    event_details.save()
-            except ValidationError as error:
-                form.add_error(None, error.messages)
-            except IntegrityError:
-                form.add_error(None, "The event could not be saved. Please check the details and try again.")
+                submission = signing.loads(
+                    form.cleaned_data["submission_token"],
+                    salt="events.create",
+                    max_age=86400,
+                )
+                if submission["user"] != request.user.pk:
+                    raise signing.BadSignature
+                submission_id = UUID(submission["id"])
+            except (signing.BadSignature, ValueError, KeyError, TypeError):
+                form.add_error(None, "This form has expired or is invalid. Start over and try again.")
             else:
-                messages.success(request, "Your event has been saved.")
-                return redirect("events:detail", pk=event_details.pk)
+                event_details.submission_id = submission_id
+                try:
+                    with transaction.atomic():
+                        event_details.full_clean(validate_unique=False)
+                        saved_event, _ = Event.objects.get_or_create(
+                            submission_id=submission_id,
+                            created_by=request.user,
+                            defaults={
+                                "title": event_details.title,
+                                "starts_at": event_details.starts_at,
+                                "ends_at": event_details.ends_at,
+                                "location": event_details.location,
+                            },
+                        )
+                except ValidationError as error:
+                    form.add_error(None, error.messages)
+                except IntegrityError:
+                    form.add_error(None, "The event could not be saved. Please try again.")
+                if not form.errors:
+                    messages.success(request, "Your event has been saved.")
+                    return redirect("events:detail", pk=saved_event.pk)
 
     return render(
         request,
