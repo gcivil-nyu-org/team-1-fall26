@@ -7,10 +7,13 @@ from .forms import EventForm
 
 @require_http_methods(["GET", "POST"])
 def create_event(request):
-    form = EventForm(request.POST if request.method == "POST" else None)
+    form = EventForm(
+        request.POST if request.method == "POST" else None,
+        user=request.user,
+    )
     event_details = None
     if request.method == "POST" and form.is_valid():
-        event_details = form.cleaned_data
+        event_details = form.event
 
     return render(
         request,

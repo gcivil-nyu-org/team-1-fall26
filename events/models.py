@@ -1,11 +1,17 @@
 from datetime import datetime
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
 
 class Event(models.Model):
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_events",
+    )
     title = models.CharField(max_length=200)
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()

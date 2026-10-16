@@ -94,6 +94,17 @@ button:hover {
     background: #1c4233;
 }
 
+.form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.form-actions a {
+    color: #285b47;
+}
+
 :focus-visible {
     outline: 3px solid #3266c7;
     outline-offset: 3px;

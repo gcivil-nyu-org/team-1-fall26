@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Create family event | Syncmily</title>
     <link rel="stylesheet" href="{% static 'events/event_form.css' %}">
+    <script src="{% static 'events/event_form.js' %}" defer></script>
 </head>
 <body>
     <main>
@@ -35,19 +36,23 @@
                     </div>
                 {% endif %}
 
-                <form method="post" action="{% url 'events:create' %}">
+                <form id="event-form" method="post" action="{% url 'events:create' %}">
                     {% csrf_token %}
                     {% for field in form %}
                         <div class="form-field">
                             {{ field.as_field_group }}
                         </div>
                     {% endfor %}
-                    <button type="submit">Check event details</button>
+                    <div class="form-actions">
+                        <button type="submit">Check event details</button>
+                        <a href="{% url 'events:create' %}">Start over</a>
+                    </div>
+                    <p id="review-notice" role="status"></p>
                 </form>
             </section>
 
             {% if event_details %}
-                <section class="panel" aria-labelledby="review-heading">
+                <section id="event-review" class="panel" aria-labelledby="review-heading">
                     <h2 id="review-heading">Review your event</h2>
                     <p role="status">Event details are valid. This event has not been saved.</p>
                     <dl>
