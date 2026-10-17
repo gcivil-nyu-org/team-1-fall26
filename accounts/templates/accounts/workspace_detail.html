@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ workspace.name }} | Syncmily</title>
+</head>
+<body>
+    <main>
+        <h1>{{ workspace.name }}</h1>
+
+        <p>Your family workspace has been created successfully!</p>
+
+        <p>
+            <strong>Workspace ID:</strong>
+            {{ workspace.id }}
+        </p>
+
+        <p>
+            <strong>Primary Admin:</strong>
+            {{ workspace.primary_admin.username }}
+        </p>
+
+        <p>
+            <strong>Created:</strong>
+            {{ workspace.created_at }}
+        </p>
+    </main>
+</body>
+</html>
