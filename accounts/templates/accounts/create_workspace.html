@@ -1,0 +1,32 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create Workspace | Syncmily</title>
+</head>
+<body>
+    <main>
+        <h1>Create a Family Workspace</h1>
+        <p>Bring your household's schedules together in one place.</p>
+
+        <form method="post">
+            {% csrf_token %}
+
+            {{ form.non_field_errors }}
+
+            <div>
+                <label for="{{ form.name.id_for_label }}">
+                    Workspace Name
+                </label>
+
+                {{ form.name }}
+                {{ form.name.errors }}
+            </div>
+
+            <button type="submit">Create Workspace</button>
+        </form>
+    </main>
+</body>
+</html>

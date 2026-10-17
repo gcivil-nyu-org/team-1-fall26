@@ -13,6 +13,7 @@ ALLOWED_HOSTS = [
 ]
 
 INSTALLED_APPS = [
+    "accounts.apps.AccountsConfig",
     "events.apps.EventsConfig",
     "django.contrib.admin",
     "django.contrib.auth",
