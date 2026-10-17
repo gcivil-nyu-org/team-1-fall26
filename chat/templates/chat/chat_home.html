@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Household Chat | Syncmily</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+            padding: 24px;
+        }
+
+        .chat-container {
+            max-width: 760px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 18px rgba(0,0,0,.08);
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .messages {
+            min-height: 300px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .notice {
+            color: #666;
+            text-align: center;
+            padding: 70px 12px;
+        }
+
+        .message-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #6366f1;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <main class="chat-container">
+        <h1>Household Chat</h1>
+        <p>Stay connected with your family.</p>
+
+        <section class="messages" aria-label="Chat messages">
+            <p class="notice">
+                Chat messaging will be available once
+                household membership is configured.
+            </p>
+        </section>
+
+        <div class="message-input">
+            <input
+                type="text"
+                placeholder="Type a message..."
+                aria-label="Message"
+                disabled
+            >
+            <button disabled>Send</button>
+        </div>
+    </main>
+</body>
+</html>
+
