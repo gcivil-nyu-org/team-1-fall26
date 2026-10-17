@@ -1,0 +1,58 @@
+{% load static tz %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My events | Syncmily</title>
+    <link rel="stylesheet" href="{% static 'events/event_form.css' %}">
+</head>
+<body>
+    <main>
+        <header>
+            <p class="brand">Syncmily</p>
+            <h1>My events</h1>
+            <p>Events you have created.</p>
+            <a href="{% url 'events:create' %}">Create an event</a>
+        </header>
+        {% get_current_timezone as timezone_name %}
+        <p>Times are shown in {{ timezone_name }}.</p>
+        <form method="get" class="panel schedule-filters">
+            {% for field in form %}
+                <div>{{ field.as_field_group }}</div>
+            {% endfor %}
+            <button type="submit">Show events</button>
+            <a href="{% url 'events:list' %}">Today</a>
+        </form>
+        {% if not form.errors %}
+            <nav class="form-actions schedule-navigation" aria-label="Schedule dates">
+                <a href="?{{ previous_query }}">Previous {{ form.cleaned_data.view }}</a>
+                <strong>{{ start_date|date:"M j, Y" }}{% if start_date != last_date %} – {{ last_date|date:"M j, Y" }}{% endif %}</strong>
+                <a href="?{{ next_query }}">Next {{ form.cleaned_data.view }}</a>
+            </nav>
+        {% endif %}
+        {% for event in page %}
+            <article class="panel event-card">
+                <h2><a href="{% url 'events:detail' event.pk %}">{{ event.title }}</a></h2>
+                <p>{{ event.starts_at|date:"M j, Y" }} at {{ event.starts_at|time:"g:i A" }} – {{ event.ends_at|date:"M j, Y" }} at {{ event.ends_at|time:"g:i A" }}</p>
+                <p>{{ event.location|default:"No location provided" }}</p>
+            </article>
+        {% empty %}
+            {% if not form.errors %}
+                <p>You have no events scheduled for this period.</p>
+            {% endif %}
+        {% endfor %}
+        {% if page.has_other_pages %}
+            <nav class="form-actions" aria-label="Event pages">
+                {% if page.has_previous %}
+                    <a href="?{{ period_query }}&amp;page={{ page.previous_page_number }}">Previous page</a>
+                {% endif %}
+                <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+                {% if page.has_next %}
+                    <a href="?{{ period_query }}&amp;page={{ page.next_page_number }}">Next page</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    </main>
+</body>
+</html>

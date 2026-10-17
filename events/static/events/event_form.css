@@ -62,13 +62,32 @@ h3 {
     margin-bottom: 20px;
 }
 
+.event-card {
+    margin-bottom: 16px;
+}
+
+.schedule-filters {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.schedule-filters > div {
+    flex: 1 1 180px;
+}
+
+.schedule-navigation {
+    margin: 24px 0;
+}
+
 label {
     display: block;
     margin-bottom: 6px;
     font-weight: 600;
 }
 
-input {
+input, select {
     width: 100%;
     min-width: 0;
     padding: 10px 12px;
@@ -92,6 +111,17 @@ button {
 
 button:hover {
     background: #1c4233;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.form-actions a {
+    color: #285b47;
 }
 
 :focus-visible {
