@@ -1,21 +1,21 @@
+{% extends 'events/base.html' %}
 {% load static tz %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ event.title }} | Syncmily</title>
-    <link rel="stylesheet" href="{% static 'events/event_form.css' %}">
-</head>
-<body>
-    <main>
-        <p class="brand">Syncmily</p>
+{% block title %}{{ event.title }} | Syncmily{% endblock %}
+{% block content %}
+
         {% for message in messages %}
             <p role="status">{{ message }}</p>
         {% endfor %}
-        <section class="panel" aria-labelledby="event-heading">
-            <h1 id="event-heading">{{ event.title }}</h1>
-            {% get_current_timezone as timezone_name %}
+        <section class="panel event-detail" aria-labelledby="event-heading">
+            <p class="eyebrow">EVENT DETAILS</p><h1 id="event-heading">{{ event.title }}</h1>
+            {% if event.workspace %}
+                <p>Workspace: <a href="{% url 'accounts:workspace_detail' event.workspace_id %}">{{ event.workspace.name }}</a></p>
+            {% endif %}
+            <form method="get" class="schedule-filters">
+                {{ timezone_form.timezone.as_field_group }}
+                <button type="submit">Show times</button>
+            </form>
+            {% timezone timezone_name %}
             <p>Times are shown in {{ timezone_name }}.</p>
             <dl>
                 <dt>Starts</dt>
@@ -25,11 +25,12 @@
                 <dt>Location</dt>
                 <dd>{{ event.location|default:"No location provided" }}</dd>
             </dl>
+            {% endtimezone %}
             <div class="form-actions">
-                <a href="{% url 'events:list' %}?{{ schedule_query }}">View this day</a>
-                <a href="{% url 'events:create' %}">Create another event</a>
+                <a href="{{ list_url }}?{{ schedule_query }}">View this day</a>
+                {% if event.workspace %}
+                    <a href="{% url 'events:workspace_create' event.workspace_id %}?{{ schedule_query }}">Create another event</a>
+                {% endif %}
             </div>
         </section>
-    </main>
-</body>
-</html>
+{% endblock %}

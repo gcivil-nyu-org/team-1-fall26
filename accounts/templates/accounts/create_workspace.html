@@ -1,32 +1,31 @@
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Create Workspace | Syncmily</title>
-</head>
-<body>
-    <main>
-        <h1>Create a Family Workspace</h1>
-        <p>Bring your household's schedules together in one place.</p>
-
-        <form method="post">
-            {% csrf_token %}
-
-            {{ form.non_field_errors }}
-
-            <div>
-                <label for="{{ form.name.id_for_label }}">
-                    Workspace Name
-                </label>
-
-                {{ form.name }}
-                {{ form.name.errors }}
-            </div>
-
-            <button type="submit">Create Workspace</button>
-        </form>
-    </main>
-</body>
-</html>
+{% extends 'events/base.html' %}
+{% block title %}Create a workspace | Syncmily{% endblock %}
+{% block content %}
+    <div class="breadcrumbs"><a href="{% url 'events:choose_workspace' %}">Workspaces</a><span>/</span><span>New workspace</span></div>
+    <header class="page-heading">
+        <p class="eyebrow">YOUR FAMILY, IN ONE PLACE</p>
+        <h1>Create a family workspace</h1>
+        <p>A shared space for the plans that matter to your household.</p>
+    </header>
+    <div class="setup-layout">
+        <section class="panel" aria-labelledby="workspace-heading">
+            <div class="panel-heading"><span class="step-number">01</span><h2 id="workspace-heading">Give your workspace a name</h2></div>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                <div class="form-field">
+                    <label for="{{ form.name.id_for_label }}">Workspace Name</label>
+                    {{ form.name }}
+                    {{ form.name.errors }}
+                    <p class="helptext">Something everyone will recognise, like “The Rivera Family”.</p>
+                </div>
+                <div class="form-actions form-footer"><button type="submit">Create Workspace <span aria-hidden="true">→</span></button><a href="{% url 'events:choose_workspace' %}">Cancel</a></div>
+            </form>
+        </section>
+        <aside class="setup-note">
+            <p class="eyebrow">WHAT HAPPENS NEXT</p>
+            <h2>Make room for your plans.</h2>
+            <ol class="steps-list"><li><strong>Name your workspace</strong><span>You’ll be its primary admin.</span></li><li><strong>Add your first event</strong><span>A school run, a birthday, or dinner together.</span></li><li><strong>See what’s coming up</strong><span>Keep your household’s plans in one schedule.</span></li></ol>
+        </aside>
+    </div>
+{% endblock %}

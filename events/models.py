@@ -14,6 +14,13 @@ class Event(models.Model):
         on_delete=models.PROTECT,
         related_name="created_events",
     )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.PROTECT,
+        related_name="events",
+        null=True,
+        blank=True,
+    )
     title = models.CharField(max_length=200)
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()

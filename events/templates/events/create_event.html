@@ -1,18 +1,14 @@
+{% extends 'events/base.html' %}
 {% load static tz %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Create family event | Syncmily</title>
-    <link rel="stylesheet" href="{% static 'events/event_form.css' %}">
-    <script src="{% static 'events/event_form.js' %}" defer></script>
-</head>
-<body>
-    <main>
-        <header>
-            <p class="brand">Syncmily</p>
-            <h1>Create family event</h1>
+{% block title %}Create family event | Syncmily{% endblock %}
+{% block scripts %}<script src="{% static 'events/event_form.js' %}" defer></script>{% endblock %}
+{% block content %}
+
+        <header class="page-heading">
+                <p class="eyebrow">SOMETHING TO LOOK FORWARD TO</p><h1>Create family event</h1>
+            {% if workspace %}
+                <p>Workspace: <a href="{% url 'accounts:workspace_detail' workspace.pk %}">{{ workspace.name }}</a></p>
+            {% endif %}
             <p>Plan an activity for your family. Check the details before adding it to your schedule.</p>
         </header>
 
@@ -21,7 +17,7 @@
                 <h2 id="details-heading">Event details</h2>
                 <p>Fields are required unless marked optional.</p>
                 {% if not can_save %}
-                    <p>You can preview event details. Your account does not currently have access to save events.</p>
+                    <p>You can preview event details here. Open a workspace you manage to save an event.</p>
                 {% endif %}
                 <p>Choose the timezone where the event takes place.</p>
 
@@ -39,25 +35,29 @@
                     </div>
                 {% endif %}
 
-                <form id="event-form" method="post" action="{% url 'events:create' %}">
+                <form id="event-form" method="post" action="{{ create_url }}">
                     {% csrf_token %}
                     {% for field in form.hidden_fields %}
                         {{ field }}
                     {% endfor %}
+                    <div class="event-fields">
                     {% for field in form.visible_fields %}
-                        <div class="form-field">
+                        <div class="form-field field-{{ field.name }}">
                             {{ field.as_field_group }}
                         </div>
                     {% endfor %}
-                    <div class="form-actions">
+                    </div>
+                    <div class="form-actions form-footer">
                         <button type="submit" name="action" value="preview">Check event details</button>
                         {% if can_save %}
                             <button type="submit" name="action" value="save">Save event</button>
                         {% endif %}
-                        <a href="{% url 'events:create' %}">Start over</a>
+                        <a href="{{ create_url }}">Start over</a>
                     </div>
                     <p id="review-notice" role="status"></p>
-                    {% if request.user.is_authenticated %}
+                    {% if workspace %}
+                        <a href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">View upcoming events</a>
+                    {% elif request.user.is_authenticated %}
                         <a href="{% url 'events:list' %}">View my events</a>
                     {% endif %}
                 </form>
@@ -89,8 +89,14 @@
                     <p>Need to change something? Edit the form and check the details again.</p>
                 </section>
                 {% endtimezone %}
+            {% else %}
+                <aside class="setup-note">
+                    <p class="eyebrow">BEFORE IT GOES ON THE CALENDAR</p>
+                    <h2>Get the details together.</h2>
+                    <p>Add a name, a day, and a start and end time. Location is optional.</p>
+                    <p>Choose “Check event details” to see a preview here. You can make changes before saving.</p>
+                    {% if workspace %}<div class="workspace-label"><span>Adding to</span><strong>{{ workspace.name }}</strong></div>{% endif %}
+                </aside>
             {% endif %}
         </div>
-    </main>
-</body>
-</html>
+{% endblock %}

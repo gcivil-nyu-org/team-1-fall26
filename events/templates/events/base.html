@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Syncmily{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'events/event_form.css' %}?v=2">
+    {% block scripts %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="wordmark" href="{% url 'events:list' %}?view=upcoming" aria-label="Syncmily home">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="3" y="5" width="24" height="22" rx="4" stroke="currentColor" stroke-width="2"/><path d="M3 12H27M10 3V8M20 3V8M10 18H14M17 18H20M10 22H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Syncmily<span class="wordmark-dot">.</span>
+            </a>
+            <nav class="primary-nav" aria-label="Main navigation">
+                <a href="{% url 'events:list' %}?view=upcoming" {% if request.resolver_match.app_name == 'events' and request.resolver_match.url_name != 'choose_workspace' %}aria-current="page"{% endif %}>Schedule</a>
+                <a href="{% url 'events:choose_workspace' %}" {% if request.resolver_match.app_name == 'accounts' or request.resolver_match.url_name == 'choose_workspace' %}aria-current="page"{% endif %}>Workspaces</a>
+                <a href="{% url 'chat:home' %}">Household chat</a>
+            </nav>
+            <div class="header-account">
+                {% if request.user.is_authenticated %}
+                    <span class="account-avatar" aria-hidden="true">{{ request.user.username|first|upper }}</span>
+                    <span>{{ request.user.username }}</span>
+                {% else %}
+                    <a href="{% url 'admin:login' %}">Sign in</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    <main id="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer"><span>Syncmily</span><span>Your family’s plans, together.</span></footer>
+</body>
+</html>
