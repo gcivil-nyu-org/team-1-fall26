@@ -145,6 +145,7 @@ class EventForm(EventTimezoneForm):
             created_by=self.user,
             workspace=self.workspace,
             title=cleaned_data["title"],
+            timezone_name=cleaned_data["timezone"],
             starts_at=cleaned_data["starts_at"],
             ends_at=cleaned_data["ends_at"],
             location=cleaned_data["location"],
@@ -157,7 +158,7 @@ class EventForm(EventTimezoneForm):
                 validate_constraints=False,
             )
         except forms.ValidationError as error:
-            field_names = {"starts_at": "start_time", "ends_at": "end_time"}
+            field_names = {"starts_at": "start_time", "ends_at": "end_time", "timezone_name": "timezone"}
             for field, errors in error.error_dict.items():
                 form_field = field_names.get(field, field)
                 self.add_error(form_field if form_field in self.fields else None, errors)

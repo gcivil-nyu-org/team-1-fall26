@@ -8,7 +8,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -84,12 +84,13 @@ def create_event(request, workspace_id=None):
                                 "starts_at": event_details.starts_at,
                                 "ends_at": event_details.ends_at,
                                 "location": event_details.location,
+                                "timezone_name": event_details.timezone_name,
                             },
                         )
                 except ValidationError as error:
                     form.add_error(None, error.messages)
-                except IntegrityError:
-                    form.add_error(None, "The event could not be saved. Please try again.")
+                except DatabaseError:
+                    form.add_error(None, "The event could not be saved. Your details are still here. Please try again.")
                 if not form.errors:
                     messages.success(request, "Your event has been saved.")
                     detail_url = reverse("events:detail", args=[saved_event.pk])
@@ -146,8 +147,11 @@ def event_detail(request, pk):
         reverse("events:workspace_list", args=[event.workspace_id])
         if event.workspace_id else reverse("events:list")
     )
-    timezone_form = EventTimezoneForm(request.GET)
-    timezone_name = timezone.get_current_timezone_name()
+    timezone_data = request.GET.copy()
+    if not timezone_data.get("timezone"):
+        timezone_data["timezone"] = event.timezone_name
+    timezone_form = EventTimezoneForm(timezone_data)
+    timezone_name = event.timezone_name
     if timezone_form.is_valid():
         timezone_name = timezone_form.cleaned_data["timezone"]
     schedule_query = urlencode({

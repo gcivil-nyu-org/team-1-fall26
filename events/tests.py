@@ -2,6 +2,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import OperationalError
 from django.db.models.deletion import ProtectedError
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -293,6 +295,64 @@ class WorkspaceEventTests(TestCase):
         self.assertContains(response, reverse("events:choose_workspace"))
 
 
+    def test_reopened_event_uses_original_timezone_without_query_parameters(self):
+        token = self.submission_token(self.create_url)
+        self.client.post(self.create_url, {
+            **self.event_data,
+            "timezone": "America/New_York",
+            "start_time": "23:00",
+            "end_time": "23:30",
+            "submission_token": token,
+        })
+        event = Event.objects.get()
+        self.assertEqual(event.timezone_name, "America/New_York")
+        self.assertEqual(event.starts_at.hour, 3)
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+        self.assertEqual(response.context["timezone_name"], "America/New_York")
+        self.assertContains(response, "11:00 PM")
+        self.assertIn("date=2026-10-20", response.context["schedule_query"])
+
+    def test_display_timezone_override_does_not_change_saved_timezone(self):
+        event = self.create_saved_event("Family dinner", self.workspace, self.admin)
+        event.timezone_name = "America/New_York"
+        event.save(update_fields=["timezone_name"])
+        response = self.client.get(reverse("events:detail", args=[event.pk]), {"timezone": "Asia/Kolkata"})
+        self.assertEqual(response.context["timezone_name"], "Asia/Kolkata")
+        event.refresh_from_db()
+        self.assertEqual(event.timezone_name, "America/New_York")
+
+    def test_failed_save_keeps_details_and_allows_safe_retry(self):
+        token = self.submission_token(self.create_url)
+        data = {
+            **self.event_data,
+            "timezone": "America/New_York",
+            "location": "School field",
+            "submission_token": token,
+        }
+        with patch("events.views.Event.objects.get_or_create", side_effect=OperationalError("Temporary failure")):
+            response = self.client.post(self.create_url, data)
+        self.assertContains(response, "Your details are still here.")
+        for field in ("title", "date", "start_time", "end_time", "timezone", "location", "submission_token"):
+            self.assertEqual(response.context["form"][field].value(), data[field])
+        self.assertFalse(Event.objects.exists())
+        response = self.client.post(self.create_url, data)
+        self.assertEqual(response.status_code, 302)
+        self.client.post(self.create_url, data)
+        self.assertEqual(Event.objects.count(), 1)
+
+    def test_invalid_event_does_not_save_and_keeps_entered_values(self):
+        token = self.submission_token(self.create_url)
+        response = self.client.post(self.create_url, {
+            **self.event_data,
+            "end_time": "17:00",
+            "submission_token": token,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("end_time", response.context["form"].errors)
+        self.assertEqual(response.context["form"]["title"].value(), self.event_data["title"])
+        self.assertFalse(Event.objects.exists())
+
+
 class EventScheduleTimezoneTests(SimpleTestCase):
     def test_daylight_saving_day_uses_local_midnights(self):
         form = EventScheduleForm({"date": "2026-11-01", "timezone": "America/New_York"})
@@ -300,3 +360,11 @@ class EventScheduleTimezoneTests(SimpleTestCase):
         starts_at = form.cleaned_data["starts_at"].astimezone(timezone.utc)
         ends_at = form.cleaned_data["ends_at"].astimezone(timezone.utc)
         self.assertEqual(ends_at - starts_at, timedelta(hours=25))
+
+
+class EventModelTimezoneTests(SimpleTestCase):
+    def test_invalid_timezone_is_rejected(self):
+        event = Event(title="Family dinner", timezone_name="Not/A_Timezone")
+        with self.assertRaises(ValidationError) as error:
+            event.clean()
+        self.assertIn("timezone_name", error.exception.message_dict)
