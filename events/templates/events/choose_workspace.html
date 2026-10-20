@@ -15,9 +15,9 @@
                     <div class="form-actions form-footer"><button type="submit">Continue to event details <span aria-hidden="true">→</span></button></div>
                 </form>
             {% else %}
-                <div class="empty-state"><h3>A home for your family’s plans.</h3><p>You need to be a primary admin or an accepted parent in a workspace to create family events.</p><a class="button" href="{% url 'accounts:create_workspace' %}">Create a workspace</a></div>
+                <div class="empty-state"><h3>A home for your family’s plans.</h3><p>You need to be a primary admin or an accepted parent in a workspace to create family events.</p><a data-dialog class="button" href="{% url 'accounts:create_workspace' %}">Create a workspace</a></div>
             {% endif %}
         </section>
-        <aside class="setup-note"><p class="eyebrow">START SOMETHING NEW</p><h2>Keep each household’s plans separate.</h2><p>Keep different households’ plans separate, with a schedule for each.</p><a class="text-link" href="{% url 'accounts:create_workspace' %}">Create a workspace <span aria-hidden="true">→</span></a><a class="text-link" href="{% url 'events:list' %}?view=upcoming">View my upcoming events</a></aside>
+        <aside class="setup-note"><p class="eyebrow">START SOMETHING NEW</p><h2>Keep each household’s plans separate.</h2><p>Keep different households’ plans separate, with a schedule for each.</p><a data-dialog class="text-link" href="{% url 'accounts:create_workspace' %}">Create a workspace <span aria-hidden="true">→</span></a><a class="text-link" href="{% url 'events:list' %}?view=upcoming">View my upcoming events</a></aside>
     </div>
 {% endblock %}

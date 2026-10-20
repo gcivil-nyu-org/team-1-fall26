@@ -20,7 +20,7 @@
                 {% timezone event.timezone_name %}
                 <article class="kid-event kid-color-{{ forloop.counter }}">
                     <p class="kid-event-day">{{ event.starts_at|date:'l, M j' }}</p>
-                    <h3><a href="{% url 'events:detail' event.pk %}">{{ event.title }}</a></h3>
+                    <h3><a data-dialog href="{% url 'events:detail' event.pk %}">{{ event.title }}</a></h3>
                     <p>{{ event.starts_at|time:"g:i A" }}{% if event.location %} · {{ event.location }}{% endif %}</p>
                 </article>
                 {% endtimezone %}
