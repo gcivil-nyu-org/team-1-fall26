@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
 
 from .forms import InviteMemberForm, UsernameChangeForm, WorkspaceForm
@@ -74,10 +75,19 @@ def workspace_detail(request, workspace_id):
             "You do not have permission to access this workspace."
         )
 
+    calendar_connection = (
+        request.user.calendar_connections.filter(provider=CalendarConnection.Provider.GOOGLE)
+        .select_related("workspace")
+        .first()
+    )
+
     return render(
         request,
         "accounts/workspace_detail.html",
-        {"workspace": workspace},
+        {
+            "workspace": workspace,
+            "calendar_connection": calendar_connection,
+        },
     )
 
 

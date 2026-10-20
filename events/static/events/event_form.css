@@ -71,6 +71,9 @@ button:hover, .button:hover { background: #85402d; border-color: #85402d; color:
 .calendar-symbol { display: flex; flex-direction: column; width: 64px; text-align: center; border: 1px solid #ebe0d3; border-top: 5px solid var(--accent); border-radius: 4px; font-size: 11px; text-transform: uppercase; color: var(--accent); margin-bottom: 32px; padding: 5px 0; }
 .calendar-symbol strong { color: var(--ink); font-size: 26px; line-height: 1.15; }
 .workspace-info { padding: 28px; }
+.workspace-sidebar { display: grid; gap: 24px; }
+.workspace-info form + form { margin-top: 12px; }
+.event-source { font-size: 13px; color: var(--muted); }
 .workspace-info h2 { font-size: 17px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 dt { color: var(--muted); font-size: 12px; margin-top: 20px; }
 dd { margin: 6px 0 0; font-size: 15px; }

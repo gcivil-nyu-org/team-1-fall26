@@ -52,6 +52,7 @@
                 <div class="event-date">{{ event.starts_at|date:'M' }}<strong>{{ event.starts_at|date:'d' }}</strong>{{ event.starts_at|date:'D' }}</div>
                 <div class="event-summary"><h2><a data-dialog href="{% url 'events:detail' event.pk %}?{{ timezone_query }}">{{ event.title }}</a></h2>
                 <p>{{ event.starts_at|date:"M j, Y" }} at {{ event.starts_at|time:"g:i A" }} – {{ event.ends_at|date:"M j, Y" }} at {{ event.ends_at|time:"g:i A" }}</p>
+                {% if event.source == 'google' %}<p class="event-source">From Google Calendar</p>{% endif %}
                 {% if not workspace and event.workspace %}
                     <p><a href="{% url 'events:workspace_list' event.workspace_id %}?view=upcoming&amp;{{ timezone_query }}">{{ event.workspace.name }}</a></p>
                 {% endif %}

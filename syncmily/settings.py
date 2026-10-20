@@ -110,3 +110,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+# Set this in production to the exact redirect URI registered with Google.
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+
+# Fernet keys for encrypting stored OAuth tokens, newest first.
+FIELD_ENCRYPTION_KEYS = [
+    key.strip()
+    for key in os.environ.get("FIELD_ENCRYPTION_KEYS", "").split(",")
+    if key.strip()
+]
