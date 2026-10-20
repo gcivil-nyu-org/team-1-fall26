@@ -1,0 +1,16 @@
+{% autoescape off %}Hi!
+
+{{ membership.invited_by.username }} has invited you to join "{{ membership.workspace.name }}" on Syncmily as a {{ membership.get_role_display|lower }}.
+
+Confirm your invitation here:
+{{ accept_url }}
+
+Once you've confirmed, sign in with:
+  Username: {{ membership.user.username }}
+  Password: {{ password }}
+
+You can change your username and password from your profile after signing in.
+This link expires in 7 days.
+
+- The Syncmily team
+{% endautoescape %}

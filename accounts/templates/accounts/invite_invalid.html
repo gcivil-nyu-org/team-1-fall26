@@ -1,0 +1,10 @@
+{% extends 'events/base.html' %}
+{% block title %}Invitation not valid | Syncmily{% endblock %}
+{% block content %}
+    <section class="panel invite-panel">
+        <p class="eyebrow">INVITATION</p>
+        <h1>This link doesn't work</h1>
+        <p>The invitation link is invalid or has expired. Ask the person who invited you to send a new one.</p>
+        <a class="text-link" href="{% url 'accounts:login' %}">Go to sign in</a>
+    </section>
+{% endblock %}

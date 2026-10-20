@@ -26,6 +26,11 @@ class Event(models.Model):
         null=True,
         blank=True,
     )
+    participants = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="family_events",
+        blank=True,
+    )
     title = models.CharField(max_length=200)
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()

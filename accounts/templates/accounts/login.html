@@ -1,0 +1,32 @@
+{% extends 'events/base.html' %}
+{% block title %}Sign in | Syncmily{% endblock %}
+{% block content %}
+    {% include 'accounts/_messages.html' %}
+    <div class="setup-layout">
+        <section class="panel" aria-labelledby="login-heading">
+            <div class="panel-heading"><h2 id="login-heading">Sign in to Syncmily</h2></div>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                <div class="form-field">
+                    <label for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                    {{ form.username.errors }}
+                    <p class="helptext">For example Parent2 or Kid1, from your invitation email.</p>
+                </div>
+                <div class="form-field">
+                    <label for="{{ form.password.id_for_label }}">Password</label>
+                    {{ form.password }}
+                    {{ form.password.errors }}
+                </div>
+                <input type="hidden" name="next" value="{{ next }}">
+                <div class="form-actions form-footer"><button type="submit">Sign in <span aria-hidden="true">→</span></button></div>
+            </form>
+        </section>
+        <aside class="setup-note">
+            <p class="eyebrow">JUST BEEN INVITED?</p>
+            <h2>Confirm your email first.</h2>
+            <ol class="steps-list"><li><strong>Open your invitation email</strong><span>It has your username and password.</span></li><li><strong>Confirm the invitation</strong><span>Your account switches on once you confirm.</span></li><li><strong>Sign in here</strong><span>You can change your username and password from your profile.</span></li></ol>
+        </aside>
+    </div>
+{% endblock %}

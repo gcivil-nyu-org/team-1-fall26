@@ -3,11 +3,13 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo, available_timezones
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.core import signing
 from django.utils import timezone
 
 from accounts.models import Workspace
 
+from .access import event_participants, family_workspaces
 from .models import Event
 
 
@@ -32,7 +34,7 @@ class EventWorkspaceForm(EventTimezoneForm):
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["workspace"].queryset = Workspace.objects.filter(primary_admin=user).order_by("name", "pk")
+        self.fields["workspace"].queryset = family_workspaces(user, caregivers_only=True).order_by("name", "pk")
 
 
 class EventScheduleForm(EventTimezoneForm):
@@ -88,7 +90,7 @@ class EventScheduleForm(EventTimezoneForm):
 
 class EventForm(EventTimezoneForm):
     field_order = [
-        "submission_token", "title", "date", "start_time", "end_date", "end_time", "timezone", "location",
+        "submission_token", "title", "date", "start_time", "end_date", "end_time", "timezone", "location", "participants",
     ]
     submission_token = forms.CharField(required=False, widget=forms.HiddenInput)
     title = forms.CharField(max_length=200)
@@ -103,10 +105,19 @@ class EventForm(EventTimezoneForm):
     end_time = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time"}))
     location = forms.CharField(label="Location (optional)", max_length=255, required=False)
 
+    participants = forms.ModelMultipleChoiceField(
+        label="Family members (optional)",
+        queryset=get_user_model().objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Choose who is taking part. Everyone in the workspace can still view the event.",
+    )
+
     def __init__(self, *args, user=None, workspace=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user if user is not None and user.is_authenticated else None
         self.workspace = workspace
+        self.fields["participants"].queryset = event_participants(workspace)
         self.event = None
         self.fields["submission_token"].initial = signing.dumps(
             {

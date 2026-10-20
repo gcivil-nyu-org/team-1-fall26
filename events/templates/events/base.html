@@ -5,7 +5,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Syncmily{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'events/event_form.css' %}?v=4">
+    <link rel="stylesheet" href="{% static 'events/event_form.css' %}?v=5">
+    <link rel="stylesheet" href="{% static 'accounts/accounts.css' %}?v=2">
+    <script src="{% static 'events/interface.js' %}" defer></script>
     {% block scripts %}{% endblock %}
 </head>
 <body>
@@ -17,23 +19,31 @@
                 Syncmily<span class="wordmark-dot">.</span>
             </a>
             <nav class="primary-nav" aria-label="Main navigation">
+                <a href="{% url 'accounts:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
                 <a href="{% url 'events:list' %}?view=upcoming" {% if request.resolver_match.app_name == 'events' and request.resolver_match.url_name != 'choose_workspace' %}aria-current="page"{% endif %}>Schedule</a>
-                <a href="{% url 'events:choose_workspace' %}" {% if request.resolver_match.app_name == 'accounts' or request.resolver_match.url_name == 'choose_workspace' %}aria-current="page"{% endif %}>Workspaces</a>
+                <a href="{% url 'events:choose_workspace' %}" {% if request.resolver_match.url_name == 'choose_workspace' or request.resolver_match.url_name == 'create_workspace' or request.resolver_match.url_name == 'workspace_detail' or request.resolver_match.url_name == 'manage_members' %}aria-current="page"{% endif %}>Workspaces</a>
                 <a href="{% url 'chat:home' %}">Household chat</a>
             </nav>
             <div class="header-account">
                 {% if request.user.is_authenticated %}
-                    <span class="account-avatar" aria-hidden="true">{{ request.user.username|first|upper }}</span>
-                    <span>{{ request.user.username }}</span>
-                {% else %}
-                    <a href="{% url 'admin:login' %}">Sign in</a>
-                {% endif %}
+                    <details class="account-menu">
+                        <summary><span class="account-avatar" aria-hidden="true">{{ request.user.username|first|upper }}</span><span>{{ request.user.username }}</span><span class="menu-chevron" aria-hidden="true">⌄</span></summary>
+                        <div class="account-popover"><p>YOUR ACCOUNT</p><a data-dialog data-dialog-title="Profile &amp; settings" href="{% url 'accounts:profile' %}">Profile &amp; settings <span aria-hidden="true">↗</span></a><a href="{% url 'accounts:dashboard' %}">Family dashboard</a><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit" class="link-button">Sign out</button></form></div>
+                    </details>
+                {% else %}<a href="{% url 'accounts:login' %}">Sign in</a>{% endif %}
             </div>
         </div>
     </header>
     <main id="main-content">
         {% block content %}{% endblock %}
     </main>
+    <dialog id="planner-dialog" aria-labelledby="dialog-title">
+        <div class="dialog-topbar"><div><span class="dialog-eyebrow">SYNCMILY / FAMILY PLANNER</span><h2 id="dialog-title">Make a plan</h2></div><div class="dialog-tools"><a id="dialog-page-link" target="_blank" rel="noopener" href="{% url 'events:list' %}">Open page <span aria-hidden="true">↗</span></a><button id="dialog-close" type="button" aria-label="Close window" autofocus>×</button></div></div>
+        <div id="dialog-notice" class="dialog-notice" role="alert" hidden></div>
+        <div class="dialog-loading" role="status"><span class="loading-spinner"></span><span>Opening your planner…</span></div>
+        <div id="dialog-content"></div>
+    </dialog>
+    <p id="planner-status" class="sr-only" role="status"></p>
     <footer class="site-footer"><span>Syncmily</span><span>Your family’s plans, together.</span></footer>
 </body>
 </html>

@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("accounts", "0001_initial"),
         ("calendars", "0001_initial"),
-        ("events", "0004_event_timezone_name"),
+        ("events", "0005_event_participants"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
