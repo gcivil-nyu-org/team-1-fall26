@@ -24,6 +24,10 @@
                 <dd>{{ event.ends_at|date:"l, F j, Y" }} at {{ event.ends_at|time:"g:i A" }}</dd>
                 <dt>Location</dt>
                 <dd>{{ event.location|default:"No location provided" }}</dd>
+                {% if event.source == 'google' %}
+                    <dt>Source</dt>
+                    <dd>Imported from Google Calendar</dd>
+                {% endif %}
             </dl>
             {% endtimezone %}
             <div class="form-actions">

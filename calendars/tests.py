@@ -10,6 +10,7 @@ from django.contrib.messages import get_messages
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.db import IntegrityError, connection as db_connection, transaction
+from google.auth.exceptions import RefreshError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -18,6 +19,7 @@ from events.models import Event
 
 from . import google
 from .models import CalendarConnection
+from .sync import SyncResult, sync_connection
 from .views import SESSION_KEY
 
 TEST_KEY = Fernet.generate_key().decode()
@@ -220,7 +222,9 @@ class GoogleConnectionViewTests(TestCase):
         return response, authorization_url
 
     def callback(self, query, credentials=None, email="caregiver@example.com", error=None):
-        with patch("calendars.views.google.exchange_code") as exchange_code:
+        with patch("calendars.views.google.exchange_code") as exchange_code, patch(
+            "calendars.views.sync_connection", return_value=SyncResult()
+        ):
             exchange_code.side_effect = error
             exchange_code.return_value = (credentials or self.credentials(), email)
             response = self.client.get(reverse("calendars:google_callback"), query)
@@ -402,3 +406,175 @@ class GoogleHelperTests(TestCase):
     def test_revoke_reports_network_failure(self):
         with patch("calendars.google.requests.post", side_effect=google.requests.ConnectionError):
             self.assertFalse(google.revoke("1//refresh"))
+
+
+class FakeCalendarService:
+    """Stands in for googleapiclient's Calendar service, one page per list call."""
+
+    def __init__(self, pages, time_zone="America/New_York"):
+        self.pages = list(pages)
+        self.time_zone = time_zone
+        self.list_kwargs = []
+
+    def events(self):
+        return self
+
+    def list(self, **kwargs):
+        self.list_kwargs.append(kwargs)
+        return SimpleNamespace(execute=lambda: {"timeZone": self.time_zone, "items": self.pages.pop(0)})
+
+    def list_next(self, request, response):
+        return self.list() if self.pages else None
+
+
+@override_settings(FIELD_ENCRYPTION_KEYS=[TEST_KEY])
+class CalendarSyncTests(TestCase):
+    now = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="caregiver")
+        self.workspace = Workspace.objects.create(name="Our family", primary_admin=self.user)
+        self.connection = CalendarConnection.objects.create(
+            user=self.user,
+            workspace=self.workspace,
+            provider=CalendarConnection.Provider.GOOGLE,
+            access_token="ya29.access",
+            refresh_token="1//refresh",
+            token_expires_at=self.now + timedelta(hours=1),
+            scopes=" ".join(google.SCOPES),
+        )
+
+    def sync(self, *pages):
+        service = FakeCalendarService(pages)
+        with patch("calendars.sync._service", return_value=service):
+            result = sync_connection(self.connection, now=self.now)
+        return result, service
+
+    def timed(self, event_id, summary="Soccer practice", start="2026-10-21T15:30:00-04:00",
+              end="2026-10-21T16:30:00-04:00", **extra):
+        return {
+            "id": event_id,
+            "status": "confirmed",
+            "summary": summary,
+            "start": {"dateTime": start, "timeZone": "America/New_York"},
+            "end": {"dateTime": end, "timeZone": "America/New_York"},
+            **extra,
+        }
+
+    def test_imports_timed_and_all_day_events_into_the_workspace(self):
+        all_day = {"id": "holiday", "summary": "Thanksgiving", "start": {"date": "2026-11-26"},
+                   "end": {"date": "2026-11-27"}}
+        result, service = self.sync([self.timed("soccer", location="School field")], [all_day])
+
+        self.assertEqual((result.created, result.updated, result.deleted, result.skipped), (2, 0, 0, 0))
+        soccer = Event.objects.get(external_id="soccer")
+        self.assertEqual(soccer.workspace, self.workspace)
+        self.assertEqual(soccer.created_by, self.user)
+        self.assertEqual(soccer.source, Event.Source.GOOGLE)
+        self.assertEqual(soccer.location, "School field")
+        self.assertEqual(soccer.starts_at, datetime(2026, 10, 21, 19, 30, tzinfo=timezone.utc))
+        self.assertEqual(soccer.timezone_name, "America/New_York")
+        holiday = Event.objects.get(external_id="holiday")
+        self.assertEqual(holiday.starts_at, datetime(2026, 11, 26, 5, 0, tzinfo=timezone.utc))
+        self.assertEqual(holiday.ends_at - holiday.starts_at, timedelta(days=1))
+
+        first_call = service.list_kwargs[0]
+        self.assertEqual(first_call["calendarId"], "primary")
+        self.assertTrue(first_call["singleEvents"])
+        self.assertEqual(first_call["timeMin"], "2026-09-20T12:00:00+00:00")
+        self.assertEqual(first_call["timeMax"], "2027-04-18T12:00:00+00:00")
+        self.connection.refresh_from_db()
+        self.assertEqual(self.connection.last_synced_at, self.now)
+
+    def test_resync_updates_changes_and_does_not_duplicate(self):
+        self.sync([self.timed("soccer")])
+        result, _ = self.sync([self.timed("soccer", summary="Soccer final")])
+        unchanged, _ = self.sync([self.timed("soccer", summary="Soccer final")])
+
+        self.assertEqual((result.created, result.updated), (0, 1))
+        self.assertEqual((unchanged.created, unchanged.updated), (0, 0))
+        self.assertEqual(Event.objects.get().title, "Soccer final")
+
+    def test_cancelled_and_missing_events_are_removed(self):
+        self.sync([self.timed("soccer"), self.timed("piano")])
+        result, _ = self.sync([{"id": "soccer", "status": "cancelled"}])
+
+        self.assertEqual(result.deleted, 2)
+        self.assertFalse(Event.objects.exists())
+
+    def test_events_outside_the_window_are_kept(self):
+        self.sync([self.timed("old", start="2026-01-05T10:00:00Z", end="2026-01-05T11:00:00Z")])
+        self.sync([])
+
+        self.assertTrue(Event.objects.filter(external_id="old").exists())
+
+    def test_syncmily_events_are_never_touched(self):
+        own = Event.objects.create(
+            created_by=self.user,
+            workspace=self.workspace,
+            title="Dentist",
+            starts_at=self.now,
+            ends_at=self.now + timedelta(hours=1),
+        )
+        self.sync([])
+
+        self.assertTrue(Event.objects.filter(pk=own.pk).exists())
+
+    def test_zero_length_and_untitled_events(self):
+        reminder = self.timed("reminder", end="2026-10-21T15:30:00-04:00")
+        untitled = self.timed("untitled", summary="  ")
+        result, _ = self.sync([reminder, untitled])
+
+        self.assertEqual(result.skipped, 1)
+        self.assertEqual(Event.objects.get().title, "(No title)")
+
+    def test_refreshed_access_token_is_saved_encrypted(self):
+        service = FakeCalendarService([[]])
+
+        def refreshing_service(credentials):
+            credentials.token = "ya29.new"
+            credentials.expiry = datetime(2026, 10, 20, 14, 0)
+            return service
+
+        with patch("calendars.sync._service", side_effect=refreshing_service):
+            sync_connection(self.connection, now=self.now)
+
+        connection = CalendarConnection.objects.get(pk=self.connection.pk)
+        self.assertEqual(connection.access_token, "ya29.new")
+        self.assertEqual(connection.token_expires_at, datetime(2026, 10, 20, 14, 0, tzinfo=timezone.utc))
+
+    def test_sync_now_button_reports_results_and_failures(self):
+        self.client.force_login(self.user)
+        url = reverse("calendars:google_sync")
+        workspace_url = reverse("accounts:workspace_detail", args=[self.workspace.pk])
+        cases = {
+            "success": ({"return_value": SyncResult()}, "Google Calendar events imported: 0 added"),
+            "revoked": ({"side_effect": RefreshError("revoked")}, "Disconnect and connect Google Calendar again."),
+            "api error": ({"side_effect": ValueError("boom")}, "We couldn’t import your Google Calendar events."),
+        }
+        for case, (behaviour, message) in cases.items():
+            with self.subTest(case=case), patch("calendars.views.sync_connection", **behaviour):
+                response = self.client.post(url)
+
+                self.assertRedirects(response, workspace_url)
+                texts = [str(m) for m in get_messages(response.wsgi_request)]
+                self.assertTrue(any(message in text for text in texts), texts)
+
+    def test_imported_events_appear_in_the_family_schedule(self):
+        self.sync([self.timed("soccer")])
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("events:workspace_list", args=[self.workspace.pk]),
+            {"view": "upcoming", "date": "2026-10-20", "timezone": "America/New_York"},
+        )
+
+        self.assertContains(response, "Soccer practice")
+        self.assertContains(response, "From Google Calendar")
+
+    def test_sync_command_reports_each_connection(self):
+        out = StringIO()
+        with patch("calendars.management.commands.sync_calendars.sync_connection", return_value=SyncResult()):
+            call_command("sync_calendars", stdout=out)
+
+        self.assertIn(f"Connection {self.connection.pk}: 0 added", out.getvalue())

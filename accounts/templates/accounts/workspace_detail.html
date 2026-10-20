@@ -30,6 +30,11 @@
             {% if calendar_connection %}
                 <p>Connected{% if calendar_connection.account_email %} as {{ calendar_connection.account_email }}{% endif %}.
                     {% if calendar_connection.workspace and calendar_connection.workspace != workspace %}Events go to <a href="{% url 'accounts:workspace_detail' calendar_connection.workspace_id %}">{{ calendar_connection.workspace.name }}</a>.{% endif %}</p>
+                <p>{% if calendar_connection.last_synced_at %}Last imported {{ calendar_connection.last_synced_at|timesince }} ago.{% else %}Not imported yet.{% endif %}</p>
+                <form method="post" action="{% url 'calendars:google_sync' %}">
+                    {% csrf_token %}
+                    <button type="submit">Import events now</button>
+                </form>
                 <form method="post" action="{% url 'calendars:google_disconnect' %}">
                     {% csrf_token %}
                     <button type="submit" class="button-secondary">Disconnect Google Calendar</button>

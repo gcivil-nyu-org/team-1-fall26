@@ -8,11 +8,13 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
+from google.auth.exceptions import RefreshError
 
 from accounts.models import Workspace
 
 from . import google
 from .models import CalendarConnection
+from .sync import sync_connection
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +87,7 @@ def google_callback(request):
     if expires_at is not None and timezone.is_naive(expires_at):
         expires_at = expires_at.replace(tzinfo=datetime_timezone.utc)
 
-    CalendarConnection.objects.update_or_create(
+    connection, _ = CalendarConnection.objects.update_or_create(
         user=request.user,
         provider=CalendarConnection.Provider.GOOGLE,
         defaults={
@@ -100,7 +102,35 @@ def google_callback(request):
         },
     )
     messages.success(request, f"Google Calendar connected{f' for {email}' if email else ''}.")
+    _sync_and_report(request, connection)
     return redirect(workspace_url)
+
+
+def _sync_and_report(request, connection):
+    try:
+        result = sync_connection(connection)
+    except RefreshError:
+        messages.error(
+            request,
+            "Google no longer accepts Syncmily’s access. Disconnect and connect Google Calendar again.",
+        )
+    except Exception as error:
+        logger.warning("Google Calendar import failed: %s", type(error).__name__)
+        messages.error(request, "We couldn’t import your Google Calendar events. Please try again later.")
+    else:
+        messages.success(request, f"Google Calendar events imported: {result}.")
+
+
+@login_required(login_url="admin:login")
+@require_POST
+def google_sync(request):
+    connection = get_object_or_404(
+        CalendarConnection, user=request.user, provider=CalendarConnection.Provider.GOOGLE
+    )
+    _sync_and_report(request, connection)
+    if connection.workspace_id:
+        return redirect("accounts:workspace_detail", workspace_id=connection.workspace_id)
+    return redirect("events:choose_workspace")
 
 
 @login_required(login_url="admin:login")
