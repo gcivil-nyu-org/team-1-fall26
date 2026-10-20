@@ -27,7 +27,7 @@ def _callback_uri(request):
     )
 
 
-@login_required(login_url="admin:login")
+@login_required
 @require_POST
 def google_connect(request, workspace_id):
     workspace = get_object_or_404(Workspace, pk=workspace_id, primary_admin=request.user)
@@ -44,7 +44,7 @@ def google_connect(request, workspace_id):
     return redirect(url)
 
 
-@login_required(login_url="admin:login")
+@login_required
 @require_GET
 def google_callback(request):
     pending = request.session.pop(SESSION_KEY, None)
@@ -121,7 +121,7 @@ def _sync_and_report(request, connection):
         messages.success(request, f"Google Calendar events imported: {result}.")
 
 
-@login_required(login_url="admin:login")
+@login_required
 @require_POST
 def google_sync(request):
     connection = get_object_or_404(
@@ -133,7 +133,7 @@ def google_sync(request):
     return redirect("events:choose_workspace")
 
 
-@login_required(login_url="admin:login")
+@login_required
 @require_POST
 def google_disconnect(request):
     connection = get_object_or_404(

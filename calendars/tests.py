@@ -578,3 +578,14 @@ class CalendarSyncTests(TestCase):
             call_command("sync_calendars", stdout=out)
 
         self.assertIn(f"Connection {self.connection.pk}: 0 added", out.getvalue())
+
+
+class SignedOutRedirectTests(TestCase):
+    def test_calendar_pages_send_signed_out_users_to_the_app_login(self):
+        response = self.client.get(reverse("calendars:google_callback"))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={reverse('calendars:google_callback')}",
+            fetch_redirect_response=False,
+        )
