@@ -1,10 +1,10 @@
 {% extends 'events/base.html' %}
 {% block title %}{{ workspace.name }} | Syncmily{% endblock %}
 {% block content %}
-    <div class="breadcrumbs"><a href="{% url 'events:choose_workspace' %}">Workspaces</a><span>/</span><span>{{ workspace.name }}</span></div>
+    <div class="breadcrumbs"><a data-dialog href="{% url 'events:choose_workspace' %}">Workspaces</a><span>/</span><span>{{ workspace.name }}</span></div>
     <header class="page-heading heading-with-action">
         <div><p class="eyebrow">FAMILY WORKSPACE</p><h1>{{ workspace.name }}</h1><p>Your place to keep the family’s plans together.</p></div>
-        <a class="button" href="{% url 'events:workspace_create' workspace.pk %}">Create an event <span aria-hidden="true">＋</span></a>
+        <a data-dialog class="button" href="{% url 'events:workspace_create' workspace.pk %}">Create an event <span aria-hidden="true">＋</span></a>
     </header>
     <div class="workspace-layout">
         <section class="panel workspace-overview" aria-labelledby="schedule-heading">
@@ -19,7 +19,7 @@
             <h2>Workspace details</h2>
             <dl><dt>Primary Admin</dt><dd class="admin-name"><span class="account-avatar" aria-hidden="true">{{ workspace.primary_admin.username|first|upper }}</span>{{ workspace.primary_admin.username }}</dd><dt>Created</dt><dd>{{ workspace.created_at|date:'F j, Y' }}</dd></dl>
             <details><summary>Workspace ID</summary><p class="workspace-id">{{ workspace.id }}</p></details>
-            <a class="text-link" href="{% url 'accounts:create_workspace' %}">Create another workspace</a>
+            <a data-dialog class="text-link" href="{% url 'accounts:create_workspace' %}">Create another workspace</a>
         </aside>
     </div>
 {% endblock %}

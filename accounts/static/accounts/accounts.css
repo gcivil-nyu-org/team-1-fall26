@@ -1,21 +1,21 @@
 /* Shared account pages: sign-in, members, profile, dashboards. */
 .flash-messages { margin: 0 0 24px; }
-.flash { margin: 0 0 10px; padding: 14px 16px; border-left: 3px solid var(--blue); background: #edf5ff; font-size: 14px; }
+.flash { margin: 0 0 10px; padding: 14px 16px; border-left: 3px solid var(--blue); background: #f9f6f3; font-size: 14px; }
 .flash-success { border-color: #1f8a53; background: #eefaf3; }
 .flash-warning, .flash-error { border-color: #bc3434; background: #fff4f3; }
 
 .header-account form { margin: 0; }
 .link-button { min-height: 0; padding: 0; border: 0; background: none; color: var(--blue); font-size: 14px; font-weight: 400; text-decoration: underline; text-underline-offset: 4px; }
-.link-button:hover { background: none; color: #034c9a; }
+.link-button:hover { background: none; color: #753828; }
 
 .invite-panel { max-width: 640px; }
 .profile-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
 
 .role-picker { border: 0; padding: 0; margin: 0 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .role-picker legend { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
-.role-option { position: relative; display: block; margin: 0; padding: 18px 18px 18px 46px; border: 1px solid #bfc9d5; border-radius: 5px; cursor: pointer; font-weight: 400; }
+.role-option { position: relative; display: block; margin: 0; padding: 18px 18px 18px 46px; border: 1px solid #d4c0d1; border-radius: 5px; cursor: pointer; font-weight: 400; }
 .role-option input { position: absolute; left: 16px; top: 20px; width: 18px; height: 18px; margin: 0; }
-.role-option:has(input:checked) { border-color: var(--blue); background: #f2f8ff; box-shadow: inset 0 0 0 1px var(--blue); }
+.role-option:has(input:checked) { border-color: var(--blue); background: #fbf9f6; box-shadow: inset 0 0 0 1px var(--blue); }
 .role-kid:has(input:checked) { border-color: #e2731d; background: #fff6ec; box-shadow: inset 0 0 0 1px #e2731d; }
 .role-title { display: block; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
 .role-help { display: block; color: var(--muted); font-size: 12px; }
@@ -48,7 +48,7 @@
 .kid-event h3 { margin: 0 0 8px; font-size: 20px; }
 .kid-event p { margin: 0; }
 .kid-event-day { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px !important; }
-.kid-color-1 { background: #d7f0ff; }
+.kid-color-1 { background: #f2ece4; }
 .kid-color-2 { background: #ffe3f0; }
 .kid-color-3 { background: #e2f8d8; }
 .kid-color-4 { background: #fff1c9; }
@@ -56,7 +56,7 @@
 .kid-empty { padding: 28px; border-radius: 22px; background: #fff1c9; font-size: 18px; font-weight: 700; }
 .kid-family { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 22px; }
 .kid-family li { display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
-.kid-bubble { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; background: #d7f0ff; color: #175aa3; border: 4px solid white; box-shadow: 0 4px 0 rgba(43, 33, 64, .12); }
+.kid-bubble { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; background: #f2ece4; color: #8b432f; border: 4px solid white; box-shadow: 0 4px 0 rgba(43, 33, 64, .12); }
 .kid-bubble-kid { background: #ffe3f0; color: #b0306a; }
 
 @media (max-width: 850px) {
