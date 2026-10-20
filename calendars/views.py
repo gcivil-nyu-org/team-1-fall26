@@ -74,7 +74,7 @@ def google_callback(request):
     if google.CALENDAR_SCOPE not in granted_scopes:
         messages.error(
             request,
-            "Syncmily needs permission to see your calendar. Connect again and allow calendar access.",
+            "Syncmily needs permission to see your calendar. Connect again and tick the calendar box on Google’s screen.",
         )
         return redirect(workspace_url)
     if not credentials.refresh_token:

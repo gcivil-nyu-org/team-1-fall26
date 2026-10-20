@@ -305,7 +305,7 @@ class GoogleConnectionViewTests(TestCase):
             "calendar unticked": (
                 {"code": "auth-code"},
                 {"credentials": self.credentials(granted_scopes=google.SCOPES[:2])},
-                "Syncmily needs permission to see your calendar. Connect again and allow calendar access.",
+                "Syncmily needs permission to see your calendar. Connect again and tick the calendar box on Google’s screen.",
             ),
             "no refresh token": (
                 {"code": "auth-code"},
