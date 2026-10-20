@@ -1,0 +1,43 @@
+{% extends 'events/base.html' %}
+{% load tz %}
+{% block title %}Dashboard | Syncmily{% endblock %}
+{% block content %}
+    {% include 'accounts/_messages.html' %}
+    <header class="page-heading heading-with-action">
+        <div>
+            <p class="eyebrow">PARENT DASHBOARD · {{ workspace.name|upper }}</p>
+            <h1>Welcome back, {{ request.user.username }}</h1>
+            <p>Here's what's coming up for your family.</p>
+        </div>
+        {% if is_primary_admin %}
+            <a class="button" href="{% url 'accounts:manage_members' workspace.pk %}">Add a family member <span aria-hidden="true">＋</span></a>
+        {% endif %}
+    </header>
+    <div class="workspace-layout">
+        <section class="panel" aria-labelledby="upcoming-heading">
+            <div class="panel-heading"><h2 id="upcoming-heading">Upcoming events</h2></div>
+            {% for event in upcoming_events %}
+                {% timezone event.timezone_name %}
+                <article class="dashboard-event">
+                    <div class="event-date">{{ event.starts_at|date:'M' }}<strong>{{ event.starts_at|date:'d' }}</strong>{{ event.starts_at|date:'D' }}</div>
+                    <div><h3>{{ event.title }}</h3><p>{{ event.starts_at|time:"g:i A" }} – {{ event.ends_at|time:"g:i A" }}{% if event.location %} · {{ event.location }}{% endif %}</p></div>
+                </article>
+                {% endtimezone %}
+            {% empty %}
+                <p class="empty-state">Nothing on the calendar yet.</p>
+            {% endfor %}
+            {% if is_primary_admin %}
+                <a class="text-link" href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">Open the full schedule <span aria-hidden="true">→</span></a>
+            {% endif %}
+        </section>
+        <aside class="panel workspace-info">
+            <h2>Your family</h2>
+            {% include 'accounts/_member_list.html' with show_emails=is_primary_admin %}
+            {% if is_primary_admin %}
+                <a class="text-link" href="{% url 'accounts:manage_members' workspace.pk %}">Manage members</a>
+            {% else %}
+                <p class="helptext">Only the primary admin ({{ workspace.primary_admin.username }}) can add new members.</p>
+            {% endif %}
+        </aside>
+    </div>
+{% endblock %}

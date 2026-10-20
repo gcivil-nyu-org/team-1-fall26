@@ -1,0 +1,45 @@
+{% extends 'events/base.html' %}
+{% block title %}My profile | Syncmily{% endblock %}
+{% block content %}
+    <div class="breadcrumbs"><a href="{% url 'accounts:dashboard' %}">Dashboard</a><span>/</span><span>Profile</span></div>
+    {% include 'accounts/_messages.html' %}
+    <header class="page-heading">
+        <p class="eyebrow">MY PROFILE</p>
+        <h1>{{ request.user.username }}</h1>
+        <p>{% if family %}{% if family.is_primary_admin %}Primary admin{% elif family.role == 'kid' %}Kid{% else %}Parent{% endif %} in {{ family.workspace.name }}{% else %}Not part of a family workspace yet{% endif %}{% if request.user.email %} · {{ request.user.email }}{% endif %}</p>
+    </header>
+    <div class="profile-layout">
+        <section class="panel" aria-labelledby="username-heading">
+            <div class="panel-heading"><span class="step-number">01</span><h2 id="username-heading">Change username</h2></div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="username">
+                {{ username_form.non_field_errors }}
+                <div class="form-field">
+                    <label for="{{ username_form.username.id_for_label }}">New username</label>
+                    {{ username_form.username }}
+                    {{ username_form.username.errors }}
+                    <p class="helptext">You'll use this to sign in from now on.</p>
+                </div>
+                <div class="form-actions form-footer"><button type="submit">Save username</button></div>
+            </form>
+        </section>
+        <section class="panel" aria-labelledby="password-heading">
+            <div class="panel-heading"><span class="step-number">02</span><h2 id="password-heading">Change password</h2></div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="password">
+                {{ password_form.non_field_errors }}
+                {% for field in password_form %}
+                    <div class="form-field">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {{ field.errors }}
+                    </div>
+                {% endfor %}
+                <p class="helptext">At least 8 characters, and not just numbers.</p>
+                <div class="form-actions form-footer"><button type="submit">Save password</button></div>
+            </form>
+        </section>
+    </div>
+{% endblock %}

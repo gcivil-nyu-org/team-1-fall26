@@ -1,0 +1,21 @@
+{% extends 'events/base.html' %}
+{% block title %}Join {{ membership.workspace.name }} | Syncmily{% endblock %}
+{% block content %}
+    <header class="page-heading">
+        <p class="eyebrow">YOU'RE INVITED</p>
+        <h1>Join {{ membership.workspace.name }}</h1>
+        <p>{{ membership.invited_by.username }} invited you to the family workspace as a {{ membership.get_role_display|lower }}.</p>
+    </header>
+    <section class="panel invite-panel" aria-labelledby="invite-heading">
+        <h2 id="invite-heading">Confirm your invitation</h2>
+        <dl>
+            <dt>Your username</dt><dd><strong>{{ membership.user.username }}</strong></dd>
+            <dt>Email</dt><dd>{{ membership.user.email }}</dd>
+            <dt>Role</dt><dd>{{ membership.get_role_display }}</dd>
+        </dl>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-actions"><button type="submit">Confirm and join <span aria-hidden="true">→</span></button></div>
+        </form>
+    </section>
+{% endblock %}
