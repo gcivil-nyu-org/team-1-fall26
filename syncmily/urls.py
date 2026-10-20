@@ -7,4 +7,5 @@ urlpatterns = [
     path("events/", include("events.urls")),
     path("chat/", include("chat.urls")),
     path("accounts/", include("accounts.urls")),
+    path("calendars/", include("calendars.urls")),
 ]

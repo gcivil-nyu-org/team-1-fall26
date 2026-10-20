@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from .fields import EncryptedTextField
+
 
 class CalendarConnection(models.Model):
     class Provider(models.TextChoices):
@@ -21,9 +23,10 @@ class CalendarConnection(models.Model):
     provider = models.CharField(max_length=20, choices=Provider.choices)
     account_email = models.EmailField(blank=True)
     calendar_id = models.CharField(max_length=255, default="primary")
-    # OAuth tokens are credentials: never log them or show them in templates.
-    access_token = models.TextField(blank=True)
-    refresh_token = models.TextField(blank=True)
+    # OAuth tokens are credentials: they're encrypted at rest, and must never be
+    # logged or shown in templates.
+    access_token = EncryptedTextField(blank=True)
+    refresh_token = EncryptedTextField(blank=True)
     token_expires_at = models.DateTimeField(null=True, blank=True)
     scopes = models.TextField(blank=True)
     sync_token = models.TextField(blank=True)

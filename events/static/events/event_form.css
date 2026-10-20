@@ -69,6 +69,7 @@ button:hover, .button:hover { background: #0556ad; border-color: #0556ad; color:
 .calendar-symbol { display: flex; flex-direction: column; width: 64px; text-align: center; border: 1px solid #c9dcf5; border-top: 5px solid var(--blue); border-radius: 4px; font-size: 11px; text-transform: uppercase; color: var(--blue); margin-bottom: 32px; padding: 5px 0; }
 .calendar-symbol strong { color: var(--ink); font-size: 26px; line-height: 1.15; }
 .workspace-info { padding: 28px; }
+.workspace-sidebar { display: grid; gap: 24px; }
 .workspace-info h2 { font-size: 17px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 dt { color: var(--muted); font-size: 12px; margin-top: 20px; }
 dd { margin: 6px 0 0; font-size: 15px; }
