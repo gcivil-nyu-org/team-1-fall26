@@ -4,17 +4,19 @@
 {% block content %}
 
         <div class="breadcrumbs">
-            {% if workspace %}<a href="{% url 'accounts:workspace_detail' workspace.pk %}">{{ workspace.name }}</a><span>/</span>{% endif %}<span>Schedule</span>
+            {% if workspace %}<a href="{{ workspace_url }}">{{ workspace.name }}</a><span>/</span>{% endif %}<span>Schedule</span>
         </div>
         <header class="page-heading heading-with-action">
             <div><p class="eyebrow">THE FAMILY SCHEDULE</p>
                 {% if workspace %}<h1>{{ workspace.name }} events</h1>{% else %}<h1>My events</h1>{% endif %}
-                <p>{% if workspace %}A clear view of what’s coming up for your household.{% else %}Events in workspaces you manage and your earlier personal events.{% endif %}</p>
+                <p>{% if workspace %}A clear view of what’s coming up for your household.{% else %}Your family’s shared events and your earlier personal events.{% endif %}</p>
             </div>
+            {% if can_create %}
             {% if workspace %}
                 <a class="button" href="{% url 'events:workspace_create' workspace.pk %}?{{ create_query }}">Create an event <span aria-hidden="true">＋</span></a>
             {% else %}
                 <a class="button" href="{% url 'events:choose_workspace' %}?{{ create_query }}">Create an event <span aria-hidden="true">＋</span></a>
+            {% endif %}
             {% endif %}
         </header>
         <p>Times are shown in {{ timezone_name }}.</p>

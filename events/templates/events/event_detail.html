@@ -9,7 +9,7 @@
         <section class="panel event-detail" aria-labelledby="event-heading">
             <p class="eyebrow">EVENT DETAILS</p><h1 id="event-heading">{{ event.title }}</h1>
             {% if event.workspace %}
-                <p>Workspace: <a href="{% url 'accounts:workspace_detail' event.workspace_id %}">{{ event.workspace.name }}</a></p>
+                <p>Workspace: <a href="{{ workspace_url }}">{{ event.workspace.name }}</a></p>
             {% endif %}
             <form method="get" class="schedule-filters">
                 {{ timezone_form.timezone.as_field_group }}
@@ -24,11 +24,13 @@
                 <dd>{{ event.ends_at|date:"l, F j, Y" }} at {{ event.ends_at|time:"g:i A" }}</dd>
                 <dt>Location</dt>
                 <dd>{{ event.location|default:"No location provided" }}</dd>
+                <dt>Family members</dt>
+                <dd>{% for participant in event.participants.all %}{{ participant.username }}{% if not forloop.last %}, {% endif %}{% empty %}No family members selected{% endfor %}</dd>
             </dl>
             {% endtimezone %}
             <div class="form-actions">
                 <a href="{{ list_url }}?{{ schedule_query }}">View this day</a>
-                {% if event.workspace %}
+                {% if can_create %}
                     <a href="{% url 'events:workspace_create' event.workspace_id %}?{{ schedule_query }}">Create another event</a>
                 {% endif %}
             </div>

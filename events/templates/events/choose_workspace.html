@@ -2,7 +2,7 @@
 {% block title %}Choose a workspace | Syncmily{% endblock %}
 {% block content %}
     <div class="breadcrumbs"><a href="{% url 'events:list' %}?view=upcoming">Schedule</a><span>/</span><span>Choose a workspace</span></div>
-    <header class="page-heading"><p class="eyebrow">LET’S MAKE A PLAN</p><h1>Where does this event belong?</h1><p>Choose a workspace, then add the details.</p></header>
+    <header class="page-heading"><p class="eyebrow">LET’S MAKE A PLAN</p><h1>Where does this event belong?</h1><p>Choose a workspace where you’re a parent or primary admin, then add the details.</p></header>
     <div class="setup-layout">
         <section class="panel" aria-labelledby="workspace-heading">
             <div class="panel-heading"><span class="step-number">01</span><h2 id="workspace-heading">Choose your workspace</h2></div>
@@ -15,7 +15,7 @@
                     <div class="form-actions form-footer"><button type="submit">Continue to event details <span aria-hidden="true">→</span></button></div>
                 </form>
             {% else %}
-                <div class="empty-state"><h3>A home for your family’s plans.</h3><p>You need a workspace you manage before you can save family events.</p><a class="button" href="{% url 'accounts:create_workspace' %}">Create a workspace</a></div>
+                <div class="empty-state"><h3>A home for your family’s plans.</h3><p>You need to be a primary admin or an accepted parent in a workspace to create family events.</p><a class="button" href="{% url 'accounts:create_workspace' %}">Create a workspace</a></div>
             {% endif %}
         </section>
         <aside class="setup-note"><p class="eyebrow">START SOMETHING NEW</p><h2>Keep each household’s plans separate.</h2><p>Keep different households’ plans separate, with a schedule for each.</p><a class="text-link" href="{% url 'accounts:create_workspace' %}">Create a workspace <span aria-hidden="true">→</span></a><a class="text-link" href="{% url 'events:list' %}?view=upcoming">View my upcoming events</a></aside>

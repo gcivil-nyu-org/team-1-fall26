@@ -20,7 +20,7 @@
                 {% timezone event.timezone_name %}
                 <article class="kid-event kid-color-{{ forloop.counter }}">
                     <p class="kid-event-day">{{ event.starts_at|date:'l, M j' }}</p>
-                    <h3>{{ event.title }}</h3>
+                    <h3><a href="{% url 'events:detail' event.pk %}">{{ event.title }}</a></h3>
                     <p>{{ event.starts_at|time:"g:i A" }}{% if event.location %} · {{ event.location }}{% endif %}</p>
                 </article>
                 {% endtimezone %}
@@ -28,6 +28,7 @@
                 <p class="kid-empty"><span aria-hidden="true">🎉</span> Nothing planned yet. Free time!</p>
             {% endfor %}
         </div>
+        {% if can_view_events %}<a class="text-link" href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">Open the full schedule <span aria-hidden="true">→</span></a>{% endif %}
     </section>
 
     <section aria-labelledby="kid-family-heading">

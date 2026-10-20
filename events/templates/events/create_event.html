@@ -7,7 +7,7 @@
         <header class="page-heading">
                 <p class="eyebrow">SOMETHING TO LOOK FORWARD TO</p><h1>Create family event</h1>
             {% if workspace %}
-                <p>Workspace: <a href="{% url 'accounts:workspace_detail' workspace.pk %}">{{ workspace.name }}</a></p>
+                <p>Workspace: <a href="{{ workspace_url }}">{{ workspace.name }}</a></p>
             {% endif %}
             <p>Plan an activity for your family. Check the details before adding it to your schedule.</p>
         </header>
@@ -28,7 +28,7 @@
                         <ul>
                             {% for field in form %}
                                 {% for error in field.errors %}
-                                    <li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>
+                                    <li><a href="#{% if field.name == 'participants' %}participants-heading{% else %}{{ field.id_for_label }}{% endif %}">{{ field.label }}: {{ error }}</a></li>
                                 {% endfor %}
                             {% endfor %}
                         </ul>
@@ -42,9 +42,22 @@
                     {% endfor %}
                     <div class="event-fields">
                     {% for field in form.visible_fields %}
-                        <div class="form-field field-{{ field.name }}">
-                            {{ field.as_field_group }}
-                        </div>
+                        {% if field.name == 'participants' %}
+                            {% if workspace %}
+                                <fieldset class="form-field field-participants">
+                                    <legend id="participants-heading">{{ field.label }}</legend>
+                                    <p class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>
+                                    {{ field.errors }}
+                                    {% if field.field.queryset %}
+                                        {{ field }}
+                                    {% else %}
+                                        <p class="helptext">No active family members are available to select.</p>
+                                    {% endif %}
+                                </fieldset>
+                            {% endif %}
+                        {% else %}
+                            <div class="form-field field-{{ field.name }}">{{ field.as_field_group }}</div>
+                        {% endif %}
                     {% endfor %}
                     </div>
                     <div class="form-actions form-footer">
@@ -85,6 +98,8 @@
                         <dd>{{ event_details.starts_at|time:"g:i A" }} – {{ event_details.ends_at|time:"g:i A" }} ({{ timezone_name }})</dd>
                         <dt>Location</dt>
                         <dd>{{ event_details.location|default:"No location provided" }}</dd>
+                        <dt>Family members</dt>
+                        <dd>{% for participant in form.cleaned_data.participants %}{{ participant.username }}{% if not forloop.last %}, {% endif %}{% empty %}No family members selected{% endfor %}</dd>
                     </dl>
                     <p>Need to change something? Edit the form and check the details again.</p>
                 </section>

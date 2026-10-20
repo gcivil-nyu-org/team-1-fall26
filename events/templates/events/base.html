@@ -20,7 +20,7 @@
             <nav class="primary-nav" aria-label="Main navigation">
                 <a href="{% url 'accounts:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
                 <a href="{% url 'events:list' %}?view=upcoming" {% if request.resolver_match.app_name == 'events' and request.resolver_match.url_name != 'choose_workspace' %}aria-current="page"{% endif %}>Schedule</a>
-                <a href="{% url 'events:choose_workspace' %}" {% if request.resolver_match.url_name in 'choose_workspace,create_workspace,workspace_detail,manage_members' %}aria-current="page"{% endif %}>Workspaces</a>
+                <a href="{% url 'events:choose_workspace' %}" {% if request.resolver_match.url_name == 'choose_workspace' or request.resolver_match.url_name == 'create_workspace' or request.resolver_match.url_name == 'workspace_detail' or request.resolver_match.url_name == 'manage_members' %}aria-current="page"{% endif %}>Workspaces</a>
                 <a href="{% url 'chat:home' %}">Household chat</a>
             </nav>
             <div class="header-account">

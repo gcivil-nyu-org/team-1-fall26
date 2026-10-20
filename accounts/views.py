@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from events.models import Event
+from events.access import family_events, family_workspaces
 
 from .forms import InviteMemberForm, UsernameChangeForm, WorkspaceForm
 from .models import Membership, Workspace
@@ -93,7 +93,7 @@ def dashboard(request):
 
     workspace = family["workspace"]
     upcoming_events = (
-        Event.objects
+        family_events(request.user)
         .filter(workspace=workspace, ends_at__gt=timezone.now())
         .order_by("starts_at", "pk")[:5]
     )
@@ -112,6 +112,10 @@ def dashboard(request):
             **family,
             "members": members,
             "upcoming_events": upcoming_events,
+            "can_create_events": family_workspaces(
+                request.user, caregivers_only=True,
+            ).filter(pk=workspace.pk).exists(),
+            "can_view_events": family_workspaces(request.user).filter(pk=workspace.pk).exists(),
         },
     )
 

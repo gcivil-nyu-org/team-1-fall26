@@ -155,3 +155,20 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: #bc3434;
 .workspace-label { padding: 20px 0; margin-top: 28px; border-top: 1px solid var(--line); }
 .workspace-label span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .schedule-heading > span { color: var(--muted); font-size: 13px; }
+
+.field-participants { grid-column: 1 / -1; border: 0; padding: 0; margin-inline: 0; }
+.field-participants legend { font-size: 13px; font-weight: 700; padding: 0; margin-bottom: 8px; }
+.field-participants > .helptext { order: 0; margin: 0 0 12px; }
+.field-participants > div > div { border-bottom: 1px solid var(--line); padding: 10px 0; }
+.field-participants label { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 400; font-size: 14px; cursor: pointer; }
+.field-participants input[type="checkbox"] { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--blue); flex-shrink: 0; }
+@media (max-width: 1100px) {
+    .header-inner { flex-wrap: wrap; gap: 0; padding-top: 16px; }
+    .primary-nav { order: 3; width: 100%; min-height: 54px; gap: 28px; }
+    .header-account { gap: 8px; }
+}
+@media (max-width: 620px) {
+    .primary-nav { gap: 20px; flex-wrap: wrap; }
+    .primary-nav a { min-height: 48px; }
+    .header-account { font-size: 12px; }
+}
