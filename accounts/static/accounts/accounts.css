@@ -1,0 +1,69 @@
+/* Shared account pages: sign-in, members, profile, dashboards. */
+.flash-messages { margin: 0 0 24px; }
+.flash { margin: 0 0 10px; padding: 14px 16px; border-left: 3px solid var(--blue); background: #f9f6f3; font-size: 14px; }
+.flash-success { border-color: #1f8a53; background: #eefaf3; }
+.flash-warning, .flash-error { border-color: #bc3434; background: #fff4f3; }
+
+.header-account form { margin: 0; }
+.link-button { min-height: 0; padding: 0; border: 0; background: none; color: var(--blue); font-size: 14px; font-weight: 400; text-decoration: underline; text-underline-offset: 4px; }
+.link-button:hover { background: none; color: #753828; }
+
+.invite-panel { max-width: 640px; }
+.profile-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+
+.role-picker { border: 0; padding: 0; margin: 0 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.role-picker legend { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+.role-option { position: relative; display: block; margin: 0; padding: 18px 18px 18px 46px; border: 1px solid #d4c0d1; border-radius: 5px; cursor: pointer; font-weight: 400; }
+.role-option input { position: absolute; left: 16px; top: 20px; width: 18px; height: 18px; margin: 0; }
+.role-option:has(input:checked) { border-color: var(--blue); background: #fbf9f6; box-shadow: inset 0 0 0 1px var(--blue); }
+.role-kid:has(input:checked) { border-color: #e2731d; background: #fff6ec; box-shadow: inset 0 0 0 1px #e2731d; }
+.role-title { display: block; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.role-help { display: block; color: var(--muted); font-size: 12px; }
+
+.member-list { list-style: none; padding: 0; margin: 0 0 8px; }
+.member-list li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.member-list li:last-child { border-bottom: 0; }
+.member-name { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; }
+.member-name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.avatar-kid { background: #ffeedd; color: #b4560d; }
+.status-badge { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
+.status-pending { background: #fff4d6; color: #8a6100; }
+.status-active { background: #e4f6ec; color: #1b7446; }
+
+.dashboard-event { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 20px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.dashboard-event h3 { margin: 0 0 4px; font-size: 16px; }
+.dashboard-event p { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* Kid dashboard: brighter, rounder and bigger than the parent view. */
+.kid-dashboard { --kid-ink: #2b2140; font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif; color: var(--kid-ink); }
+.kid-dashboard h2 { font-size: 24px; margin: 40px 0 18px; }
+.kid-hero { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 36px 40px; border-radius: 28px; background: linear-gradient(135deg, #ffd66b, #ff9f68 55%, #ff7aa8); }
+.kid-hero h1 { font-size: clamp(32px, 4vw, 48px); letter-spacing: -1px; margin-bottom: 8px; }
+.kid-hero p { margin: 0; font-size: 17px; }
+.kid-hello { font-size: 20px !important; font-weight: 700; margin-bottom: 6px !important; }
+.kid-today { flex-shrink: 0; width: 110px; padding: 10px 0 14px; border-radius: 22px; background: white; text-align: center; text-transform: uppercase; font-weight: 700; color: #e2731d; box-shadow: 0 6px 0 rgba(43, 33, 64, .15); }
+.kid-today strong { display: block; font-size: 48px; line-height: 1; color: var(--kid-ink); }
+.kid-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.kid-event { padding: 22px; border-radius: 22px; box-shadow: 0 5px 0 rgba(43, 33, 64, .12); }
+.kid-event h3 { margin: 0 0 8px; font-size: 20px; }
+.kid-event p { margin: 0; }
+.kid-event-day { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px !important; }
+.kid-color-1 { background: #f2ece4; }
+.kid-color-2 { background: #ffe3f0; }
+.kid-color-3 { background: #e2f8d8; }
+.kid-color-4 { background: #fff1c9; }
+.kid-color-5 { background: #ece3ff; }
+.kid-empty { padding: 28px; border-radius: 22px; background: #fff1c9; font-size: 18px; font-weight: 700; }
+.kid-family { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 22px; }
+.kid-family li { display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+.kid-bubble { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; background: #f2ece4; color: #8b432f; border: 4px solid white; box-shadow: 0 4px 0 rgba(43, 33, 64, .12); }
+.kid-bubble-kid { background: #ffe3f0; color: #b0306a; }
+
+@media (max-width: 850px) {
+    .profile-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+    .role-picker { grid-template-columns: 1fr; }
+    .kid-hero { flex-direction: column; align-items: start; padding: 28px 24px; }
+    .kid-today { width: 90px; }
+}

@@ -23,3 +23,41 @@ class Workspace(models.Model):
 
     def __str__(self):
         return self.name
+
+class Membership(models.Model):
+    class Role(models.TextChoices):
+        PARENT = "parent", "Parent"
+        KID = "kid", "Kid"
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="membership",
+    )
+
+    role = models.CharField(max_length=10, choices=Role.choices)
+
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="sent_invitations",
+    )
+
+    invited_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["role", "invited_at"]
+
+    def __str__(self):
+        return f"{self.user} ({self.get_role_display()}) in {self.workspace}"
+
+    @property
+    def is_pending(self):
+        return self.accepted_at is None

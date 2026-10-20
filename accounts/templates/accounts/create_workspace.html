@@ -19,7 +19,7 @@
                     {{ form.name.errors }}
                     <p class="helptext">Something everyone will recognise, like “The Rivera Family”.</p>
                 </div>
-                <div class="form-actions form-footer"><button type="submit">Create Workspace <span aria-hidden="true">→</span></button><a href="{% url 'events:choose_workspace' %}">Cancel</a></div>
+                <div class="form-actions form-footer"><button type="submit">Create Workspace <span aria-hidden="true">→</span></button><a data-dialog href="{% url 'events:choose_workspace' %}">Cancel</a></div>
             </form>
         </section>
         <aside class="setup-note">

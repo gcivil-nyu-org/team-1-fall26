@@ -2,13 +2,16 @@ from datetime import date, datetime, time, timedelta, timezone
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.db import OperationalError
 from django.db.models.deletion import ProtectedError
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone as django_timezone
 
-from accounts.models import Workspace
+from accounts.models import Membership, Workspace
+from accounts.services import DEFAULT_MEMBER_PASSWORD, invite_member, make_invite_token
 
 from .forms import EventForm, EventScheduleForm
 from .models import Event
@@ -254,7 +257,7 @@ class WorkspaceEventTests(TestCase):
         user = get_user_model().objects.create_user(username="no_workspace")
         self.client.force_login(user)
         response = self.client.get(reverse("events:choose_workspace"))
-        self.assertContains(response, "You need a workspace you manage")
+        self.assertContains(response, "You need to be a primary admin or an accepted parent")
         self.client.logout()
         self.assertEqual(self.client.get(reverse("events:choose_workspace")).status_code, 302)
 
@@ -368,3 +371,265 @@ class EventModelTimezoneTests(SimpleTestCase):
         with self.assertRaises(ValidationError) as error:
             event.clean()
         self.assertIn("timezone_name", error.exception.message_dict)
+
+
+class FamilyEventTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.admin = User.objects.create_user(username="PrimaryParent")
+        cls.parent = User.objects.create_user(username="AcceptedParent", password="FamilyTest2026!")
+        cls.kid = User.objects.create_user(username="AcceptedKid")
+        cls.pending = User.objects.create_user(username="PendingParent")
+        cls.inactive = User.objects.create_user(username="InactiveKid", is_active=False)
+        cls.outsider = User.objects.create_user(username="OtherFamilyParent")
+        cls.workspace = Workspace.objects.create(name="Shared Family", primary_admin=cls.admin)
+        cls.other_workspace = Workspace.objects.create(name="Other Family", primary_admin=cls.outsider)
+        for user, role, accepted in (
+            (cls.parent, Membership.Role.PARENT, True),
+            (cls.kid, Membership.Role.KID, True),
+            (cls.pending, Membership.Role.PARENT, False),
+            (cls.inactive, Membership.Role.KID, True),
+        ):
+            Membership.objects.create(
+                workspace=cls.workspace,
+                user=user,
+                role=role,
+                invited_by=cls.admin,
+                accepted_at=django_timezone.now() if accepted else None,
+            )
+
+    def setUp(self):
+        self.client.force_login(self.parent)
+        self.create_url = reverse("events:workspace_create", args=[self.workspace.pk])
+        self.list_url = reverse("events:workspace_list", args=[self.workspace.pk])
+        self.event_date = django_timezone.localdate() + timedelta(days=1)
+        self.data = {
+            "title": "Family picnic",
+            "date": self.event_date.isoformat(),
+            "start_time": "15:30",
+            "end_time": "17:00",
+            "timezone": "America/New_York",
+            "location": "Riverside Park",
+            "action": "save",
+        }
+
+    def token(self):
+        response = self.client.get(self.create_url)
+        self.assertEqual(response.status_code, 200)
+        return response.context["form"]["submission_token"].value()
+
+    def save_event(self, participants=None):
+        return self.client.post(self.create_url, {
+            **self.data,
+            "submission_token": self.token(),
+            "participants": participants or [],
+        })
+
+    def test_accepted_parent_can_create_with_family_members(self):
+        response = self.save_event([self.admin.pk, self.parent.pk, self.kid.pk])
+        event = Event.objects.get()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(event.workspace, self.workspace)
+        self.assertEqual(event.created_by, self.parent)
+        self.assertEqual(event.timezone_name, "America/New_York")
+        self.assertEqual(event.location, self.data["location"])
+        self.assertSetEqual(set(event.participants.all()), {self.admin, self.parent, self.kid})
+        detail = self.client.get(response.url)
+        self.assertContains(detail, self.kid.username)
+        self.assertEqual(detail.context["workspace_url"], reverse("accounts:dashboard"))
+
+    def test_participants_are_optional_and_location_is_optional(self):
+        data = {**self.data, "location": "", "submission_token": self.token()}
+        response = self.client.post(self.create_url, data)
+        self.assertEqual(response.status_code, 302)
+        event = Event.objects.get()
+        self.assertEqual(event.location, "")
+        self.assertFalse(event.participants.exists())
+
+    def test_participant_choices_are_limited_to_active_accepted_family(self):
+        response = self.client.get(self.create_url)
+        choices = response.context["form"].fields["participants"].queryset
+        self.assertSetEqual(set(choices), {self.admin, self.parent, self.kid})
+
+    def test_preview_shows_selected_family_without_saving(self):
+        response = self.client.post(self.create_url, {
+            **self.data,
+            "action": "preview",
+            "participants": [self.kid.pk],
+        })
+        self.assertContains(response, "Review your event")
+        self.assertContains(response, self.kid.username)
+        self.assertEqual(list(response.context["form"].cleaned_data["participants"]), [self.kid])
+        self.assertFalse(Event.objects.exists())
+
+    def test_missing_required_details_preserve_participants_and_show_errors(self):
+        response = self.client.post(self.create_url, {
+            "action": "save", "submission_token": self.token(), "participants": [self.kid.pk],
+        })
+        self.assertEqual(response.status_code, 200)
+        for field in ("title", "date", "start_time", "end_time"):
+            self.assertIn(field, response.context["form"].errors)
+        self.assertEqual(response.context["form"]["participants"].value(), [str(self.kid.pk)])
+        self.assertFalse(Event.objects.exists())
+
+    def test_forged_or_ineligible_participants_are_rejected(self):
+        token = self.token()
+        for participant in (self.outsider.pk, self.pending.pk, self.inactive.pk, 999999, "invalid"):
+            with self.subTest(participant=participant):
+                response = self.client.post(self.create_url, {
+                    **self.data, "submission_token": token, "participants": [participant],
+                })
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("participants", response.context["form"].errors)
+                self.assertFalse(Event.objects.exists())
+
+    def test_previewed_member_must_still_be_eligible_when_saved(self):
+        token = self.token()
+        data = {**self.data, "submission_token": token, "participants": [self.kid.pk]}
+        self.assertEqual(self.client.post(self.create_url, {**data, "action": "preview"}).status_code, 200)
+        Membership.objects.filter(user=self.kid).delete()
+        response = self.client.post(self.create_url, data)
+        self.assertIn("participants", response.context["form"].errors)
+        self.assertFalse(Event.objects.exists())
+
+    def test_primary_admin_can_select_members_without_a_membership_record(self):
+        self.client.force_login(self.admin)
+        self.assertEqual(self.save_event([self.admin.pk, self.kid.pk]).status_code, 302)
+        self.assertSetEqual(set(Event.objects.get().participants.all()), {self.admin, self.kid})
+
+    def test_kid_can_read_shared_event_even_without_being_selected(self):
+        self.save_event([self.parent.pk])
+        event = Event.objects.get()
+        self.client.force_login(self.kid)
+        detail = self.client.get(reverse("events:detail", args=[event.pk]))
+        self.assertContains(detail, self.data["title"])
+        self.assertContains(detail, 'aria-current="page"', count=1)
+        self.assertNotContains(detail, "Create another event")
+        for view in ("day", "week", "upcoming"):
+            response = self.client.get(self.list_url, {"view": view, "date": self.event_date.isoformat()})
+            self.assertContains(response, self.data["title"])
+            self.assertNotContains(response, "Create an event")
+        combined = self.client.get(reverse("events:list"), {"view": "upcoming"})
+        self.assertContains(combined, self.data["title"])
+
+    def test_kid_cannot_create_even_with_global_model_permission(self):
+        self.kid.user_permissions.add(Permission.objects.get(content_type__app_label="events", codename="add_event"))
+        token = self.token()
+        self.client.force_login(self.kid)
+        self.assertEqual(self.client.get(self.create_url).status_code, 404)
+        self.assertEqual(self.client.post(self.create_url, {**self.data, "submission_token": token}).status_code, 404)
+        self.assertFalse(Event.objects.exists())
+
+    def test_other_families_and_pending_members_cannot_view_events(self):
+        self.save_event([self.kid.pk])
+        event = Event.objects.get()
+        for user in (self.outsider, self.pending):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                self.assertEqual(self.client.get(reverse("events:detail", args=[event.pk])).status_code, 404)
+                self.assertEqual(self.client.get(self.list_url).status_code, 404)
+                self.assertEqual(self.client.get(self.create_url).status_code, 404)
+                combined = self.client.get(reverse("events:list"), {"view": "upcoming"})
+                self.assertNotContains(combined, self.data["title"])
+                dashboard = self.client.get(reverse("accounts:dashboard"))
+                if dashboard.status_code == 200:
+                    self.assertNotContains(dashboard, self.data["title"])
+
+    def test_revoked_membership_removes_event_access(self):
+        self.save_event([self.kid.pk])
+        event = Event.objects.get()
+        Membership.objects.filter(user=self.parent).delete()
+        self.assertEqual(self.client.get(reverse("events:detail", args=[event.pk])).status_code, 404)
+        self.assertEqual(self.client.get(self.create_url).status_code, 404)
+        self.assertEqual(self.client.get(self.list_url).status_code, 404)
+
+    def test_parent_changed_to_kid_cannot_submit_open_form(self):
+        token = self.token()
+        Membership.objects.filter(user=self.parent).update(role=Membership.Role.KID)
+        response = self.client.post(self.create_url, {**self.data, "submission_token": token})
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Event.objects.exists())
+
+    def test_retry_does_not_change_saved_participants(self):
+        token = self.token()
+        response = self.client.post(self.create_url, {
+            **self.data, "submission_token": token, "participants": [self.kid.pk],
+        })
+        retry = self.client.post(self.create_url, {
+            **self.data, "title": "Changed retry", "submission_token": token, "participants": [self.admin.pk],
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(retry.url, response.url)
+        self.assertEqual(Event.objects.count(), 1)
+        self.assertEqual(list(Event.objects.get().participants.all()), [self.kid])
+        self.assertEqual(Event.objects.get().title, self.data["title"])
+
+    def test_participant_save_failure_rolls_back_event_and_preserves_choices(self):
+        token = self.token()
+        data = {**self.data, "submission_token": token, "participants": [self.kid.pk]}
+        manager_class = type(Event(pk=1).participants)
+        with patch.object(manager_class, "set", side_effect=OperationalError("Temporary failure")):
+            response = self.client.post(self.create_url, data)
+        self.assertContains(response, "Your details are still here.")
+        self.assertEqual(response.context["form"]["participants"].value(), [str(self.kid.pk)])
+        self.assertFalse(Event.objects.exists())
+        self.assertEqual(self.client.post(self.create_url, data).status_code, 302)
+        self.assertEqual(list(Event.objects.get().participants.all()), [self.kid])
+
+    def test_dashboard_links_for_parent_and_kid(self):
+        self.save_event([self.kid.pk])
+        event = Event.objects.get()
+        for user in (self.parent, self.kid):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                dashboard = self.client.get(reverse("accounts:dashboard"))
+                self.assertContains(dashboard, reverse("events:detail", args=[event.pk]))
+                self.assertContains(dashboard, self.list_url)
+                if user == self.parent:
+                    self.assertContains(dashboard, self.create_url)
+                else:
+                    self.assertNotContains(dashboard, self.create_url)
+
+    def test_parent_can_choose_member_workspace(self):
+        response = self.client.get(reverse("events:choose_workspace"), {"workspace": self.workspace.pk})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(self.create_url))
+
+    def test_signed_out_event_routes_use_family_login(self):
+        self.client.logout()
+        for url in (self.create_url, self.list_url, reverse("events:choose_workspace")):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 302)
+                self.assertTrue(response.url.startswith(reverse("accounts:login")))
+
+    def test_parent_can_sign_in_and_complete_event_flow(self):
+        self.client.logout()
+        self.assertTrue(self.client.login(username=self.parent.username, password="FamilyTest2026!"))
+        response = self.save_event([self.kid.pk])
+        self.assertEqual(response.status_code, 302)
+        self.assertContains(self.client.get(self.list_url, {"view": "upcoming"}), self.data["title"])
+
+
+    def test_invited_parent_can_create_after_accepting_invitation(self):
+        membership = invite_member(
+            workspace=self.workspace,
+            invited_by=self.admin,
+            email="new-parent@example.com",
+            role=Membership.Role.PARENT,
+        )
+        self.client.logout()
+        self.assertFalse(self.client.login(username=membership.user.username, password=DEFAULT_MEMBER_PASSWORD))
+        accept_url = reverse("accounts:accept_invite", args=[make_invite_token(membership)])
+        self.assertEqual(self.client.post(accept_url).status_code, 302)
+        login_response = self.client.post(reverse("accounts:login"), {
+            "username": membership.user.username, "password": DEFAULT_MEMBER_PASSWORD,
+        })
+        self.assertEqual(login_response.status_code, 302)
+        response = self.save_event([self.kid.pk])
+        self.assertEqual(response.status_code, 302)
+        event = Event.objects.get()
+        self.assertEqual(event.created_by, membership.user)
+        self.client.force_login(self.kid)
+        self.assertContains(self.client.get(self.list_url, {"view": "upcoming"}), self.data["title"])

@@ -9,14 +9,12 @@ from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
-from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
-from accounts.models import Workspace
-
+from .access import family_events, family_workspaces
 from .forms import EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
 from .models import Event
 
@@ -29,8 +27,8 @@ def create_event(request, workspace_id=None):
     workspace = None
     if workspace_id is not None:
         if not request.user.is_authenticated:
-            return redirect_to_login(request.get_full_path(), reverse("admin:login"))
-        workspace = get_object_or_404(Workspace, pk=workspace_id, primary_admin=request.user)
+            return redirect_to_login(request.get_full_path(), reverse("accounts:login"))
+        workspace = get_object_or_404(family_workspaces(request.user, caregivers_only=True), pk=workspace_id)
     can_save = workspace is not None
     saving = request.method == "POST" and request.POST.get("action") == "save"
     if saving and not can_save:
@@ -75,7 +73,7 @@ def create_event(request, workspace_id=None):
                 try:
                     with transaction.atomic():
                         event_details.full_clean(validate_unique=False)
-                        saved_event, _ = Event.objects.get_or_create(
+                        saved_event, created = Event.objects.get_or_create(
                             submission_id=submission_id,
                             created_by=request.user,
                             workspace=workspace,
@@ -87,6 +85,8 @@ def create_event(request, workspace_id=None):
                                 "timezone_name": event_details.timezone_name,
                             },
                         )
+                        if created:
+                            saved_event.participants.set(form.cleaned_data["participants"])
                 except ValidationError as error:
                     form.add_error(None, error.messages)
                 except DatabaseError:
@@ -105,6 +105,11 @@ def create_event(request, workspace_id=None):
             "timezone_name": timezone_name,
             "can_save": can_save,
             "workspace": workspace,
+            "workspace_url": (
+                reverse("accounts:workspace_detail", args=[workspace.pk])
+                if workspace and workspace.primary_admin_id == request.user.pk
+                else reverse("accounts:dashboard")
+            ),
             "create_url": (
                 reverse("events:workspace_create", args=[workspace.pk])
                 if workspace else reverse("events:create")
@@ -113,7 +118,7 @@ def create_event(request, workspace_id=None):
     )
 
 
-@login_required(login_url="admin:login")
+@login_required(login_url="accounts:login")
 @require_GET
 def choose_workspace(request):
     form = EventWorkspaceForm(
@@ -133,14 +138,11 @@ def choose_workspace(request):
     return render(request, "events/choose_workspace.html", {"form": form})
 
 
-@login_required(login_url="admin:login")
+@login_required(login_url="accounts:login")
 @require_GET
 def event_detail(request, pk):
     event = get_object_or_404(
-        Event.objects.select_related("workspace").filter(
-            Q(workspace__primary_admin=request.user)
-            | Q(workspace__isnull=True, created_by=request.user)
-        ),
+        family_events(request.user).select_related("workspace").prefetch_related("participants"),
         pk=pk,
     )
     list_url = (
@@ -168,26 +170,42 @@ def event_detail(request, pk):
             "list_url": list_url,
             "timezone_form": timezone_form,
             "timezone_name": timezone_name,
+            "can_create": bool(event.workspace_id) and family_workspaces(
+                request.user, caregivers_only=True,
+            ).filter(pk=event.workspace_id).exists(),
+            "workspace_url": (
+                reverse("accounts:workspace_detail", args=[event.workspace_id])
+                if event.workspace_id and event.workspace.primary_admin_id == request.user.pk
+                else reverse("accounts:dashboard")
+            ),
         },
     )
 
 
-@login_required(login_url="admin:login")
+@login_required(login_url="accounts:login")
 @require_GET
 def event_list(request, workspace_id=None):
     workspace = None
     if workspace_id is not None:
-        workspace = get_object_or_404(Workspace, pk=workspace_id, primary_admin=request.user)
+        workspace = get_object_or_404(family_workspaces(request.user), pk=workspace_id)
+    accessible_events = family_events(request.user)
     if workspace:
-        accessible_events = Event.objects.filter(workspace=workspace)
-    else:
-        accessible_events = Event.objects.filter(
-            Q(workspace__primary_admin=request.user)
-            | Q(workspace__isnull=True, created_by=request.user)
-        )
+        accessible_events = accessible_events.filter(workspace=workspace)
     form = EventScheduleForm(request.GET)
     events = Event.objects.none()
-    context = {"form": form, "workspace": workspace, "timezone_name": timezone.get_current_timezone_name()}
+    caregiver_workspaces = family_workspaces(request.user, caregivers_only=True)
+    context = {
+        "form": form,
+        "workspace": workspace,
+        "timezone_name": timezone.get_current_timezone_name(),
+        "can_create": caregiver_workspaces.filter(pk=workspace.pk).exists()
+        if workspace else caregiver_workspaces.exists(),
+        "workspace_url": (
+            reverse("accounts:workspace_detail", args=[workspace.pk])
+            if workspace and workspace.primary_admin_id == request.user.pk
+            else reverse("accounts:dashboard")
+        ),
+    }
     if form.is_valid():
         period = form.cleaned_data
         events = accessible_events.filter(ends_at__gt=period["starts_at"])
