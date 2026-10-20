@@ -1,0 +1,42 @@
+{% extends 'events/base.html' %}
+{% block title %}Members of {{ workspace.name }} | Syncmily{% endblock %}
+{% block content %}
+    <div class="breadcrumbs"><a href="{% url 'accounts:dashboard' %}">Dashboard</a><span>/</span><a href="{% url 'accounts:workspace_detail' workspace.pk %}">{{ workspace.name }}</a><span>/</span><span>Members</span></div>
+    {% include 'accounts/_messages.html' %}
+    <header class="page-heading">
+        <p class="eyebrow">FAMILY MEMBERS</p>
+        <h1>Who's in {{ workspace.name }}?</h1>
+        <p>Invite another parent or add a kid. Each person gets their own sign-in and their own dashboard.</p>
+    </header>
+    <div class="setup-layout">
+        <section class="panel" aria-labelledby="invite-heading">
+            <div class="panel-heading"><span class="step-number">01</span><h2 id="invite-heading">Invite a member</h2></div>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                <fieldset class="role-picker">
+                    <legend>Who are you adding?</legend>
+                    {% for choice in form.role %}
+                        <label class="role-option role-{{ choice.data.value }}">
+                            {{ choice.tag }}
+                            <span class="role-title">{{ choice.choice_label }}</span>
+                            <span class="role-help">{% if choice.data.value == 'parent' %}Gets a parent dashboard. Username like Parent2.{% else %}Gets a kid dashboard. Username like Kid1.{% endif %}</span>
+                        </label>
+                    {% endfor %}
+                    {{ form.role.errors }}
+                </fieldset>
+                <div class="form-field">
+                    <label for="{{ form.email.id_for_label }}">Email address</label>
+                    {{ form.email }}
+                    {{ form.email.errors }}
+                    <p class="helptext">We'll email them a link to confirm. Their starting password is {{ default_password }}.</p>
+                </div>
+                <div class="form-actions form-footer"><button type="submit">Send invitation <span aria-hidden="true">→</span></button><a href="{% url 'accounts:dashboard' %}">Back to dashboard</a></div>
+            </form>
+        </section>
+        <aside class="panel workspace-info">
+            <h2>Members ({{ members|length|add:1 }})</h2>
+            {% include 'accounts/_member_list.html' with show_emails=True %}
+        </aside>
+    </div>
+{% endblock %}
