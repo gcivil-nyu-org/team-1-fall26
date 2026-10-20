@@ -9,6 +9,10 @@ from django.utils import timezone
 
 
 class Event(models.Model):
+    class Source(models.TextChoices):
+        SYNCMILY = "syncmily", "Syncmily"
+        GOOGLE = "google", "Google Calendar"
+
     submission_id = models.UUIDField(default=uuid4, unique=True, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -27,6 +31,22 @@ class Event(models.Model):
     ends_at = models.DateTimeField()
     timezone_name = models.CharField(max_length=64, default="UTC")
     location = models.CharField(max_length=255, blank=True)
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        default=Source.SYNCMILY,
+        db_default=Source.SYNCMILY,
+    )
+    calendar_connection = models.ForeignKey(
+        "calendars.CalendarConnection",
+        on_delete=models.CASCADE,
+        related_name="events",
+        null=True,
+        blank=True,
+    )
+    external_id = models.CharField(
+        max_length=1024, blank=True, default="", db_default=""
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -35,6 +55,26 @@ class Event(models.Model):
             models.CheckConstraint(
                 condition=models.Q(ends_at__gt=models.F("starts_at")),
                 name="event_end_after_start",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        source="syncmily",
+                        calendar_connection__isnull=True,
+                        external_id="",
+                    )
+                    | (
+                        ~models.Q(source="syncmily")
+                        & models.Q(calendar_connection__isnull=False)
+                        & ~models.Q(external_id="")
+                    )
+                ),
+                name="event_imported_fields_match_source",
+            ),
+            models.UniqueConstraint(
+                fields=["calendar_connection", "external_id"],
+                condition=models.Q(calendar_connection__isnull=False),
+                name="unique_imported_event_per_connection",
             ),
         ]
 
