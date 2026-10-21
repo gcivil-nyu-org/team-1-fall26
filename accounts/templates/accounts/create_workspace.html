@@ -1,31 +1,127 @@
+
 {% extends 'events/base.html' %}
+{% load static %}
+
 {% block title %}Create a workspace | Syncmily{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="{% static 'accounts/workspace.css' %}">
+{% endblock %}
+
 {% block content %}
-    <div class="breadcrumbs"><a href="{% url 'events:choose_workspace' %}">Workspaces</a><span>/</span><span>New workspace</span></div>
-    <header class="page-heading">
-        <p class="eyebrow">YOUR FAMILY, IN ONE PLACE</p>
-        <h1>Create a family workspace</h1>
-        <p>A shared space for the plans that matter to your household.</p>
+<div class="family-ui">
+
+    <nav class="family-breadcrumbs" aria-label="Breadcrumb">
+        <a href="{% url 'events:choose_workspace' %}">Workspaces</a>
+        <span aria-hidden="true">/</span>
+        <span>New workspace</span>
+    </nav>
+
+    <header class="family-hero">
+        <div class="family-hero-copy">
+            <p class="family-eyebrow">WELCOME TO YOUR FAMILY'S HAPPY PLACE</p>
+            <h1>A little home for everyone's plans.</h1>
+            <p>
+                School runs, celebrations, appointments, and
+                everyday moments — bring it all together in
+                one cozy space.
+            </p>
+        </div>
+
+        <div class="family-art" aria-hidden="true">
+            <span class="family-sun"></span>
+            <div class="family-house">
+                <div class="family-roof"></div>
+                <div class="family-door"></div>
+                <div class="family-window"></div>
+            </div>
+            <span class="family-art-heart">♥</span>
+        </div>
     </header>
-    <div class="setup-layout">
-        <section class="panel" aria-labelledby="workspace-heading">
-            <div class="panel-heading"><span class="step-number">01</span><h2 id="workspace-heading">Give your workspace a name</h2></div>
+
+    <div class="family-grid">
+
+        <section class="family-card" aria-labelledby="workspace-heading">
+            <div class="family-step">
+                <span class="family-step-number">01</span>
+                LET'S GET STARTED
+            </div>
+
+            <h2 id="workspace-heading">
+                What should we call your family space?
+            </h2>
+
+            <p>
+                Every great plan starts somewhere.
+                Give your workspace a name that feels like home.
+            </p>
+
             <form method="post">
                 {% csrf_token %}
+
                 {{ form.non_field_errors }}
-                <div class="form-field">
-                    <label for="{{ form.name.id_for_label }}">Workspace Name</label>
+
+                <div class="family-field">
+                    <label for="{{ form.name.id_for_label }}">
+                        Workspace name
+                    </label>
+
                     {{ form.name }}
-                    {{ form.name.errors }}
-                    <p class="helptext">Something everyone will recognise, like “The Rivera Family”.</p>
+
+                    {% if form.name.errors %}
+                        <div role="alert">
+                            {{ form.name.errors }}
+                        </div>
+                    {% endif %}
+
+                    <p class="family-hint">
+                        For example: The Rivera Family,
+                        Our Happy Place, or The Home Crew.
+                    </p>
                 </div>
-                <div class="form-actions form-footer"><button type="submit">Create Workspace <span aria-hidden="true">→</span></button><a data-dialog href="{% url 'events:choose_workspace' %}">Cancel</a></div>
+
+                <div class="family-actions">
+                    <button type="submit" class="family-button">
+                        Create our workspace
+                        <span aria-hidden="true">→</span>
+                    </button>
+
+                    <a class="family-text-link"
+                       href="{% url 'events:choose_workspace' %}">
+                        Maybe later
+                    </a>
+                </div>
             </form>
         </section>
-        <aside class="setup-note">
-            <p class="eyebrow">WHAT HAPPENS NEXT</p>
-            <h2>Make room for your plans.</h2>
-            <ol class="steps-list"><li><strong>Name your workspace</strong><span>You’ll be its primary admin.</span></li><li><strong>Add your first event</strong><span>A school run, a birthday, or dinner together.</span></li><li><strong>See what’s coming up</strong><span>Keep your household’s plans in one schedule.</span></li></ol>
+
+        <aside class="family-card family-note">
+            <p class="family-eyebrow">THE FUN PART STARTS HERE</p>
+
+            <h2>Here's what happens next.</h2>
+
+            <p>
+                You're just a few little steps away from
+                a more organized family life.
+            </p>
+
+            <ol class="family-steps">
+                <li>
+                    <strong>Create your space</strong>
+                    <span>You'll automatically become the Primary Admin.</span>
+                </li>
+
+                <li>
+                    <strong>Make plans together</strong>
+                    <span>Add school events, appointments, or family outings.</span>
+                </li>
+
+                <li>
+                    <strong>Keep everyone in the loop</strong>
+                    <span>Bring your family's important moments into one schedule.</span>
+                </li>
+            </ol>
         </aside>
+
     </div>
+</div>
 {% endblock %}
