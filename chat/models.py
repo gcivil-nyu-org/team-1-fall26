@@ -4,10 +4,12 @@ from django.db import models
 
 
 class ChatMessage(models.Model):
-    household_id = models.PositiveBigIntegerField(
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        related_name="chat_messages",
         null=True,
         blank=True,
-        db_index=True,
     )
 
     sender = models.ForeignKey(
