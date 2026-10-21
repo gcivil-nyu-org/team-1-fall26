@@ -524,3 +524,56 @@ input:focus, select:focus { border-color: #a34d35; box-shadow: 0 0 0 3px #a34d35
     .primary-nav { flex-wrap: nowrap; justify-content: space-between; gap: 2px; padding-block: 8px; }
     .primary-nav a { padding: 8px 5px; font-size: 11px; min-height: 40px; }
 }
+
+/* ---------- Liquid glass controls ----------
+ * The selected pill in the top nav, the Upcoming/Day/Week tabs and the List/Cards switch is a
+ * frosted glass "thumb" over a tinted track. It slides to the new option with View Transitions
+ * (page loads and planner swaps) or a transform (List/Cards). Solid fallbacks keep it readable
+ * without backdrop-filter, with reduced transparency, and with reduced motion. */
+:root {
+    --glass-fill: linear-gradient(180deg, #ffffffd9, #fffdf98c);
+    --glass-edge: #ffffffb3;
+    --glass-shadow: inset 0 1px 0 #ffffffeb, inset 0 -1px 0 #6e504612, 0 1px 2px #3428300f, 0 6px 16px -6px #3428302e;
+    --glass-blur: blur(14px) saturate(170%);
+    --track: #e9e1d6b3;
+}
+.schedule-tabs, .display-switch { position: relative; background: var(--track); border: 1px solid #ffffff80; box-shadow: inset 0 1px 2px #3428300d; -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.schedule-tabs a[aria-current], .display-switch::before, .primary-nav a[aria-current] {
+    background: var(--glass-fill); border: 1px solid var(--glass-edge); box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+}
+.schedule-tabs a, .display-switch button { color: #6a5c6a; } /* 5.1:1 on the glass track */
+.schedule-tabs a { border: 1px solid transparent; }
+.schedule-tabs a[aria-current] { view-transition-name: schedule-pill; color: var(--ink); }
+.primary-nav a { border: 1px solid transparent; }
+.primary-nav a[aria-current] { view-transition-name: nav-pill; color: var(--accent); }
+.primary-nav a:hover:not([aria-current]) { background: #ffffff8c; }
+.schedule-tabs a:hover:not([aria-current]), .display-switch button[aria-pressed="false"]:hover { background: #ffffff59; color: var(--ink); }
+.schedule-tabs a, .display-switch button { transition: background .15s, color .15s; }
+
+/* List/Cards: two equal halves and one thumb that slides with a transform. */
+.display-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 0; isolation: isolate; }
+.display-switch::before {
+    content: ""; position: absolute; z-index: -1; inset: 4px auto 4px 4px; width: calc(50% - 4px); border-radius: 7px;
+    transition: transform .26s cubic-bezier(.2, .8, .2, 1);
+}
+.display-switch:has([data-event-layout="cards"][aria-pressed="true"])::before { transform: translateX(100%); }
+.display-switch button[aria-pressed="true"] { background: transparent; color: var(--ink); }
+
+/* Page loads and planner swaps: a quick cross-fade, with the selected pills sliding into place. */
+@view-transition { navigation: auto; }
+::view-transition-group(schedule-pill), ::view-transition-group(nav-pill) { animation-duration: .26s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .16s; }
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .schedule-tabs, .display-switch { background: #eae2d7; }
+    .schedule-tabs a[aria-current], .display-switch::before, .primary-nav a[aria-current] { background: #fffdf9; }
+}
+@media (prefers-reduced-transparency: reduce) {
+    .schedule-tabs, .display-switch, .schedule-tabs a[aria-current], .display-switch::before, .primary-nav a[aria-current] { -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .schedule-tabs, .display-switch { background: #eae2d7; }
+    .schedule-tabs a[aria-current], .display-switch::before, .primary-nav a[aria-current] { background: #fffdf9; }
+}
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
