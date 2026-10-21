@@ -579,3 +579,15 @@ input:focus, select:focus { border-color: #a34d35; box-shadow: 0 0 0 3px #a34d35
     ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
+
+/* Google Calendar account on the schedule heading */
+.heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
+.calendar-account { display: flex; align-items: center; gap: 12px; margin: 0; }
+.calendar-account p { margin: 0; font-size: 12px; line-height: 1.35; color: var(--muted); text-align: right; min-width: 0; }
+.calendar-account strong { font-weight: 600; color: #785272; overflow-wrap: anywhere; }
+.calendar-account button { white-space: nowrap; }
+@media (max-width: 850px) {
+    .heading-actions { justify-content: flex-start; }
+    .calendar-account { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .calendar-account p { text-align: left; }
+}

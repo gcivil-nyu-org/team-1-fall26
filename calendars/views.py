@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 from google.auth.exceptions import RefreshError
 
@@ -19,6 +20,15 @@ from .sync import sync_connection
 logger = logging.getLogger(__name__)
 
 SESSION_KEY = "google_calendar_oauth"
+
+
+def _safe_next(request, url):
+    """Return url when it points back into this site, else an empty string."""
+    if url and url_has_allowed_host_and_scheme(
+        url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return url
+    return ""
 
 
 def _callback_uri(request):
@@ -41,6 +51,9 @@ def google_connect(request, workspace_id):
         "code_verifier": code_verifier,
         "workspace_id": str(workspace.pk),
     }
+    next_url = _safe_next(request, request.POST.get("next"))
+    if next_url:
+        request.session[SESSION_KEY]["next"] = next_url
     return redirect(url)
 
 
@@ -53,7 +66,9 @@ def google_callback(request):
         return redirect("events:choose_workspace")
 
     workspace = get_object_or_404(Workspace, pk=pending["workspace_id"], primary_admin=request.user)
-    workspace_url = reverse("accounts:workspace_detail", args=[workspace.pk])
+    workspace_url = _safe_next(request, pending.get("next")) or reverse(
+        "accounts:workspace_detail", args=[workspace.pk]
+    )
 
     if request.GET.get("error") == "access_denied":
         messages.error(request, "Google Calendar wasn’t connected because access was declined.")
@@ -86,6 +101,15 @@ def google_callback(request):
     expires_at = credentials.expiry
     if expires_at is not None and timezone.is_naive(expires_at):
         expires_at = expires_at.replace(tzinfo=datetime_timezone.utc)
+
+    previous = CalendarConnection.objects.filter(
+        user=request.user, provider=CalendarConnection.Provider.GOOGLE
+    ).first()
+    if previous and previous.account_email and email and previous.account_email != email:
+        # Switching Google accounts: end the old account's access and drop its imported events.
+        # (Revoking the same account's grant would also cancel the new token, so only do it here.)
+        google.revoke(previous.refresh_token or previous.access_token)
+        previous.events.all().delete()
 
     connection, _ = CalendarConnection.objects.update_or_create(
         user=request.user,
