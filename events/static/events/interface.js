@@ -171,7 +171,13 @@ async function loadPlannerPage(url, updateHistory = true) {
         const content = page.querySelector("#main-content");
         if (pageRequest !== controller) return;
         if (!content) throw new Error("Page unavailable");
-        main.replaceChildren(...Array.from(content.childNodes).map(node => document.importNode(node, true)));
+        const swap = () => main.replaceChildren(...Array.from(content.childNodes).map(node => document.importNode(node, true)));
+        // Let the browser slide the selected tab and cross-fade the schedule where it can.
+        if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            await document.startViewTransition(swap).updateCallbackDone;
+        } else {
+            swap();
+        }
         document.title = page.title;
         if (updateHistory) history.pushState({planner: true}, "", response.url);
         initialiseEventForm(main);
