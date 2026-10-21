@@ -129,10 +129,7 @@
 
                 {% if calendar_connection %}
                     <p>
-                        Connected
-                        {% if calendar_connection.account_email %}
-                            as {{ calendar_connection.account_email }}
-                        {% endif %}.
+                        Connected{% if calendar_connection.account_email %} as {{ calendar_connection.account_email }}{% endif %}.
                     </p>
 
                     {% if calendar_connection.workspace and calendar_connection.workspace != workspace %}
