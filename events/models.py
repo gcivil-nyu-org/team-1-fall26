@@ -8,6 +8,10 @@ from django.db import models
 from django.utils import timezone
 
 
+def default_timezone_name():
+    return settings.TIME_ZONE
+
+
 class Event(models.Model):
     class Source(models.TextChoices):
         SYNCMILY = "syncmily", "Syncmily"
@@ -34,7 +38,7 @@ class Event(models.Model):
     title = models.CharField(max_length=200)
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
-    timezone_name = models.CharField(max_length=64, default="UTC")
+    timezone_name = models.CharField(max_length=64, default=default_timezone_name)
     location = models.CharField(max_length=255, blank=True)
     source = models.CharField(
         max_length=20,

@@ -53,7 +53,7 @@ def _zone(name, fallback):
 def _event_times(item, calendar_timezone):
     """Return (starts_at, ends_at, timezone_name) for a Google event, or None."""
     start, end = item.get("start", {}), item.get("end", {})
-    zone, zone_name = _zone(start.get("timeZone") or calendar_timezone, "UTC")
+    zone, zone_name = _zone(start.get("timeZone") or calendar_timezone, settings.TIME_ZONE)
     if "dateTime" in start and "dateTime" in end:
         starts_at = datetime.fromisoformat(start["dateTime"])
         ends_at = datetime.fromisoformat(end["dateTime"])
@@ -77,7 +77,7 @@ def _fetch_items(service, calendar_id, time_min, time_max):
         showDeleted=True,
         maxResults=250,
     )
-    calendar_timezone = "UTC"
+    calendar_timezone = settings.TIME_ZONE
     items = []
     while request is not None:
         response = request.execute()
