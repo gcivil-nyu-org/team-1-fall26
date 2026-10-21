@@ -14,6 +14,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
+from accounts.models import Workspace
+from calendars.models import CalendarConnection
+
 from .access import family_events, family_workspaces
 from .forms import EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
 from .models import Event
@@ -229,4 +232,22 @@ def event_list(request, workspace_id=None):
             )
     page = Paginator(events, 20).get_page(request.GET.get("page"))
     context["page"] = page
+    context.update(_google_calendar_context(request.user, workspace))
     return render(request, "events/event_list.html", context)
+
+
+def _google_calendar_context(user, workspace):
+    """The Google account shown on the schedule, and the workspace a (re)connect imports into."""
+    connection = (
+        CalendarConnection.objects.filter(user=user, provider=CalendarConnection.Provider.GOOGLE)
+        .select_related("workspace")
+        .first()
+    )
+    # Keep sending events where they already go; otherwise use this page's family, then any the user runs.
+    if connection and connection.workspace and connection.workspace.primary_admin_id == user.pk:
+        target = connection.workspace
+    elif workspace and workspace.primary_admin_id == user.pk:
+        target = workspace
+    else:
+        target = Workspace.objects.filter(primary_admin=user).order_by("created_at").first()
+    return {"calendar_connection": connection, "calendar_workspace": target}

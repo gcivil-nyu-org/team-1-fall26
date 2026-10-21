@@ -30,8 +30,9 @@ def _flow(redirect_uri, **kwargs):
 def authorization_url(redirect_uri):
     """Return Google's consent URL, the state to check, and the PKCE code verifier."""
     flow = _flow(redirect_uri)
-    # access_type=offline and prompt=consent make Google always send a refresh token.
-    url, state = flow.authorization_url(access_type="offline", prompt="consent")
+    # access_type=offline and prompt=consent make Google always send a refresh token;
+    # select_account shows the account picker, so people can switch Google accounts.
+    url, state = flow.authorization_url(access_type="offline", prompt="select_account consent")
     return url, state, flow.code_verifier
 
 

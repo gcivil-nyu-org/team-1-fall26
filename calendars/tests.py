@@ -385,6 +385,67 @@ class GoogleConnectionViewTests(TestCase):
         self.assertNotContains(response, "1//refresh")
 
 
+    def test_switching_accounts_revokes_the_old_one_and_drops_its_events(self):
+        old = CalendarConnection.objects.create(
+            user=self.user, workspace=self.workspace, provider=CalendarConnection.Provider.GOOGLE,
+            account_email="old@example.com", refresh_token="1//old",
+        )
+        Event.objects.create(
+            created_by=self.user, workspace=self.workspace, title="From the old account",
+            starts_at=datetime(2030, 1, 1, 9, tzinfo=timezone.utc), ends_at=datetime(2030, 1, 1, 10, tzinfo=timezone.utc),
+            source=Event.Source.GOOGLE, calendar_connection=old, external_id="old-event",
+        )
+        self.start_connection()
+        with patch("calendars.views.google.revoke", return_value=True) as revoke:
+            self.callback({"state": "state-123", "code": "auth-code"}, self.credentials(refresh_token="1//new"),
+                          email="new@example.com")
+
+        revoke.assert_called_once_with("1//old")
+        connection = CalendarConnection.objects.get(user=self.user)
+        self.assertEqual((connection.account_email, connection.refresh_token), ("new@example.com", "1//new"))
+        self.assertFalse(Event.objects.filter(external_id="old-event").exists())
+
+    def test_reconnecting_the_same_account_keeps_its_access(self):
+        CalendarConnection.objects.create(
+            user=self.user, workspace=self.workspace, provider=CalendarConnection.Provider.GOOGLE,
+            account_email="caregiver@example.com", refresh_token="1//old",
+        )
+        self.start_connection()
+        with patch("calendars.views.google.revoke") as revoke:
+            self.callback({"state": "state-123", "code": "auth-code"})
+        revoke.assert_not_called()
+
+    def test_connect_returns_to_a_local_next_page_only(self):
+        schedule = reverse("events:list") + "?view=week"
+        for next_url, expected in ((schedule, schedule), ("https://evil.example/", self.workspace_url)):
+            with self.subTest(next_url=next_url):
+                with patch("calendars.views.google.authorization_url") as authorization_url:
+                    authorization_url.return_value = ("https://accounts.google.com/consent", "state-123", "verifier")
+                    self.client.post(reverse("calendars:google_connect", args=[self.workspace.pk]), {"next": next_url})
+                response, _ = self.callback({"state": "state-123", "code": "auth-code"})
+                self.assertRedirects(response, expected, fetch_redirect_response=False)
+
+    def test_schedule_offers_connect_then_change_account(self):
+        schedule = reverse("events:list")
+        connect = reverse("calendars:google_connect", args=[self.workspace.pk])
+        response = self.client.get(schedule)
+        self.assertContains(response, "Connect Google Calendar")
+        self.assertContains(response, f'action="{connect}"')
+
+        CalendarConnection.objects.create(
+            user=self.user, workspace=self.workspace, provider=CalendarConnection.Provider.GOOGLE,
+            account_email="caregiver@example.com", refresh_token="1//refresh",
+        )
+        response = self.client.get(schedule)
+        self.assertContains(response, "caregiver@example.com")
+        self.assertContains(response, "Change Google Account")
+        self.assertNotContains(response, "1//refresh")
+
+    def test_schedule_hides_the_button_from_people_who_run_no_family(self):
+        self.client.force_login(self.other_user)
+        response = self.client.get(reverse("events:list"))
+        self.assertNotContains(response, "Connect Google Calendar")
+
 class GoogleHelperTests(TestCase):
     @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret")
     def test_authorization_url_asks_for_read_only_offline_access_with_pkce(self):
@@ -394,7 +455,7 @@ class GoogleHelperTests(TestCase):
         for part in (
             "client_id=client-id",
             "access_type=offline",
-            "prompt=consent",
+            "prompt=select_account+consent",
             "code_challenge_method=S256",
             f"state={state}",
             "calendar.readonly",
@@ -566,7 +627,8 @@ class CalendarSyncTests(TestCase):
 
         response = self.client.get(
             reverse("events:workspace_list", args=[self.workspace.pk]),
-            {"view": "upcoming", "date": "2026-10-20", "timezone": "America/New_York"},
+            # The day view shows the event whatever today's date is ("upcoming" depends on the clock).
+            {"view": "day", "date": "2026-10-21", "timezone": "America/New_York"},
         )
 
         self.assertContains(response, "Soccer practice")
