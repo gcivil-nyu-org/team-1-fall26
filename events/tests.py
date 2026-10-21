@@ -117,7 +117,7 @@ class WorkspaceEventTests(TestCase):
         token = self.submission_token(self.create_url)
         response = self.client.post(self.create_url, {**self.event_data, "submission_token": token})
         event = Event.objects.get()
-        self.assertRedirects(response, reverse("events:detail", args=[event.pk]) + "?timezone=UTC")
+        self.assertRedirects(response, reverse("events:detail", args=[event.pk]) + "?timezone=America%2FNew_York")
         self.assertEqual(event.workspace, self.workspace)
         self.assertEqual(event.created_by, self.admin)
         retry = self.client.post(self.create_url, {**self.event_data, "submission_token": token})
@@ -212,6 +212,26 @@ class WorkspaceEventTests(TestCase):
         self.assertContains(schedule, "11:00 PM")
         for key in ("previous_query", "next_query", "period_query", "create_query"):
             self.assertIn("timezone=America%2FNew_York", schedule.context[key])
+
+    def test_schedule_defaults_to_new_york_time(self):
+        self.create_saved_event("Family dinner", self.workspace, self.admin)
+        response = self.client.get(self.list_url, {"date": "2026-10-20"})
+        self.assertEqual(response.context["timezone_name"], "America/New_York")
+        self.assertContains(response, "2:00 PM")
+
+    def test_new_york_times_hold_across_the_clock_change(self):
+        days = ["2026-10-31", "2026-11-02"]
+        for day in days:
+            token = self.submission_token(self.create_url)
+            self.client.post(self.create_url, {
+                **self.event_data, "date": day, "start_time": "10:00", "end_time": "11:00",
+                "submission_token": token,
+            })
+        events = list(Event.objects.order_by("starts_at"))
+        self.assertEqual([event.starts_at.hour for event in events], [14, 15])
+        self.assertEqual({event.timezone_name for event in events}, {"America/New_York"})
+        for day in days:
+            self.assertContains(self.client.get(self.list_url, {"date": day}), "10:00 AM")
 
     def test_invalid_schedule_timezone_shows_error(self):
         response = self.client.get(self.list_url, {"timezone": "invalid"})

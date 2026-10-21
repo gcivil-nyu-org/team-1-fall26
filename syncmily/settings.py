@@ -80,7 +80,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/New_York"  # the default for display and new events; stored times stay UTC (USE_TZ)
 USE_I18N = True
 USE_TZ = True
 
