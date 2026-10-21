@@ -35,7 +35,7 @@
             <button type="submit">Show events</button>
             <a href="?{{ timezone_query }}">Today</a>
         </form></div></details></div>
-        <div class="schedule-search-row"><div class="event-search"><label for="event-search">Find an event on this page</label><div><span aria-hidden="true">⌕</span><input id="event-search" type="search" data-event-search placeholder="Search by event, family, or place…" autocomplete="off"></div></div><div class="display-switch" role="group" aria-label="Event layout"><button type="button" data-event-layout="list" aria-pressed="true">☰ List</button><button type="button" data-event-layout="cards" aria-pressed="false">▦ Cards</button></div></div>
+        <div class="schedule-search-row"><div class="event-search"><label for="event-search">Find an event on this page</label><div><span aria-hidden="true">⌕</span><input id="event-search" type="search" data-event-search placeholder="Search by event, family, or place…" autocomplete="off"></div></div><div class="display-switch" role="group" aria-label="Event layout"><span class="glass-thumb" aria-hidden="true"></span><button type="button" data-event-layout="list" aria-pressed="true">☰ List</button><button type="button" data-event-layout="cards" aria-pressed="false">▦ Cards</button></div></div>
         {% if not form.errors and form.cleaned_data.view == 'upcoming' %}
             <div class="schedule-heading"><h2>Upcoming and ongoing events</h2><span>{{ page.paginator.count }} event{{ page.paginator.count|pluralize }}</span></div>
         {% elif not form.errors %}
