@@ -182,6 +182,7 @@ async function loadPlannerPage(url, updateHistory = true) {
         if (updateHistory) history.pushState({planner: true}, "", response.url);
         initialiseEventForm(main);
         setEventLayout(eventLayout);
+        window.applyLiquidGlass?.(main);
         const status = document.getElementById("planner-status");
         if (status) status.textContent = "Schedule updated.";
     } catch (error) {

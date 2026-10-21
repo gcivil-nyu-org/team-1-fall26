@@ -433,3 +433,10 @@ class ProfileTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(DEFAULT_MEMBER_PASSWORD))
+
+
+class HomeRedirectTests(TestCase):
+    def test_bare_domain_leads_signed_out_visitors_to_login(self):
+        response = self.client.get("/", follow=True)
+        self.assertEqual(response.redirect_chain[0][0], reverse("accounts:dashboard"))
+        self.assertEqual(response.request["PATH_INFO"], reverse("accounts:login"))
