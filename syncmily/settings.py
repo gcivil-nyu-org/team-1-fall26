@@ -119,3 +119,9 @@ FIELD_ENCRYPTION_KEYS = [
     for key in os.environ.get("FIELD_ENCRYPTION_KEYS", "").split(",")
     if key.strip()
 ]
+# Channel layer for local real-time messaging
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
