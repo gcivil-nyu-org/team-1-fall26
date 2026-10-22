@@ -47,3 +47,17 @@ eb health django-env
   Calendar sign-in needs HTTPS on the live site.
 - The RDS security group must allow port 5432 from the EB instances' security
   group only. Don't make the database publicly accessible.
+
+## Security settings
+
+- **Admin path.** Set `DJANGO_ADMIN_PATH` to a long random value (for example
+  `python -c "import secrets; print(secrets.token_urlsafe(12))"`). The admin then
+  lives at `/<that value>/`, and `/admin/` returns 404. Share the path with the
+  team privately, not in the repo.
+- **Login lockout.** django-axes locks a username for 30 minutes from one IP after
+  5 wrong passwords, on the app login and the admin. To unlock someone early, run
+  `python manage.py axes_reset_username <username>` on the instance (see the
+  `eb ssh` notes above).
+- **Scanner traffic.** `.platform/nginx/conf.d/elasticbeanstalk/01_block_probes.conf`
+  drops requests for PHP files, WordPress paths and dotfiles before they reach
+  Django.
