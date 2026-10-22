@@ -97,8 +97,9 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
-# Turn on once the site is served over HTTPS (Elastic Beanstalk sits behind a
-# load balancer, which tells Django the original scheme in X-Forwarded-Proto).
+# Turn on once the site is served over HTTPS. nginx on the instance terminates
+# TLS and tells Django the original scheme in X-Forwarded-Proto
+# (.platform/hooks/postdeploy/03_https.sh).
 if os.environ.get("DJANGO_HTTPS", "false").lower() == "true":
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
