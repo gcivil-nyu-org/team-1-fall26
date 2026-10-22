@@ -13,7 +13,7 @@
             </div>
             <div class="heading-actions">
             {% if calendar_workspace %}
-                <form class="calendar-account" method="post" action="{% url 'calendars:google_connect' calendar_workspace.pk %}">
+                <form class="calendar-account" method="post" action="{% url 'calendars:google_connect' calendar_workspace.pk %}" data-full-page>
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     {% if calendar_connection %}
