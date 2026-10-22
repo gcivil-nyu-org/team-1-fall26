@@ -31,6 +31,17 @@ function updateFamilyCount(form) {
     count.textContent = `${selected} selected`;
 }
 
+// Open the day timeline near now (or the first event), a third of the way in from the left.
+function scrollTimeline(root) {
+    root.querySelectorAll("[data-timeline]").forEach(scroller => {
+        const grid = scroller.firstElementChild;
+        const laneHead = scroller.querySelector(".lane-name")?.offsetWidth || 0;
+        const track = grid.offsetWidth - laneHead;
+        const target = laneHead + track * Number(scroller.dataset.scrollTo) / 100;
+        scroller.scrollLeft = Math.max(0, target - laneHead - (scroller.clientWidth - laneHead) / 3);
+    });
+}
+
 function setEventLayout(layout) {
     eventLayout = layout;
     const collection = document.querySelector("[data-event-collection]");
@@ -181,6 +192,7 @@ async function loadPlannerPage(url, updateHistory = true) {
         document.title = page.title;
         if (updateHistory) history.pushState({planner: true}, "", response.url);
         initialiseEventForm(main);
+        scrollTimeline(main);
         setEventLayout(eventLayout);
         window.applyLiquidGlass?.(main);
         const status = document.getElementById("planner-status");
@@ -305,3 +317,6 @@ plannerDialog.addEventListener("close", () => {
 });
 window.addEventListener("popstate", () => loadPlannerPage(location.href, false));
 initialiseEventForm(document);
+scrollTimeline(document);
+// Deferred scripts can run before the stylesheet sizes the timeline, so place it again once loaded.
+window.addEventListener("load", () => scrollTimeline(document), {once: true});

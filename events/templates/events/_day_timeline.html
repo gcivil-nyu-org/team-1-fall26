@@ -1,0 +1,63 @@
+{% load tz %}
+<section class="day-timeline" aria-labelledby="day-timeline-title">
+    <h2 id="day-timeline-title" class="sr-only">Schedule for {{ start_date|date:"l, F j, Y" }}</h2>
+    <div class="timeline-key">
+        {% if timeline.lanes %}
+            <ul class="member-legend" aria-label="Family colours">
+                {% for lane in timeline.lanes %}{% if lane.user %}
+                    <li><span class="legend-swatch" style="--member-color: {{ lane.color }}" aria-hidden="true"></span><span translate="no">{{ lane.user.username }}</span><span class="legend-role">{% if lane.is_kid %}Kid{% else %}Parent{% endif %}</span></li>
+                {% endif %}{% endfor %}
+            </ul>
+        {% endif %}
+        {% if color_members %}
+            <details class="member-colors">
+                <summary>Change colours <span aria-hidden="true">⌄</span></summary>
+                <form method="post" action="{% url 'events:member_colors' color_workspace.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    {% for member in color_members %}
+                        <label><input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}">{% if member.user == request.user %}You{% else %}<span translate="no">{{ member.user.username }}</span>{% endif %}</label>
+                    {% endfor %}
+                    <button type="submit">Save colours</button>
+                </form>
+            </details>
+        {% endif %}
+    </div>
+    {% timezone timezone_name %}
+    {% if timeline.all_day %}
+        <div class="all-day-strip">
+            <h3>All day</h3>
+            <ul>
+                {% for item in timeline.all_day %}
+                    <li data-event-card><a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}">{{ item.event.title }}</a>{% for member in item.members %}<span class="member-chip" style="--member-color: {{ member.color }}; --member-text: {{ member.text_color }}" translate="no">{{ member.user.username }}</span>{% endfor %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    <div class="timeline-scroll" data-timeline data-scroll-to="{{ timeline.scroll_to }}" role="region" aria-label="Day schedule by family member" tabindex="0">
+        <div class="timeline-grid" style="--hours: {{ timeline.hour_count }}">
+            <div class="timeline-axis" aria-hidden="true">
+                <span class="lane-name"></span>
+                <div class="axis-track">{% for hour in timeline.hours %}<span style="left: {{ hour.left }}%">{{ hour.starts_at|time:"g A" }}</span>{% endfor %}</div>
+            </div>
+            {% for lane in timeline.lanes %}
+                <section class="timeline-lane" aria-labelledby="lane-{{ forloop.counter }}"{% if lane.user %} style="--member-color: {{ lane.color }}; --member-text: {{ lane.text_color }}"{% endif %}>
+                    <h3 class="lane-name" id="lane-{{ forloop.counter }}">{% if lane.user %}<span class="legend-swatch" aria-hidden="true"></span><span class="lane-label" title="{{ lane.user.username }}" translate="no">{{ lane.user.username }}</span>{% else %}<span class="lane-label">Whole family</span>{% endif %}</h3>
+                    <ol class="lane-track">
+                        {% for item in lane.items %}
+                            <li data-event-card class="timeline-event{% if item.starts_before %} starts-before{% endif %}{% if item.ends_after %} ends-after{% endif %}" style="left: {{ item.left }}%; width: {{ item.width }}%">
+                                <a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}"{% if item.event.source == 'google' %} title="From Google Calendar"{% endif %}><strong>{{ item.event.title }}</strong><span class="sr-only">, </span>{% if item.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<span>{% if item.starts_before %}{{ item.event.starts_at|date:"M j, g:i A" }}{% else %}{{ item.event.starts_at|time:"g:i A" }}{% endif %} – {% if item.ends_after %}{{ item.event.ends_at|date:"M j, g:i A" }}{% else %}{{ item.event.ends_at|time:"g:i A" }}{% endif %}</span></a>
+                            </li>
+                        {% empty %}
+                            <li class="lane-empty">Nothing scheduled</li>
+                        {% endfor %}
+                    </ol>
+                </section>
+            {% empty %}
+                <p class="lane-empty-day">You have no events scheduled for this day.</p>
+            {% endfor %}
+            {% if timeline.now_left is not None %}<div class="now-line" style="--at: {{ timeline.now_left }}" aria-hidden="true"></div>{% endif %}
+        </div>
+    </div>
+    {% endtimezone %}
+</section>
