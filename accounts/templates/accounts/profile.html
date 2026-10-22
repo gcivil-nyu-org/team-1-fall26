@@ -25,11 +25,12 @@
             </form>
         </section>
         <section class="panel" aria-labelledby="password-heading">
-            <div class="panel-heading"><span class="step-number">02</span><h2 id="password-heading">Change password</h2></div>
+            <div class="panel-heading"><span class="step-number">02</span><h2 id="password-heading">{% if request.user.has_usable_password %}Change password{% else %}Set a password{% endif %}</h2></div>
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="password">
                 {{ password_form.non_field_errors }}
+                {% if not request.user.has_usable_password %}<p class="helptext">You signed up with Google. Set a password to sign in with your username too.</p>{% endif %}
                 {% for field in password_form %}
                     <div class="form-field">
                         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -41,5 +42,27 @@
                 <div class="form-actions form-footer"><button type="submit">Save password</button></div>
             </form>
         </section>
+        {% if google_sign_in or google_identity %}
+        <section class="panel" aria-labelledby="google-heading">
+            <div class="panel-heading"><span class="step-number">03</span><h2 id="google-heading">Sign in with Google</h2></div>
+            {% if google_identity %}
+                <p>Connected to <strong translate="no">{{ google_identity.email }}</strong>. You can use Continue with Google on the sign-in page.</p>
+                {% if request.user.has_usable_password %}
+                    <form method="post" action="{% url 'accounts:google_disconnect' %}">
+                        {% csrf_token %}
+                        <div class="form-actions form-footer"><button class="button-secondary" type="submit">Turn off Google sign-in</button></div>
+                    </form>
+                {% else %}
+                    <p class="helptext">Set a password above before turning off Google sign-in, so you can still get in.</p>
+                {% endif %}
+            {% else %}
+                <p>Connect your Google account to sign in to <strong translate="no">{{ request.user.username }}</strong> with Continue with Google.</p>
+                <form class="google-sign-in" method="post" action="{% url 'accounts:google_connect' %}">
+                    {% csrf_token %}
+                    <button class="button-secondary" type="submit">Connect Google</button>
+                </form>
+            {% endif %}
+        </section>
+        {% endif %}
     </div>
 {% endblock %}
