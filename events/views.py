@@ -10,16 +10,19 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpResponseBadRequest
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_GET, require_http_methods
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from accounts.models import Workspace
+from accounts.models import MemberColor, Workspace
 from calendars.models import CalendarConnection
 
 from .access import family_events, family_workspaces
 from .forms import EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
 from .models import Event
+from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
 
 
 @require_http_methods(["GET", "POST"])
@@ -230,10 +233,58 @@ def event_list(request, workspace_id=None):
                 previous_query=urlencode({"date": period["previous_date"], "view": period["view"], **timezone_query}),
                 next_query=urlencode({"date": period["next_date"], "view": period["view"], **timezone_query}),
             )
+    if form.is_valid() and form.cleaned_data["view"] == "day":
+        context.update(_day_timeline_context(request, workspace, events.prefetch_related("participants"), period))
     page = Paginator(events, 20).get_page(request.GET.get("page"))
     context["page"] = page
     context.update(_google_calendar_context(request.user, workspace))
     return render(request, "events/event_list.html", context)
+
+
+def _day_timeline_context(request, workspace, events, period):
+    workspaces = [workspace] if workspace else list(family_workspaces(request.user))
+    members = family_members(workspaces)
+    timeline = build_day_timeline(
+        events, members, period["starts_at"], period["ends_at"], ZoneInfo(period["timezone"]), timezone.now()
+    )
+    # Colours are chosen per family, so the editor needs a single family on screen.
+    color_workspace = workspaces[0] if len(workspaces) == 1 else None
+    return {
+        "timeline": timeline,
+        "color_workspace": color_workspace,
+        "color_members": editable_members(request.user, color_workspace, members) if color_workspace else [],
+    }
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def member_colors(request, workspace_id):
+    """Let a parent save their own schedule colour and their kids' colours."""
+    workspace = get_object_or_404(family_workspaces(request.user), pk=workspace_id)
+    allowed = {
+        str(member["user"].pk) for member in
+        editable_members(request.user, workspace, family_members([workspace]))
+    }
+    if not allowed:
+        raise PermissionDenied("Only parents can change schedule colours.")
+    changes = {}
+    for key, value in request.POST.items():
+        if not key.startswith("color-"):
+            continue
+        user_id = key.removeprefix("color-")
+        if user_id not in allowed:
+            raise PermissionDenied("You can change only your own colour and your kids' colours.")
+        if not HEX_COLOR.fullmatch(value):
+            return HttpResponseBadRequest("Choose a colour like #c62828.")
+        changes[user_id] = value.lower()
+    for user_id, color in changes.items():
+        MemberColor.objects.update_or_create(workspace=workspace, user_id=user_id, defaults={"color": color})
+    if changes:
+        messages.success(request, "Schedule colours saved.")
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}, request.is_secure()):
+        next_url = reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
+    return redirect(next_url)
 
 
 def _google_calendar_context(user, workspace):

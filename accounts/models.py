@@ -61,3 +61,35 @@ class Membership(models.Model):
     @property
     def is_pending(self):
         return self.accepted_at is None
+
+
+class MemberColor(models.Model):
+    """A family member's colour on the schedule, chosen by a parent."""
+
+    KID_DEFAULT = "#9cc9f0"
+    PARENT_DEFAULT = "#c62828"
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="member_colors",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="schedule_colors",
+    )
+
+    color = models.CharField(max_length=7)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workspace", "user"],
+                name="one_color_per_member",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user} is {self.color} in {self.workspace}"
