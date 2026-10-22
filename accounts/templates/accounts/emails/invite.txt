@@ -2,14 +2,11 @@
 
 {{ membership.invited_by.username }} has invited you to join "{{ membership.workspace.name }}" on Syncmily as a {{ membership.get_role_display|lower }}.
 
-Confirm your invitation here:
+Open this link to choose your password and join:
 {{ accept_url }}
 
-Once you've confirmed, sign in with:
-  Username: {{ membership.user.username }}
-  Password: {{ password }}
-
-You can change your username and password from your profile after signing in.
+Your username is {{ membership.user.username }}. You can change it from your
+profile after signing in.
 This link expires in 7 days.
 
 - The Syncmily team

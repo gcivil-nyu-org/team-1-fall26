@@ -7,14 +7,27 @@
         <p>{{ membership.invited_by.username }} invited you to the family workspace as a {{ membership.get_role_display|lower }}.</p>
     </header>
     <section class="panel invite-panel" aria-labelledby="invite-heading">
-        <h2 id="invite-heading">Confirm your invitation</h2>
+        <h2 id="invite-heading">Choose your password to join</h2>
         <dl>
             <dt>Your username</dt><dd><strong>{{ membership.user.username }}</strong></dd>
             <dt>Email</dt><dd>{{ membership.user.email }}</dd>
             <dt>Role</dt><dd>{{ membership.get_role_display }}</dd>
         </dl>
-        <form method="post">
+        <form method="post" novalidate>
             {% csrf_token %}
+            {{ form.non_field_errors }}
+            <input type="text" name="username" value="{{ membership.user.username }}" autocomplete="username" hidden>
+            <div class="form-field">
+                <label for="{{ form.new_password1.id_for_label }}">Choose a password</label>
+                {{ form.new_password1 }}
+                {{ form.new_password1.errors }}
+                <p class="helptext">At least 8 characters, not all numbers, and not a common password.</p>
+            </div>
+            <div class="form-field">
+                <label for="{{ form.new_password2.id_for_label }}">Confirm password</label>
+                {{ form.new_password2 }}
+                {{ form.new_password2.errors }}
+            </div>
             <div class="form-actions"><button type="submit">Confirm and join <span aria-hidden="true">→</span></button></div>
         </form>
     </section>

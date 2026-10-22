@@ -9,12 +9,14 @@ from django.urls import reverse
 
 from .models import Membership, Workspace
 from .services import (
-    DEFAULT_MEMBER_PASSWORD,
     accept_invitation,
     invite_member,
     make_invite_token,
     next_member_username,
 )
+
+
+NEW_PASSWORD = "BlueKite2026!"
 
 
 class WorkspaceCreationTests(TestCase):
@@ -191,7 +193,7 @@ class MemberInvitationTests(TestCase):
         self.assertEqual(membership.user.username, "Kid1")
         self.assertEqual(membership.role, Membership.Role.KID)
         self.assertFalse(membership.user.is_active)
-        self.assertTrue(membership.user.check_password(DEFAULT_MEMBER_PASSWORD))
+        self.assertFalse(membership.user.has_usable_password())
 
     def test_invitation_email_is_sent(self):
         self.client.force_login(self.admin)
@@ -254,10 +256,11 @@ class MemberInvitationTests(TestCase):
 
         logged_in = self.client.login(
             username=membership.user.username,
-            password=DEFAULT_MEMBER_PASSWORD,
+            password="123456",
         )
 
         self.assertFalse(logged_in)
+        self.assertFalse(membership.user.has_usable_password())
 
     def test_opening_invite_link_does_not_activate(self):
         membership = self.invite("kid@example.com", Membership.Role.KID)
@@ -273,25 +276,42 @@ class MemberInvitationTests(TestCase):
         membership.refresh_from_db()
         self.assertTrue(membership.is_pending)
 
-    def test_confirming_invite_allows_sign_in(self):
+    def test_confirming_invite_sets_the_chosen_password_and_signs_in(self):
         membership = self.invite("kid@example.com", Membership.Role.KID)
 
         response = self.client.post(
             reverse(
                 "accounts:accept_invite",
                 kwargs={"token": make_invite_token(membership)},
-            )
+            ),
+            {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD},
         )
 
-        self.assertRedirects(response, reverse("accounts:login"))
+        self.assertRedirects(response, reverse("accounts:dashboard"), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), membership.user.pk)
         membership.refresh_from_db()
         self.assertFalse(membership.is_pending)
-        self.assertTrue(
-            self.client.login(
-                username="Kid1",
-                password=DEFAULT_MEMBER_PASSWORD,
-            )
+        self.client.logout()
+        self.assertTrue(self.client.login(username="Kid1", password=NEW_PASSWORD))
+
+    def test_confirming_invite_needs_a_valid_password(self):
+        membership = self.invite("kid@example.com", Membership.Role.KID)
+        accept_url = reverse(
+            "accounts:accept_invite",
+            kwargs={"token": make_invite_token(membership)},
         )
+
+        for data in (
+            {"new_password1": NEW_PASSWORD, "new_password2": "Different2026!"},
+            {"new_password1": "123456", "new_password2": "123456"},
+            {},
+        ):
+            with self.subTest(data=data):
+                response = self.client.post(accept_url, data)
+                self.assertEqual(response.status_code, 200)
+                membership.refresh_from_db()
+                self.assertTrue(membership.is_pending)
+                self.assertFalse(membership.user.has_usable_password())
 
     def test_tampered_invite_token_is_rejected(self):
         response = self.client.get(
@@ -376,7 +396,7 @@ class ProfileTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username="Kid1",
-            password=DEFAULT_MEMBER_PASSWORD,
+            password="StartPass2026!",
         )
         self.profile_url = reverse("accounts:profile")
         self.client.force_login(self.user)
@@ -408,7 +428,7 @@ class ProfileTests(TestCase):
             self.profile_url,
             {
                 "action": "password",
-                "old_password": DEFAULT_MEMBER_PASSWORD,
+                "old_password": "StartPass2026!",
                 "new_password1": "BlueKite2026!",
                 "new_password2": "BlueKite2026!",
             },
@@ -432,7 +452,7 @@ class ProfileTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
-        self.assertTrue(self.user.check_password(DEFAULT_MEMBER_PASSWORD))
+        self.assertTrue(self.user.check_password("StartPass2026!"))
 
 
 class HomeRedirectTests(TestCase):

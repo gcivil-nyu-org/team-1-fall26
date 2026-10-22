@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone as django_timezone
 
 from accounts.models import Membership, Workspace
-from accounts.services import DEFAULT_MEMBER_PASSWORD, invite_member, make_invite_token
+from accounts.services import invite_member, make_invite_token
 
 from .forms import EventForm, EventScheduleForm
 from .models import Event
@@ -640,11 +640,13 @@ class FamilyEventTests(TestCase):
             role=Membership.Role.PARENT,
         )
         self.client.logout()
-        self.assertFalse(self.client.login(username=membership.user.username, password=DEFAULT_MEMBER_PASSWORD))
+        self.assertFalse(self.client.login(username=membership.user.username, password="123456"))
         accept_url = reverse("accounts:accept_invite", args=[make_invite_token(membership)])
-        self.assertEqual(self.client.post(accept_url).status_code, 302)
+        chosen = {"new_password1": "FamilyTest2026!", "new_password2": "FamilyTest2026!"}
+        self.assertEqual(self.client.post(accept_url, chosen).status_code, 302)
+        self.client.logout()
         login_response = self.client.post(reverse("accounts:login"), {
-            "username": membership.user.username, "password": DEFAULT_MEMBER_PASSWORD,
+            "username": membership.user.username, "password": "FamilyTest2026!",
         })
         self.assertEqual(login_response.status_code, 302)
         response = self.save_event([self.kid.pk])
