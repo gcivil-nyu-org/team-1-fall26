@@ -29,7 +29,7 @@
                     <label for="{{ form.email.id_for_label }}">Email address</label>
                     {{ form.email }}
                     {{ form.email.errors }}
-                    <p class="helptext">We'll email them a link to confirm. Their starting password is {{ default_password }}.</p>
+                    <p class="helptext">We'll email them a link where they choose their own password.</p>
                 </div>
                 <div class="form-actions form-footer"><button type="submit">Send invitation <span aria-hidden="true">→</span></button><a href="{% url 'accounts:dashboard' %}">Back to dashboard</a></div>
             </form>

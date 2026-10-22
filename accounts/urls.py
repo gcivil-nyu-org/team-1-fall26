@@ -37,10 +37,26 @@ urlpatterns = [
         name="accept_invite",
     ),
     path(
+        "signup/",
+        views.signup,
+        name="signup",
+    ),
+    path(
+        "google/login/",
+        views.google_login,
+        name="google_login",
+    ),
+    path(
+        "google/callback/",
+        views.google_login_callback,
+        name="google_login_callback",
+    ),
+    path(
         "login/",
         auth_views.LoginView.as_view(
             template_name="accounts/login.html",
             redirect_authenticated_user=True,
+            extra_context={"google_sign_in": views.google_sign_in_enabled()},
         ),
         name="login",
     ),

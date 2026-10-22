@@ -15,7 +15,15 @@ SCOPES = ["openid", "https://www.googleapis.com/auth/userinfo.email", CALENDAR_S
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 
 
-def _flow(redirect_uri, **kwargs):
+# Sign in with Google only needs to know who the person is.
+LOGIN_SCOPES = [
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+]
+
+
+def _flow(redirect_uri, scopes=SCOPES, **kwargs):
     client_config = {
         "web": {
             "client_id": settings.GOOGLE_CLIENT_ID,
@@ -24,7 +32,7 @@ def _flow(redirect_uri, **kwargs):
             "token_uri": "https://oauth2.googleapis.com/token",
         }
     }
-    return Flow.from_client_config(client_config, scopes=SCOPES, redirect_uri=redirect_uri, **kwargs)
+    return Flow.from_client_config(client_config, scopes=scopes, redirect_uri=redirect_uri, **kwargs)
 
 
 def authorization_url(redirect_uri):
@@ -43,6 +51,20 @@ def exchange_code(redirect_uri, code, code_verifier):
     credentials = flow.credentials
     claims = id_token.verify_oauth2_token(credentials.id_token, Request(), settings.GOOGLE_CLIENT_ID)
     return credentials, claims.get("email", "")
+
+
+def login_authorization_url(redirect_uri):
+    """Return Google's sign-in URL, the state to check, and the PKCE code verifier."""
+    flow = _flow(redirect_uri, scopes=LOGIN_SCOPES)
+    url, state = flow.authorization_url(prompt="select_account")
+    return url, state, flow.code_verifier
+
+
+def verify_login(redirect_uri, code, code_verifier):
+    """Swap the authorization code for Google's signed ID token and return its checked claims."""
+    flow = _flow(redirect_uri, scopes=LOGIN_SCOPES, code_verifier=code_verifier, autogenerate_code_verifier=False)
+    flow.fetch_token(code=code)
+    return id_token.verify_oauth2_token(flow.credentials.id_token, Request(), settings.GOOGLE_CLIENT_ID)
 
 
 def revoke(token):

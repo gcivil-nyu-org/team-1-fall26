@@ -93,3 +93,23 @@ class MemberColor(models.Model):
 
     def __str__(self):
         return f"{self.user} is {self.color} in {self.workspace}"
+
+
+class GoogleIdentity(models.Model):
+    """The Google account that signs in to a Syncmily account."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="google_identity",
+    )
+
+    # Google's permanent account ID (the "sub" claim). Emails can change; this can't.
+    subject = models.CharField(max_length=255, unique=True)
+
+    email = models.EmailField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} signs in with Google as {self.email}"

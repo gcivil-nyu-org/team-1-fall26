@@ -1,27 +1,40 @@
 
+import logging
+
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from calendars import google
 from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
 
-from .forms import InviteMemberForm, UsernameChangeForm, WorkspaceForm
+from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
 from .models import Membership, Workspace
 from .services import (
-    DEFAULT_MEMBER_PASSWORD,
+    GoogleEmailInUse,
     accept_invitation,
     get_family_context,
     get_membership_from_token,
     invite_member,
     send_invitation_email,
+    user_for_google_account,
 )
+
+logger = logging.getLogger(__name__)
+
+# Sign-ins that don't go through a password (sign-up, invites, Google) skip the
+# lockout backend, which only guards password guesses.
+DIRECT_LOGIN_BACKEND = "django.contrib.auth.backends.ModelBackend"
+GOOGLE_LOGIN_SESSION_KEY = "google_login_oauth"
 
 
 @login_required
@@ -192,7 +205,6 @@ def manage_members(request, workspace_id):
             "workspace": workspace,
             "form": form,
             "members": workspace.memberships.select_related("user"),
-            "default_password": DEFAULT_MEMBER_PASSWORD,
         },
     )
 
@@ -219,20 +231,123 @@ def accept_invite(request, token):
         )
         return redirect("accounts:login")
 
-    if request.method == "POST":
-        accept_invitation(membership)
+    form = SetPasswordForm(membership.user, request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            form.save()
+            accept_invitation(membership)
+        login(request, membership.user, backend=DIRECT_LOGIN_BACKEND)
         messages.success(
             request,
-            f"You're in! Sign in as {membership.user.username} "
-            "with the password from your invitation email.",
+            f"Welcome to {membership.workspace.name}! You're signed in as "
+            f"{membership.user.username}.",
         )
-        return redirect("accounts:login")
+        return redirect("accounts:dashboard")
 
     return render(
         request,
         "accounts/accept_invite.html",
-        {"membership": membership},
+        {"membership": membership, "form": form},
     )
+
+
+def google_sign_in_enabled():
+    return bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET)
+
+
+@require_http_methods(["GET", "POST"])
+def signup(request):
+    """Let anyone create an account; they set up or join a family afterwards."""
+    if request.user.is_authenticated:
+        return redirect("accounts:dashboard")
+
+    form = SignUpForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        login(request, user, backend=DIRECT_LOGIN_BACKEND)
+        messages.success(
+            request,
+            f"Welcome to Syncmily, {user.username}! Create your family workspace to get started.",
+        )
+        return redirect("accounts:dashboard")
+
+    return render(
+        request,
+        "accounts/signup.html",
+        {"form": form, "google_sign_in": google_sign_in_enabled()},
+    )
+
+
+def _google_login_callback_uri(request):
+    return request.build_absolute_uri(reverse("accounts:google_login_callback"))
+
+
+@require_POST
+def google_login(request):
+    """Send the visitor to Google to choose the account they sign in with."""
+    if not google_sign_in_enabled():
+        messages.error(request, "Google sign-in isn’t set up on this server yet.")
+        return redirect("accounts:login")
+
+    url, state, code_verifier = google.login_authorization_url(
+        _google_login_callback_uri(request)
+    )
+    request.session[GOOGLE_LOGIN_SESSION_KEY] = {
+        "state": state,
+        "code_verifier": code_verifier,
+    }
+    return redirect(url)
+
+
+@require_GET
+def google_login_callback(request):
+    pending = request.session.pop(GOOGLE_LOGIN_SESSION_KEY, None)
+    if not pending or request.GET.get("state") != pending["state"]:
+        messages.error(request, "We couldn’t confirm that sign-in with Google. Please try again.")
+        return redirect("accounts:login")
+    if "code" not in request.GET:
+        messages.error(request, "Google sign-in was cancelled.")
+        return redirect("accounts:login")
+
+    try:
+        claims = google.verify_login(
+            _google_login_callback_uri(request),
+            request.GET["code"],
+            pending["code_verifier"],
+        )
+    except Exception:
+        logger.exception("Google sign-in failed")
+        messages.error(request, "Google couldn’t sign you in. Please try again.")
+        return redirect("accounts:login")
+
+    email = claims.get("email", "")
+    if not email or not claims.get("email_verified"):
+        messages.error(request, "Google hasn’t verified that account’s email, so we can’t use it to sign in.")
+        return redirect("accounts:login")
+
+    try:
+        user = user_for_google_account(claims["sub"], email)
+    except GoogleEmailInUse:
+        messages.error(
+            request,
+            f"An account with {email} already exists. Sign in with its username and password instead.",
+        )
+        return redirect("accounts:login")
+
+    if not user.is_active:
+        messages.error(request, "This account isn’t active yet. Confirm your invitation first.")
+        return redirect("accounts:login")
+
+    is_new = not user.last_login
+    login(request, user, backend=DIRECT_LOGIN_BACKEND)
+    if is_new:
+        messages.success(
+            request,
+            f"Welcome to Syncmily, {user.username}! Create your family workspace to get started.",
+        )
+    return redirect("accounts:dashboard")
 
 
 @login_required

@@ -12,7 +12,7 @@
                     <label for="{{ form.username.id_for_label }}">Username</label>
                     {{ form.username }}
                     {{ form.username.errors }}
-                    <p class="helptext">For example Parent2 or Kid1, from your invitation email.</p>
+                    
                 </div>
                 <div class="form-field">
                     <label for="{{ form.password.id_for_label }}">Password</label>
@@ -20,13 +20,14 @@
                     {{ form.password.errors }}
                 </div>
                 <input type="hidden" name="next" value="{{ next }}">
-                <div class="form-actions form-footer"><button type="submit">Sign in <span aria-hidden="true">→</span></button></div>
+                <div class="form-actions form-footer"><button type="submit">Sign in <span aria-hidden="true">→</span></button><a href="{% url 'accounts:signup' %}">Create an account</a></div>
             </form>
+            {% include 'accounts/_google_sign_in.html' %}
         </section>
         <aside class="setup-note">
             <p class="eyebrow">JUST BEEN INVITED?</p>
-            <h2>Confirm your email first.</h2>
-            <ol class="steps-list"><li><strong>Open your invitation email</strong><span>It has your username and password.</span></li><li><strong>Confirm the invitation</strong><span>Your account switches on once you confirm.</span></li><li><strong>Sign in here</strong><span>You can change your username and password from your profile.</span></li></ol>
+            <h2>Start from your invitation.</h2>
+            <ol class="steps-list"><li><strong>Open your invitation link</strong><span>A parent in your family sent it to you.</span></li><li><strong>Choose your password</strong><span>Your account switches on and you’re signed in.</span></li><li><strong>Sign in here next time</strong><span>You can change your username and password from your profile.</span></li></ol>
         </aside>
     </div>
 {% endblock %}

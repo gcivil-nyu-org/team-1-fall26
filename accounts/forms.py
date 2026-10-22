@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import UserCreationForm
 
 from .models import Membership, Workspace
 
@@ -74,3 +75,23 @@ class UsernameChangeForm(forms.ModelForm):
             raise forms.ValidationError("That username is already taken.")
 
         return username
+
+
+class SignUpForm(UserCreationForm):
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={"autocomplete": "email", "spellcheck": "false"}),
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = get_user_model()
+        fields = ("username", "email")
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+
+        if get_user_model().objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError(
+                "An account with this email already exists. Sign in instead."
+            )
+
+        return email

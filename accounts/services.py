@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import signing
@@ -7,12 +9,10 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Membership, Workspace
+from .models import GoogleIdentity, Membership, Workspace
 
 
 # Temporary until members can pick their own password at sign-up.
-DEFAULT_MEMBER_PASSWORD = "123456"
-
 INVITE_SALT = "accounts.invite"
 INVITE_MAX_AGE = 7 * 24 * 60 * 60
 
@@ -43,8 +43,8 @@ def next_member_username(role):
 
 def invite_member(*, workspace, invited_by, email, role, attempts=3):
     """
-    Create an inactive account for a new member. The account becomes
-    usable once the invite link in their email is confirmed.
+    Create an inactive account for a new member. It has no password until
+    the member opens the invite link and chooses one.
     """
     if workspace.primary_admin_id != invited_by.pk:
         raise PermissionError("Only the primary admin can invite members.")
@@ -59,7 +59,7 @@ def invite_member(*, workspace, invited_by, email, role, attempts=3):
                     email=email,
                     is_active=False,
                 )
-                user.set_password(DEFAULT_MEMBER_PASSWORD)
+                user.set_unusable_password()
                 user.save()
 
                 return Membership.objects.create(
@@ -107,7 +107,6 @@ def send_invitation_email(request, membership):
     context = {
         "membership": membership,
         "accept_url": accept_url,
-        "password": DEFAULT_MEMBER_PASSWORD,
     }
 
     send_mail(
@@ -160,3 +159,45 @@ def get_family_context(user):
         }
 
     return None
+
+
+class GoogleEmailInUse(Exception):
+    """Another Syncmily account already uses this Google account's email."""
+
+
+def available_username(email):
+    """A free username based on the start of an email address, e.g. maya or maya2."""
+    base = re.sub(r"[^\w.+-]", "", email.split("@")[0])[:140] or "member"
+    taken = {
+        username.lower()
+        for username in get_user_model().objects.filter(
+            username__istartswith=base,
+        ).values_list("username", flat=True)
+    }
+    candidate, number = base, 1
+    while candidate.lower() in taken:
+        number += 1
+        candidate = f"{base}{number}"
+    return candidate
+
+
+def user_for_google_account(subject, email):
+    """
+    Return the account linked to this Google account, creating one on first
+    sign-in. Never attaches Google to an existing password account with the
+    same email: whoever created that account may not own the address.
+    """
+    identity = GoogleIdentity.objects.select_related("user").filter(subject=subject).first()
+    if identity:
+        return identity.user
+
+    User = get_user_model()
+    if User.objects.filter(email__iexact=email).exists():
+        raise GoogleEmailInUse(email)
+
+    with transaction.atomic():
+        user = User(username=available_username(email), email=email.lower())
+        user.set_unusable_password()
+        user.save()
+        GoogleIdentity.objects.create(user=user, subject=subject, email=email.lower())
+    return user
