@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,6 +29,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "axes",
 ]
 
 MIDDLEWARE = [
@@ -39,6 +41,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Last, so it sees every login attempt and can answer with the lockout page.
+    "axes.middleware.AxesMiddleware",
 ]
 
 ROOT_URLCONF = "syncmily.urls"
@@ -101,6 +105,27 @@ if os.environ.get("DJANGO_HTTPS", "false").lower() == "true":
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 3600
+
+# Brute-force protection: 5 wrong passwords for one username from one IP locks
+# that pair out for 30 minutes, on the app login and the admin alike. Locking the
+# pair, not the IP alone, keeps one person's typos from locking out a family on
+# the same Wi-Fi. Unlock early with `python manage.py axes_reset_username <name>`.
+AUTHENTICATION_BACKENDS = [
+    "syncmily.auth_backends.LockoutBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=30)
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = "accounts/locked_out.html"
+# nginx on the instance appends the client's address to X-Forwarded-For, so the
+# right-most entry is the one a visitor cannot forge.
+AXES_IPWARE_META_PRECEDENCE_ORDER = ["HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"]
+AXES_IPWARE_PROXY_ORDER = "right-most"
+
+# Keep the admin off the well-known /admin/ path in production.
+ADMIN_PATH = os.environ.get("DJANGO_ADMIN_PATH", "admin/").strip("/") + "/"
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:dashboard"

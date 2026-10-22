@@ -1,0 +1,12 @@
+{% extends 'events/base.html' %}
+{% block title %}Too many sign-in attempts | Syncmily{% endblock %}
+{% block content %}
+    <div class="setup-layout">
+        <section class="panel" aria-labelledby="locked-heading">
+            <div class="panel-heading"><h2 id="locked-heading">Too many sign-in attempts</h2></div>
+            <p>We paused sign-ins for this account from your network after several wrong passwords. Try again in 30 minutes.</p>
+            <p>If you forgot your password, ask the parent who runs your family workspace to help.</p>
+            <a class="button-secondary" href="{% url 'accounts:login' %}">Back to sign in</a>
+        </section>
+    </div>
+{% endblock %}
