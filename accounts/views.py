@@ -18,9 +18,11 @@ from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
 
 from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
-from .models import Membership, Workspace
+from .models import GoogleIdentity, Membership, Workspace
 from .services import (
+    GoogleAccountTaken,
     GoogleEmailInUse,
+    connect_google_account,
     accept_invitation,
     get_family_context,
     get_membership_from_token,
@@ -284,6 +286,18 @@ def _google_login_callback_uri(request):
     return request.build_absolute_uri(reverse("accounts:google_login_callback"))
 
 
+def _start_google_sign_in(request, **pending):
+    url, state, code_verifier = google.login_authorization_url(
+        _google_login_callback_uri(request)
+    )
+    request.session[GOOGLE_LOGIN_SESSION_KEY] = {
+        "state": state,
+        "code_verifier": code_verifier,
+        **pending,
+    }
+    return redirect(url)
+
+
 @require_POST
 def google_login(request):
     """Send the visitor to Google to choose the account they sign in with."""
@@ -291,14 +305,30 @@ def google_login(request):
         messages.error(request, "Google sign-in isn’t set up on this server yet.")
         return redirect("accounts:login")
 
-    url, state, code_verifier = google.login_authorization_url(
-        _google_login_callback_uri(request)
-    )
-    request.session[GOOGLE_LOGIN_SESSION_KEY] = {
-        "state": state,
-        "code_verifier": code_verifier,
-    }
-    return redirect(url)
+    return _start_google_sign_in(request)
+
+
+@login_required
+@require_POST
+def google_connect(request):
+    """Let a signed-in user add Google as a way to sign in to this account."""
+    if not google_sign_in_enabled():
+        messages.error(request, "Google sign-in isn’t set up on this server yet.")
+        return redirect("accounts:profile")
+
+    return _start_google_sign_in(request, connect_user_id=request.user.pk)
+
+
+@login_required
+@require_POST
+def google_disconnect(request):
+    if not request.user.has_usable_password():
+        messages.error(request, "Set a password first, so you can still sign in without Google.")
+        return redirect("accounts:profile")
+
+    GoogleIdentity.objects.filter(user=request.user).delete()
+    messages.success(request, "Google sign-in is turned off for this account.")
+    return redirect("accounts:profile")
 
 
 @require_GET
@@ -322,6 +352,20 @@ def google_login_callback(request):
         messages.error(request, "Google couldn’t sign you in. Please try again.")
         return redirect("accounts:login")
 
+    connect_user_id = pending.get("connect_user_id")
+    if connect_user_id is not None:
+        # Started from the profile page: the password sign-in already proved who this is.
+        if request.user.pk != connect_user_id:
+            messages.error(request, "Sign in again to connect Google to your account.")
+            return redirect("accounts:login")
+        try:
+            connect_google_account(request.user, claims["sub"], claims.get("email", ""))
+        except GoogleAccountTaken:
+            messages.error(request, "That Google account already signs in to a different Syncmily account.")
+            return redirect("accounts:profile")
+        messages.success(request, f"Done! You can now sign in with Google ({claims.get('email', '')}).")
+        return redirect("accounts:profile")
+
     email = claims.get("email", "")
     if not email or not claims.get("email_verified"):
         messages.error(request, "Google hasn’t verified that account’s email, so we can’t use it to sign in.")
@@ -332,7 +376,8 @@ def google_login_callback(request):
     except GoogleEmailInUse:
         messages.error(
             request,
-            f"An account with {email} already exists. Sign in with its username and password instead.",
+            f"An account with {email} already exists. Sign in with its username and password, "
+            "then connect Google from your profile.",
         )
         return redirect("accounts:login")
 
@@ -356,8 +401,10 @@ def profile(request):
     """
     Let any signed-in user change their username or password.
     """
+    # Accounts made with Google have no password yet, so there's no current one to ask for.
+    PasswordForm = PasswordChangeForm if request.user.has_usable_password() else SetPasswordForm
     username_form = UsernameChangeForm(instance=request.user)
-    password_form = PasswordChangeForm(request.user)
+    password_form = PasswordForm(request.user)
     action = request.POST.get("action")
 
     if request.method == "POST" and action == "username":
@@ -369,7 +416,7 @@ def profile(request):
             return redirect("accounts:profile")
 
     elif request.method == "POST" and action == "password":
-        password_form = PasswordChangeForm(request.user, request.POST)
+        password_form = PasswordForm(request.user, request.POST)
 
         if password_form.is_valid():
             user = password_form.save()
@@ -384,5 +431,7 @@ def profile(request):
             "username_form": username_form,
             "password_form": password_form,
             "family": get_family_context(request.user),
+            "google_identity": GoogleIdentity.objects.filter(user=request.user).first(),
+            "google_sign_in": google_sign_in_enabled(),
         },
     )

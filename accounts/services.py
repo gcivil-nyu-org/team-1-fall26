@@ -201,3 +201,18 @@ def user_for_google_account(subject, email):
         user.save()
         GoogleIdentity.objects.create(user=user, subject=subject, email=email.lower())
     return user
+
+
+class GoogleAccountTaken(Exception):
+    """This Google account already signs in to a different Syncmily account."""
+
+
+def connect_google_account(user, subject, email):
+    """Let a signed-in user sign in with this Google account from now on."""
+    other = GoogleIdentity.objects.filter(subject=subject).exclude(user=user).exists()
+    if other:
+        raise GoogleAccountTaken(email)
+    GoogleIdentity.objects.update_or_create(
+        user=user,
+        defaults={"subject": subject, "email": email.lower()},
+    )

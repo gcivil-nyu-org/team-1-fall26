@@ -165,3 +165,106 @@ class GoogleSignInTests(TestCase):
         response = self.client.post(self.start_url)
         self.assertRedirects(response, reverse("accounts:login"), fetch_redirect_response=False)
         self.assertNotContains(self.client.get(reverse("accounts:signup")), "Continue with Google")
+
+
+@override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret")
+class ConnectGoogleTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="simon", email="simon@example.com", password=PASSWORD,
+        )
+        self.profile_url = reverse("accounts:profile")
+        self.callback_url = reverse("accounts:google_login_callback")
+        self.client.force_login(self.user)
+
+    def connect(self, claims=None, start_as=None):
+        with patch(
+            "accounts.views.google.login_authorization_url",
+            return_value=("https://accounts.google.com/o/oauth2/auth?x=1", "state-123", "verifier"),
+        ):
+            self.client.post(reverse("accounts:google_connect"))
+        if start_as is not None:
+            self.client.force_login(start_as)
+        claims = claims or {"sub": "google-7", "email": "Simon.Personal@gmail.com", "email_verified": True}
+        with patch("accounts.views.google.verify_login", return_value=claims):
+            return self.client.get(self.callback_url, {"state": "state-123", "code": "auth-code"})
+
+    def sign_in_with_google(self, sub="google-7"):
+        self.client.logout()
+        with patch(
+            "accounts.views.google.login_authorization_url",
+            return_value=("https://accounts.google.com/o/oauth2/auth?x=1", "state-9", "verifier"),
+        ):
+            self.client.post(reverse("accounts:google_login"))
+        claims = {"sub": sub, "email": "simon.personal@gmail.com", "email_verified": True}
+        with patch("accounts.views.google.verify_login", return_value=claims):
+            self.client.get(self.callback_url, {"state": "state-9", "code": "auth-code"})
+
+    def test_existing_account_can_connect_google_and_then_sign_in_with_it(self):
+        response = self.connect()
+
+        self.assertRedirects(response, self.profile_url, fetch_redirect_response=False)
+        self.assertEqual(self.user.google_identity.subject, "google-7")
+        self.sign_in_with_google()
+        self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.pk)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_connecting_works_even_when_the_google_email_differs(self):
+        self.connect({"sub": "google-7", "email": "someone.else@gmail.com", "email_verified": True})
+        self.assertEqual(self.user.google_identity.email, "someone.else@gmail.com")
+
+    def test_a_google_account_cannot_be_connected_to_two_accounts(self):
+        other = get_user_model().objects.create_user(username="other", password=PASSWORD)
+        GoogleIdentity.objects.create(user=other, subject="google-7", email="x@gmail.com")
+
+        response = self.connect()
+
+        self.assertRedirects(response, self.profile_url, fetch_redirect_response=False)
+        self.assertFalse(GoogleIdentity.objects.filter(user=self.user).exists())
+        self.assertEqual(GoogleIdentity.objects.get(subject="google-7").user, other)
+
+    def test_connect_finishes_only_for_the_account_that_started_it(self):
+        other = get_user_model().objects.create_user(username="other", password=PASSWORD)
+
+        response = self.connect(start_as=other)
+
+        self.assertRedirects(response, reverse("accounts:login"), fetch_redirect_response=False)
+        self.assertFalse(GoogleIdentity.objects.exists())
+
+    def test_connect_needs_a_signed_in_user(self):
+        self.client.logout()
+        response = self.client.post(reverse("accounts:google_connect"))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse("accounts:login")))
+
+    def test_disconnect_turns_google_sign_in_off(self):
+        self.connect()
+
+        response = self.client.post(reverse("accounts:google_disconnect"))
+
+        self.assertRedirects(response, self.profile_url, fetch_redirect_response=False)
+        self.assertFalse(GoogleIdentity.objects.exists())
+
+    def test_google_only_account_must_set_a_password_before_disconnecting(self):
+        self.user.set_unusable_password()
+        self.user.save()
+        # Changing the password ends existing sessions, as it does for real users.
+        self.client.force_login(self.user)
+        self.connect()
+
+        self.client.post(reverse("accounts:google_disconnect"))
+        self.assertTrue(GoogleIdentity.objects.exists())
+
+        response = self.client.post(self.profile_url, {
+            "action": "password", "new_password1": "NewKite2026!", "new_password2": "NewKite2026!",
+        })
+        self.assertRedirects(response, self.profile_url)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewKite2026!"))
+        self.client.post(reverse("accounts:google_disconnect"))
+        self.assertFalse(GoogleIdentity.objects.exists())
+
+    def test_profile_offers_connect_then_shows_the_connected_account(self):
+        self.assertContains(self.client.get(self.profile_url), "Connect Google")
+        self.connect()
+        self.assertContains(self.client.get(self.profile_url), "simon.personal@gmail.com")

@@ -47,6 +47,16 @@ urlpatterns = [
         name="google_login",
     ),
     path(
+        "google/connect/",
+        views.google_connect,
+        name="google_connect",
+    ),
+    path(
+        "google/disconnect/",
+        views.google_disconnect,
+        name="google_disconnect",
+    ),
+    path(
         "google/callback/",
         views.google_login_callback,
         name="google_login_callback",
