@@ -57,7 +57,7 @@
                 {% endif %}
             {% else %}
                 <p>Connect your Google account to sign in to <strong translate="no">{{ request.user.username }}</strong> with Continue with Google.</p>
-                <form class="google-sign-in" method="post" action="{% url 'accounts:google_connect' %}">
+                <form class="google-sign-in" method="post" action="{% url 'accounts:google_connect' %}" data-full-page>
                     {% csrf_token %}
                     <button class="button-secondary" type="submit">Connect Google</button>
                 </form>

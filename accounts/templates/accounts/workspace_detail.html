@@ -176,7 +176,7 @@
                     </p>
 
                     <form method="post"
-                          action="{% url 'calendars:google_connect' workspace.pk %}">
+                          action="{% url 'calendars:google_connect' workspace.pk %}" data-full-page>
                         {% csrf_token %}
                         <button class="family-button" type="submit">
                             Connect Google Calendar

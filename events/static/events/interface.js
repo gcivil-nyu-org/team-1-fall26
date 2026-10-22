@@ -253,6 +253,8 @@ document.addEventListener("click", event => {
 
 document.addEventListener("submit", event => {
     const form = event.target;
+    // Forms that leave the site (e.g. to Google) must load as a full page: fetch can't follow them.
+    if (form.hasAttribute("data-full-page")) return;
     const inDialog = plannerDialog.open && dialogContent.contains(form);
     if (!inDialog && !form.hasAttribute("data-planner-form")) return;
     event.preventDefault();
