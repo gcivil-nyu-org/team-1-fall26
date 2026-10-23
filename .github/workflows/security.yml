@@ -29,9 +29,7 @@ jobs:
         with:
           python-version: "3.14"
       - run: pip install pip-audit==2.10.1
-      # CVE-2026-106454: ReDoS in Twisted's IMAP server (twisted.mail.imap4), which
-      # Daphne never loads, and no fixed release exists yet. Re-check when Twisted ships a fix.
-      - run: pip-audit -r requirements.txt --require-hashes --ignore-vuln CVE-2026-106454
+      - run: pip-audit -r requirements.txt --require-hashes
 
   code:
     name: Code scan (Semgrep)

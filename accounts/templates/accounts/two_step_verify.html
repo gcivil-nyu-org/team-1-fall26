@@ -1,0 +1,20 @@
+{% extends 'events/base.html' %}
+{% block title %}Enter your code | Syncmily{% endblock %}
+{% block content %}
+    {% include 'accounts/_messages.html' %}
+    <div class="setup-layout">
+        <section class="panel" aria-labelledby="verify-heading">
+            <div class="panel-heading"><h2 id="verify-heading">Enter your sign-in code</h2></div>
+            <p>Open your authenticator app and type the 6-digit code for Syncmily. Lost your phone? Use one of your backup codes instead.</p>
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-field">
+                    <label for="code">Code</label>
+                    <input id="code" name="code" type="text" inputmode="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required autofocus{% if error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
+                    {% if error %}<p class="errorlist" id="code-error" role="alert">{{ error }}</p>{% endif %}
+                </div>
+                <div class="form-actions form-footer"><button type="submit">Sign in <span aria-hidden="true">→</span></button><a href="{% url 'accounts:login' %}">Start over</a></div>
+            </form>
+        </section>
+    </div>
+{% endblock %}

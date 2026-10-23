@@ -4,6 +4,7 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 from django.core.exceptions import PermissionDenied
@@ -17,6 +18,7 @@ from calendars import google
 from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
 
+from . import two_step
 from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
 from .models import GoogleIdentity, Membership, Workspace
 from .services import (
@@ -282,6 +284,22 @@ def signup(request):
     )
 
 
+class SignInView(LoginView):
+    """The password sign-in, which hands off to the code step when two-step sign-in is on."""
+
+    template_name = "accounts/login.html"
+    redirect_authenticated_user = True
+
+    def get_context_data(self, **kwargs):
+        return {**super().get_context_data(**kwargs), "google_sign_in": google_sign_in_enabled()}
+
+    def form_valid(self, form):
+        user = form.get_user()
+        if two_step.is_enabled(user):
+            return two_step.begin(self.request, user, user.backend, self.get_success_url())
+        return super().form_valid(form)
+
+
 def _google_login_callback_uri(request):
     return request.build_absolute_uri(reverse("accounts:google_login_callback"))
 
@@ -385,6 +403,9 @@ def google_login_callback(request):
         messages.error(request, "This account isn’t active yet. Confirm your invitation first.")
         return redirect("accounts:login")
 
+    if two_step.is_enabled(user):
+        return two_step.begin(request, user, DIRECT_LOGIN_BACKEND)
+
     is_new = not user.last_login
     login(request, user, backend=DIRECT_LOGIN_BACKEND)
     if is_new:
@@ -433,5 +454,7 @@ def profile(request):
             "family": get_family_context(request.user),
             "google_identity": GoogleIdentity.objects.filter(user=request.user).first(),
             "google_sign_in": google_sign_in_enabled(),
+            "two_step_on": two_step.is_enabled(request.user),
+            "backup_codes_left": two_step.backup_codes_left(request.user),
         },
     )
