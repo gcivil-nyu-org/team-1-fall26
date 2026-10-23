@@ -83,7 +83,7 @@ def google_callback(request):
         )
     except Exception as error:
         # Log only the error type: OAuth error messages can echo request details.
-        logger.warning("Google token exchange failed: %s", type(error).__name__)
+        logger.warning("Google token exchange failed: %s", type(error).__name__)  # nosemgrep: python-logger-credential-disclosure -- logs the exception class name only
         messages.error(request, "Google couldn’t connect your calendar. Please try again.")
         return redirect(workspace_url)
 

@@ -105,7 +105,11 @@ if os.environ.get("DJANGO_HTTPS", "false").lower() == "true":
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 3600
+    # One year, the minimum for browser preload lists. Safe for subdomains: .app is an
+    # HSTS-preloaded TLD, so browsers already refuse plain HTTP on every *.syncmily.app.
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # Brute-force protection: 5 wrong passwords for one username from one IP locks
 # that pair out for 30 minutes, on the app login and the admin alike. Locking the
