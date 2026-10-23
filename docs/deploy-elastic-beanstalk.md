@@ -41,6 +41,21 @@ eb health django-env
 
 `eb deploy` uploads the last commit, so commit before deploying.
 
+## Dependencies
+
+`requirements.in` lists the packages Syncmily uses directly. `requirements.txt`
+is generated from it: every package, including dependencies of dependencies,
+pinned to an exact version with hashes, so the server installs exactly what was
+tested and audited. Don't edit `requirements.txt` by hand. After changing
+`requirements.in`, regenerate it and commit both files:
+
+```
+uv pip compile requirements.in --universal --python-version 3.14 --generate-hashes -o requirements.txt
+```
+
+To pick up security fixes in dependencies, run the same command with
+`--upgrade`, then run the tests.
+
 ## Notes
 
 - Google only accepts `https://` redirect URIs outside localhost, so Google
