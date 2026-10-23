@@ -58,7 +58,17 @@ server {
     ssl_certificate     $CERT_DIR/fullchain.pem;
     ssl_certificate_key $CERT_DIR/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
+    # AEAD-only TLS 1.2 suites (Mozilla "intermediate"): drops the CBC suites testssl flagged (LUCKY13).
+    ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
     ssl_session_cache   shared:SSL:10m;
+    ssl_session_tickets off;
+    server_tokens       off;
+
+    # Browser features Syncmily never uses stay off. The CSP starts in report-only mode:
+    # violations show in the browser console without breaking anything; enforce it once clean.
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' wss://$PRIMARY; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com; object-src 'none'" always;
     access_log /var/log/nginx/access.log main;
     client_header_timeout 60;
     client_body_timeout   60;
