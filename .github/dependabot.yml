@@ -1,0 +1,33 @@
+# Weekly update PRs for Python packages and the pinned GitHub Actions. Every PR
+# runs the Security workflow (pip-audit, Semgrep, gitleaks, deploy check, tests).
+# Security fixes arrive as soon as an advisory is published, outside this schedule.
+# The cooldown waits a week before proposing a new release, so a hijacked package
+# version is usually caught and pulled before it reaches us (security fixes skip it).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/New_York
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      # One PR for routine minor/patch bumps instead of one per package.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: develop
+    cooldown:
+      default-days: 7
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/New_York
