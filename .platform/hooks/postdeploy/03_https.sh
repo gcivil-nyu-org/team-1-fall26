@@ -65,10 +65,10 @@ server {
     ssl_session_tickets off;
     server_tokens       off;
 
-    # Browser features Syncmily never uses stay off. The CSP starts in report-only mode:
-    # violations show in the browser console without breaking anything; enforce it once clean.
+    # Browser features Syncmily never uses stay off. The CSP is enforced: every page was checked
+    # in WebKit with it enforced (0 violations, chat connects); inline scripts must stay in static files.
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
-    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' wss://$PRIMARY; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com; object-src 'none'" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' wss://$PRIMARY; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com; object-src 'none'" always;
     access_log /var/log/nginx/access.log main;
     client_header_timeout 60;
     client_body_timeout   60;
