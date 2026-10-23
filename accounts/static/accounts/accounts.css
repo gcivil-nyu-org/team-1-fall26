@@ -73,3 +73,10 @@
 .google-sign-in button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; }
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; color: var(--muted); font-size: 12px; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* Two-step sign-in: QR code to scan, and the one-time list of backup codes */
+.two-step-qr { margin: 20px 0 8px; width: 200px; max-width: 100%; background: white; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.two-step-qr svg { display: block; width: 100%; height: auto; }
+.backup-codes { list-style: none; padding: 0; margin: 16px 0 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.backup-codes code { display: block; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; letter-spacing: .04em; text-align: center; }
+.two-step-qr + .helptext { margin-bottom: 24px; }

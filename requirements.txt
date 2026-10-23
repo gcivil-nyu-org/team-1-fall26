@@ -452,6 +452,10 @@ charset-normalizer==3.5.2 \
     --hash=sha256:fd1fbe0f116b6e55da77aca2c6ddcddcfac2186cbf78bdebf40fc156efca389d \
     --hash=sha256:fe9753dfee015c570d73df76f899f18444d41388bffcde097deba51c4fadbb9f
     # via requests
+colorama==0.4.6 ; sys_platform == 'win32' \
+    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
+    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
+    # via qrcode
 constantly==23.10.4 \
     --hash=sha256:3fd9b4d1c3dc1ec9757f3c52aef7e53ad9323dbe39f51dfd4c43853b68dfa3f9 \
     --hash=sha256:aa92b70a33e2ac0bb33cd745eb61776594dc48764b06c35e0efd050b7f1c7cbd
@@ -534,6 +538,7 @@ django==5.2.18 \
     #   channels
     #   django-axes
     #   django-ipware
+    #   django-otp
 django-axes==8.3.1 \
     --hash=sha256:d57e923c0ba33cf45275253dd1313c3a3ff04bec686b38d677beb2b3d43c7bcd \
     --hash=sha256:f7887582fd12713064f1602091ff6152752becae5e891a15bf802746cab0f51a
@@ -544,6 +549,10 @@ django-ipware==8.0.0 \
     # via
     #   -r requirements.in
     #   django-axes
+django-otp==1.7.5 \
+    --hash=sha256:475d4111e07d61616996f098d08d29884da6397273a11f53c1b8e8c75d27e1dc \
+    --hash=sha256:7f554d21dcd035550c3b8e3f154b1f422fee71fdc75c8a3bf96e42a2ea6dafcc
+    # via -r requirements.in
 google-api-core==2.43.0 \
     --hash=sha256:d67355a22d995a009b6c5ca98744ea35fbf4f9c2c006aa0588c0941d1ceb5216 \
     --hash=sha256:dd588ae9de5e372be89b87c68b1e1555fe89add1809d623182b773d14f96859a
@@ -817,6 +826,10 @@ python-ipware==4.1.1 \
     --hash=sha256:52eedd4cb7bb9e1bb6b9dd92db974e729fe54be22e1389703e21c60344b9f039 \
     --hash=sha256:fd6102058e74c29112b4376f8abbae718852c95f8de6965801de88ca9780d22f
     # via django-ipware
+qrcode==8.2 \
+    --hash=sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f \
+    --hash=sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c
+    # via -r requirements.in
 requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
     --hash=sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed
@@ -836,10 +849,12 @@ sqlparse==0.6.0 \
     --hash=sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9 \
     --hash=sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f
     # via django
-twisted==26.4.0 \
-    --hash=sha256:dbfd0fe1ee409d0243fdd7a6a6ff14f4948cec1fd78e0376291f805e1501fae9 \
-    --hash=sha256:dc25ea0ebf6511c24f03232ee9f4afa54b291c5d897990e3a39cc4d14a1ef4c0
-    # via daphne
+twisted==26.10.0rc1 \
+    --hash=sha256:9a8689a7ab8180b16917aa585cc4d8dafcef620162b17b8aab3719b485b321e8 \
+    --hash=sha256:a2201fed4dd4919b0fe732aa2c4ac95e4dff3ba04cfc10b1383e7aac29005e27
+    # via
+    #   -r requirements.in
+    #   daphne
 txaio==26.6.1 \
     --hash=sha256:3ee900b2331c93457530fddbccc1a320c4e2d7ac8f9073d01c3fbe87762ccb35 \
     --hash=sha256:91a84a7825485a367c0b070c7399824c0e1a1e8c071cbdf3882dd3146dab587b
