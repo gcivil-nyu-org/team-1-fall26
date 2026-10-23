@@ -64,5 +64,30 @@
             {% endif %}
         </section>
         {% endif %}
+        <section class="panel" aria-labelledby="two-step-heading">
+            <div class="panel-heading"><span class="step-number">{% if google_sign_in or google_identity %}04{% else %}03{% endif %}</span><h2 id="two-step-heading">Two-step sign-in</h2></div>
+            {% if two_step_on %}
+                <p><strong>On.</strong> Signing in asks for a code from your authenticator app, after your password or Google. You have {{ backup_codes_left }} backup code{{ backup_codes_left|pluralize }} left.</p>
+                <form method="post" action="{% url 'accounts:two_step_backup_codes' %}" data-full-page>
+                    {% csrf_token %}
+                    <div class="form-field">
+                        <label for="two-step-code-new">Code from your app (or a backup code)</label>
+                        <input id="two-step-code-new" name="code" type="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required>
+                    </div>
+                    <div class="form-actions form-footer"><button class="button-secondary" type="submit">Get new backup codes</button></div>
+                </form>
+                <form method="post" action="{% url 'accounts:two_step_disable' %}">
+                    {% csrf_token %}
+                    <div class="form-field">
+                        <label for="two-step-code-off">Code to turn it off</label>
+                        <input id="two-step-code-off" name="code" type="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required>
+                    </div>
+                    <div class="form-actions form-footer"><button class="button-secondary" type="submit">Turn off two-step sign-in</button></div>
+                </form>
+            {% else %}
+                <p>Add a code from an authenticator app to every sign-in, so a stolen password alone can’t get into your family’s calendar.</p>
+                <div class="form-actions form-footer"><a class="button" href="{% url 'accounts:two_step_setup' %}" data-full-page>Turn on two-step sign-in</a></div>
+            {% endif %}
+        </section>
     </div>
 {% endblock %}
