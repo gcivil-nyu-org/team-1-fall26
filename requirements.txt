@@ -53,53 +53,7 @@ automat==25.4.16 \
     --hash=sha256:0017591a5477066e90d26b0e696ddc143baafd87b588cfac8100bc6be9634de0 \
     --hash=sha256:04e9bce696a8d5671ee698005af6e5a9fa15354140a87f4870744604dcdd3ba1
     # via twisted
-cbor2==5.9.0 ; platform_python_implementation == 'PyPy' \
-    --hash=sha256:0322296b9d52f55880e300ba8ba09ecf644303b99b51138bbb1c0fb644fa7c3e \
-    --hash=sha256:0485d3372fc832c5e16d4eb45fa1a20fc53e806e6c29a1d2b0d3e176cedd52b9 \
-    --hash=sha256:08388ea54195738602b4c4999966bcaef6f0b17d293c9658658409d9fff96f57 \
-    --hash=sha256:1d02b65f070fd726bdc310d927228975bb655d155bf059b6eb7cacefb3dca86f \
-    --hash=sha256:1da96ce5d852fe3d342c1eb2c202a52d1c97edfddc9230f1be7e02674662bf26 \
-    --hash=sha256:1f223dffb1bcdd2764665f04c1152943d9daa4bc124a576cd8dee1cad4264313 \
-    --hash=sha256:23606d31ba1368bd1b6602e3020ee88fe9523ca80e8630faf6b2fc904fd84560 \
-    --hash=sha256:2372d357d403e7912f104ff085950ffc82a5854d6d717f1ca1ce16a40a0ef5a7 \
-    --hash=sha256:25bec7beb2089465382b1be72e78667fe9090598800826559c3e3008cf0db743 \
-    --hash=sha256:27695cbd70c90b8de5c4a284642c2836449b14e2c2e07e3ffe0744cb7669a01b \
-    --hash=sha256:2a54fbb32cb828c214f7f333a707e4aec61182e7efdc06ea5d9596d3ecee624a \
-    --hash=sha256:3095dc49e75572841a9534cbfdabc2a17487ea4ee33341436abc4a7ac7245a3a \
-    --hash=sha256:34a6cb15e6ab6a8eae94ad2041731cd3ef786af43a8df99f847969af5b902ee7 \
-    --hash=sha256:380e534482b843e43442b87d8777a7bf9bed20cb7526f89b780c3400f617304b \
-    --hash=sha256:420d2490c7836c81151b4bd591c35cffc55391e33e7e333c50fda391bcea7d31 \
-    --hash=sha256:422817286c1d0ce947fb2f7eca9212b39bddd7231e8b452e2d2cc52f15332dba \
-    --hash=sha256:4753a6d1bc71054d9179557bc65740860f185095ccb401d46637fff028a5b3ec \
-    --hash=sha256:4aa07b392cc3d76fb31c08a46a226b58c320d1c172ff3073e864409ced7bc50f \
-    --hash=sha256:4cd43d8fc374b31643b2830910f28177a606a7bc84975a62675dd3f2e320fc7b \
-    --hash=sha256:5326336f633cc89dfe543c78829c16c3a6449c2c03277d1ddba99086c3323363 \
-    --hash=sha256:53cfa49e0df9c639beb871d480de098eedc81eb63ff29f2dc922720d7577b676 \
-    --hash=sha256:55bea0dd9a7d354e35f4e5fe58ceab393e76962713749dc3a0a64a0e5d19545e \
-    --hash=sha256:5e702b02d42a5ace45425b595ffe70fe35aebaf9a3cdfdc2c758b6189c744422 \
-    --hash=sha256:65f8eac3268c608533f326f0fd9010ab1b2a8a917b05edaf3853116336821669 \
-    --hash=sha256:7221483fad0c63afa4244624d552abf89d7dfdbc5f5edfc56fc1ff2b4b818975 \
-    --hash=sha256:7d1ddc4541e7367ac58c2470cc0df847f7137167fe4f5729e2d3cc0b993d7da4 \
-    --hash=sha256:837754ece9052b3f607047e1741e5f852a538aa2b0ee3db11c82a8fa11804aa4 \
-    --hash=sha256:85c7a46279ac8f226e1059275221e6b3d0e370d2bb6bd0500f9780781615bcea \
-    --hash=sha256:86baf870d4c0bfc6f79de3801f3860a84ab76d9c8b0abb7f081f2c14c38d79d3 \
-    --hash=sha256:971d425b3a23b75953d8853d5f9911bdeefa09d759ee3b5e6b07b5ff3cbd9073 \
-    --hash=sha256:9a4907e0c3035bb8836116854ed8e56d8aef23909d601fa59706320897ec2551 \
-    --hash=sha256:a9d6e4e0f988b0e766509a8071975a8ee99f930e14a524620bf38083106158d2 \
-    --hash=sha256:ac684fe195c39821fca70d18afbf748f728aefbfbf88456018d299e559b8cae0 \
-    --hash=sha256:ae6c706ac1d85a0b3cb3395308fd0c4d55e3202b4760773675957e93cdff45fc \
-    --hash=sha256:cc5efec69055c3c470997935d95762be7e4bfd1248d88fb1a33bb7e0f45712e9 \
-    --hash=sha256:d1a21c006760f95acd9509cc5a7d15d6fc82e58f721f94fa9039b4e77189a6e5 \
-    --hash=sha256:d8524a8c142c3cc228e635f8a97499a6c0b18ca91382e8276565658035cdcb6d \
-    --hash=sha256:dcf0f695873e5c94bd072d6af8698e72b8fb7f7a18f37e0bced1041b7111a6cf \
-    --hash=sha256:f29e5c3abcc91c1aeefecde0e057bf33f1655588d3065c6560c30ceb3be6f333 \
-    --hash=sha256:f797532d13469f2193e5c16e827d8df7a8c33674b19be755790b54ab231e6a73 \
-    --hash=sha256:f7c9751a9611601ab326d8f5837f01379195bbf06175fb4effeb552140e7c9e8 \
-    --hash=sha256:fb7afe77f8d269e42d7c4b515c6fd14f1ccc0625379fb6829b269f493d16eddd \
-    --hash=sha256:fbb06f34aa645b4deca66643bba3d400d20c15312d1fe88d429be60c1ab50f27 \
-    --hash=sha256:fbdcf4d74acbeb7672e6413e81cd2c1ced1a4a8cf949484ac54e9af5265c3c72
-    # via autobahn
-cbor2==6.1.5 ; platform_python_implementation != 'PyPy' \
+cbor2==6.1.5 \
     --hash=sha256:015ed73f10e1f7b67306d41e36e0d7dc40e4a2100bc5c29b7a7f039ad3dc9061 \
     --hash=sha256:040cf628af473fe18cb6f56bdac556d2398102e56852aab5206fbeb3dbde6b52 \
     --hash=sha256:0529a95c1330c9c381286650dd65ff5b4ef136dcee06474ad30c028b5ae99a50 \
@@ -452,10 +406,6 @@ charset-normalizer==3.5.2 \
     --hash=sha256:fd1fbe0f116b6e55da77aca2c6ddcddcfac2186cbf78bdebf40fc156efca389d \
     --hash=sha256:fe9753dfee015c570d73df76f899f18444d41388bffcde097deba51c4fadbb9f
     # via requests
-colorama==0.4.6 ; sys_platform == 'win32' \
-    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
-    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
-    # via qrcode
 constantly==23.10.4 \
     --hash=sha256:3fd9b4d1c3dc1ec9757f3c52aef7e53ad9323dbe39f51dfd4c43853b68dfa3f9 \
     --hash=sha256:aa92b70a33e2ac0bb33cd745eb61776594dc48764b06c35e0efd050b7f1c7cbd
@@ -530,16 +480,16 @@ daphne==4.2.3 \
     --hash=sha256:1c458f81926b37301cadc8ec1b6316d9a5db53fba061fc4826610395fe5d5c81 \
     --hash=sha256:34442c539a98111f4d8cac98a7204aeeb53811229bd96063e6fbe740e97078c9
     # via -r requirements.in
-django==5.2.18 \
-    --hash=sha256:461c5dd06d2ea16bd5ca37d3f46e4def1d6b0fe7588c6f4e2119517bb0af8b2d \
-    --hash=sha256:92ed81d500be6408ecd704d7bd1366c534f30427bffcc63c5fefb129561aec7c
+django==6.1.2 \
+    --hash=sha256:141efee6ec64d1db6db90683bf734c550102450f444fb099063b0be1bd27d991 \
+    --hash=sha256:a1e92451ccb8b514e91bbb3b6d186d20b4030558f116b5d9de6535455ff210b7
     # via
     #   -r requirements.in
     #   channels
     #   django-axes
     #   django-ipware
     #   django-otp
-django-axes==8.3.1 \
+django-axes[ipware]==8.3.1 \
     --hash=sha256:d57e923c0ba33cf45275253dd1313c3a3ff04bec686b38d677beb2b3d43c7bcd \
     --hash=sha256:f7887582fd12713064f1602091ff6152752becae5e891a15bf802746cab0f51a
     # via -r requirements.in
@@ -604,7 +554,7 @@ incremental==24.11.0 \
     --hash=sha256:87d3480dbb083c1d736222511a8cf380012a8176c2456d01ef483242abbbcf8c \
     --hash=sha256:a34450716b1c4341fe6676a0598e88a39e04189f4dce5dc96f656e040baa10b3
     # via twisted
-msgpack==1.2.3 ; platform_python_implementation == 'CPython' \
+msgpack==1.2.3 \
     --hash=sha256:07c9733089d1b176c3dd2f7fa268452f9d5d784d076473499d754a58e8d1fbbb \
     --hash=sha256:0955b9000725573d1457c1676944b370dd9643c8d18f25bda5ac72913f850949 \
     --hash=sha256:0c91762c48cd686dc9cf2b142c0bc544083952de32f5853d6624c956e54b85e5 \
@@ -726,11 +676,11 @@ protobuf==7.36.2 \
     #   google-api-core
     #   googleapis-common-protos
     #   proto-plus
-psycopg==3.3.6 \
+psycopg[binary]==3.3.6 \
     --hash=sha256:a1db9f7148b06a28606767efaca51fa6f9398c5c0a3810519be69d7000bdb631 \
     --hash=sha256:c081f2250df751a943036e42db6df4571c66cd0aabe8291a7a506512b12007d2
     # via -r requirements.in
-psycopg-binary==3.3.6 ; implementation_name != 'pypy' \
+psycopg-binary==3.3.6 \
     --hash=sha256:05a83ac9fd52b9bca7cb5ab04b3691163170bd16f53defa27216ea3aa07ee781 \
     --hash=sha256:0a52991594ac4db888c7d39bccef331797e30cb31a95cae02cf2607f83a42dc2 \
     --hash=sha256:0bf08b749cc144f33b44a91b78e3f71c60eb07963746a0df5a100b36ce3d7475 \
@@ -806,7 +756,7 @@ pyasn1-modules==0.4.2 \
     --hash=sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a \
     --hash=sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6
     # via google-auth
-pycparser==3.12 ; implementation_name != 'PyPy' \
+pycparser==3.12 \
     --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e \
     --hash=sha256:f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6
     # via cffi
@@ -849,7 +799,7 @@ sqlparse==0.6.0 \
     --hash=sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9 \
     --hash=sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f
     # via django
-twisted==26.10.0rc1 \
+twisted[tls]==26.10.0rc1 \
     --hash=sha256:9a8689a7ab8180b16917aa585cc4d8dafcef620162b17b8aab3719b485b321e8 \
     --hash=sha256:a2201fed4dd4919b0fe732aa2c4ac95e4dff3ba04cfc10b1383e7aac29005e27
     # via
@@ -865,16 +815,6 @@ typing-extensions==4.16.0 \
     # via
     #   opentelemetry-api
     #   twisted
-tzdata==2026.5 ; sys_platform == 'win32' \
-    --hash=sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7 \
-    --hash=sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac
-    # via
-    #   django
-    #   psycopg
-u-msgpack-python==2.8.0 ; platform_python_implementation != 'CPython' \
-    --hash=sha256:1d853d33e78b72c4228a2025b4db28cda81214076e5b0422ed0ae1b1b2bb586a \
-    --hash=sha256:b801a83d6ed75e6df41e44518b4f2a9c221dc2da4bcd5380e3a0feda520bc61a
-    # via autobahn
 ujson==6.0.0 \
     --hash=sha256:02148bd4706f42b063bb95f6cc309e16554fb4c250db4683688c0a3eb83048ad \
     --hash=sha256:03a385e523f67dec6d4dad0970f20a080cad045b56d9a3564d07807090a9c106 \
