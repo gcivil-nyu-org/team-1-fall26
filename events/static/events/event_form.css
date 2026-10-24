@@ -639,3 +639,11 @@ input:focus, select:focus { border-color: #a34d35; box-shadow: 0 0 0 3px #a34d35
     .lane-name { padding: 0 8px 0 10px; font-size: 12px; }
     .all-day-strip { flex-direction: column; gap: 8px; }
 }
+
+/* Conflict warnings: colour and markers only, never a change to where events sit on the timeline. */
+.conflict-warning { margin: 16px 0; padding: 14px 16px; border-left: 3px solid #b45309; background: #fff8eb; color: #6b3605; font-size: 13px; }
+.conflict-warning h2, .conflict-warning h3 { margin: 0 0 6px; font-size: 15px; }
+.conflict-warning ul { margin: 6px 0 0; padding-left: 18px; }
+.conflict-warning a, .conflict-badge a { color: #6b3605; }
+.conflict-badge { color: #6b3605; font-size: 13px; }
+.timeline-event.has-conflict { box-shadow: 0 0 0 1px var(--paper), 0 0 0 3px #b45309; }
