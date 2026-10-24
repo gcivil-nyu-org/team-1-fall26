@@ -26,6 +26,15 @@ def turn_on(user):
     return device
 
 
+class TwoStepIsEnabledTests(TestCase):
+    def test_another_users_device_does_not_turn_two_step_on_for_me(self):
+        owner = get_user_model().objects.create_user(username="owner", password=PASSWORD)
+        other = get_user_model().objects.create_user(username="other", password=PASSWORD)
+        turn_on(owner)
+        self.assertTrue(two_step.is_enabled(owner))
+        self.assertFalse(two_step.is_enabled(other))
+
+
 class TwoStepPasswordSignInTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="maya", password=PASSWORD)

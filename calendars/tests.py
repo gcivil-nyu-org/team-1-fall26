@@ -17,7 +17,7 @@ from django.urls import reverse
 from accounts.models import Workspace
 from events.models import Event
 
-from . import google
+from . import google, sync as sync_module
 from .models import CalendarConnection
 from .sync import SyncResult, sync_connection
 from .views import SESSION_KEY
@@ -521,6 +521,13 @@ class CalendarSyncTests(TestCase):
             "end": {"dateTime": end, "timeZone": "America/New_York"},
             **extra,
         }
+
+    def test_service_is_built_for_calendar_v3_without_discovery_cache(self):
+        credentials = object()
+        with patch("calendars.sync.build") as build:
+            service = sync_module._service(credentials)
+        build.assert_called_once_with("calendar", "v3", credentials=credentials, cache_discovery=False)
+        self.assertIs(service, build.return_value)
 
     def test_imports_timed_and_all_day_events_into_the_workspace(self):
         all_day = {"id": "holiday", "summary": "Thanksgiving", "start": {"date": "2026-11-26"},
