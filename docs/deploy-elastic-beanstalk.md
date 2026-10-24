@@ -76,3 +76,13 @@ To pick up security fixes in dependencies, run the same command with
 - **Scanner traffic.** `.platform/nginx/conf.d/elasticbeanstalk/01_block_probes.conf`
   drops requests for PHP files, WordPress paths and dotfiles before they reach
   Django.
+- **Unknown Host headers.** Scanners that hit the bare IP or send a random `Host`
+  get nginx's 444 (connection closed, no response) instead of a Django
+  `DisallowedHost` error. `.platform/hooks/postdeploy/03_https.sh` builds the list
+  of allowed hosts from the `SITE_DOMAINS` environment property (comma-separated,
+  primary first, e.g. `syncmily.app,www.syncmily.app`). Keep it in step with
+  `DJANGO_ALLOWED_HOSTS`. Without `SITE_DOMAINS`, or before the certificate
+  exists, no host filtering happens. `/healthz/` (the load balancer calls it with
+  the instance's private IP as `Host`) and `/.well-known/acme-challenge/` stay open
+  for any host. Django also logs `django.security.DisallowedHost` to a null handler,
+  so any that still get through don't create ERROR tracebacks.

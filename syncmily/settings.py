@@ -178,3 +178,17 @@ CHANNEL_LAYERS = {
 
 # Two-step sign-in (accounts/two_step.py): the name shown in authenticator apps.
 OTP_TOTP_ISSUER = "Syncmily"
+
+# Scanners hitting the bare IP or a random Host header make Django log an ERROR
+# traceback per request (django.security.DisallowedHost). The 400 answer is
+# right and nothing is wrong with the app, so drop that one logger's records
+# instead of letting them reach the error handlers. Other django.security.*
+# loggers keep their default behaviour.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"null": {"class": "logging.NullHandler"}},
+    "loggers": {
+        "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
+    },
+}

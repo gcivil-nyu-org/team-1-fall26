@@ -18,6 +18,9 @@ if [ -z "$SITE_DOMAINS" ]; then
 fi
 IFS=',' read -r -a DOMAINS <<< "$SITE_DOMAINS"
 PRIMARY="${DOMAINS[0]}"
+# Regex matching exactly our domains, for nginx's host checks below.
+HOST_REGEX=""
+for domain in "${DOMAINS[@]}"; do HOST_REGEX+="${HOST_REGEX:+|}${domain//./\\.}"; done
 CERT_DIR="$LIVE_DIR/$PRIMARY"
 
 # Let's Encrypt checks domain ownership over HTTP at /.well-known/acme-challenge/.
@@ -74,6 +77,10 @@ server {
     client_body_timeout   60;
     keepalive_timeout     60;
 
+    # Scanners hitting the bare IP or a random Host get no response, not a Django error page.
+    if (\$host !~* "^($HOST_REGEX)\$") {
+        return 444;
+    }
     if (\$host != "$PRIMARY") {
         return 301 https://$PRIMARY\$request_uri;
     }
@@ -104,6 +111,15 @@ cat > "$NGINX_DIR/conf.d/elasticbeanstalk/03_https_redirect.conf" <<CONF
 set \$redirect_to_https 1;
 if (\$request_uri ~ "^/(\.well-known/acme-challenge/|healthz/)") {
     set \$redirect_to_https 0;
+}
+# Unknown Host headers (bare IP, scanners) are dropped, except health and certificate checks:
+# the load balancer's health check uses the instance's private IP as Host.
+set \$reject_host "0\$redirect_to_https";
+if (\$host !~* "^($HOST_REGEX)\$") {
+    set \$reject_host "1\$redirect_to_https";
+}
+if (\$reject_host = "11") {
+    return 444;
 }
 if (\$redirect_to_https) {
     return 301 https://$PRIMARY\$request_uri;
