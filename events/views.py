@@ -20,6 +20,7 @@ from accounts.models import MemberColor, Workspace
 from calendars.models import CalendarConnection
 
 from .access import family_events, family_workspaces
+from .conflicts import conflicting_keys, event_item, find_conflicts, group_by_pair
 from .forms import EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
 from .models import Event
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
@@ -55,10 +56,17 @@ def create_event(request, workspace_id=None):
         workspace=workspace,
     )
     event_details = None
+    event_conflicts = []
     timezone_name = timezone.get_current_timezone_name()
     if request.method == "POST" and form.is_valid():
         event_details = form.event
         timezone_name = form.cleaned_data["timezone"]
+        if workspace and not saving:
+            participants = form.cleaned_data["participants"]
+            event_conflicts = _event_conflicts(
+                event_details, family_events(request.user).filter(workspace=workspace),
+                [participant.pk for participant in participants], participants,
+            )
         if saving:
             try:
                 submission = signing.loads(
@@ -108,6 +116,7 @@ def create_event(request, workspace_id=None):
         {
             "form": form,
             "event_details": event_details,
+            "event_conflicts": event_conflicts,
             "timezone_name": timezone_name,
             "can_save": can_save,
             "workspace": workspace,
@@ -148,9 +157,14 @@ def choose_workspace(request):
 @require_GET
 def event_detail(request, pk):
     event = get_object_or_404(
-        family_events(request.user).select_related("workspace").prefetch_related("participants"),
+        family_events(request.user).select_related("workspace", "created_by").prefetch_related("participants"),
         pk=pk,
     )
+    if event.workspace_id:
+        scope = family_events(request.user).filter(workspace_id=event.workspace_id)
+    else:
+        scope = family_events(request.user).filter(workspace__isnull=True, created_by_id=event.created_by_id)
+    event_conflicts = _event_conflicts(event, scope)
     list_url = (
         reverse("events:workspace_list", args=[event.workspace_id])
         if event.workspace_id else reverse("events:list")
@@ -172,6 +186,7 @@ def event_detail(request, pk):
         "events/event_detail.html",
         {
             "event": event,
+            "event_conflicts": event_conflicts,
             "schedule_query": schedule_query,
             "list_url": list_url,
             "timezone_form": timezone_form,
@@ -217,7 +232,10 @@ def event_list(request, workspace_id=None):
         events = accessible_events.filter(ends_at__gt=period["starts_at"])
         if period["view"] != "upcoming":
             events = events.filter(starts_at__lt=period["ends_at"])
-        events = events.select_related("workspace").order_by("starts_at", "pk")
+        events = events.select_related("workspace", "created_by").order_by("starts_at", "pk")
+        if period["view"] != "upcoming":
+            # Day and week views are small enough to load whole, so conflicts cover the full period.
+            events = list(events.prefetch_related("participants"))
         timezone_query = {"timezone": period["timezone"]}
         create_query = urlencode({"date": period["date"], **timezone_query})
         context.update(
@@ -234,11 +252,71 @@ def event_list(request, workspace_id=None):
                 next_query=urlencode({"date": period["next_date"], "view": period["view"], **timezone_query}),
             )
     if form.is_valid() and form.cleaned_data["view"] == "day":
-        context.update(_day_timeline_context(request, workspace, events.prefetch_related("participants"), period))
+        context.update(_day_timeline_context(request, workspace, events, period))
     page = Paginator(events, 20).get_page(request.GET.get("page"))
     context["page"] = page
+    if form.is_valid():
+        conflict_events = events
+        if period["view"] == "upcoming":
+            page.object_list = list(page.object_list)
+            conflict_events = []
+            if page.object_list:
+                # Look past this page only as far as its events run.
+                conflict_events = accessible_events.filter(
+                    ends_at__gt=period["starts_at"], starts_at__lt=max(event.ends_at for event in page),
+                ).select_related("workspace", "created_by").prefetch_related("participants")
+        context["conflicts"] = _flag_conflicts(conflict_events, page)
     context.update(_google_calendar_context(request.user, workspace))
     return render(request, "events/event_list.html", context)
+
+
+def _members_by_id(events):
+    members = {}
+    for event in events:
+        members[event.created_by_id] = event.created_by
+        members.update((participant.pk, participant) for participant in event.participants.all())
+    return members
+
+
+def _flag_conflicts(events, shown_events):
+    """List the period's conflicts and give each shown event the events it clashes with."""
+    events = list(events)
+    by_pk = {event.pk: event for event in events}
+    conflicts = find_conflicts(event_item(event) for event in events)
+    others = conflicting_keys(conflicts)
+    for event in [*events, *shown_events]:
+        event.conflicts_with = [by_pk[pk] for pk in sorted(others.get(event.pk, ()))]
+    members = _members_by_id(events)
+    return [
+        {**pair, "first": by_pk[pair["first"]], "second": by_pk[pair["second"]],
+         "members": [members[pk] for pk in pair["member_ids"]]}
+        for pair in group_by_pair(conflicts)
+    ]
+
+
+def _event_conflicts(event, scope, participant_ids=None, participants=()):
+    """The other events in scope that double-book someone in this event, with who is double-booked."""
+    target = event_item(event, participant_ids)
+    if not target.member_ids:
+        return []
+    others = list(
+        scope.filter(starts_at__lt=event.ends_at, ends_at__gt=event.starts_at)
+        .exclude(pk=event.pk).select_related("created_by").prefetch_related("participants")
+    )
+    by_pk = {other.pk: other for other in others}
+    members = _members_by_id(others)
+    members.update((participant.pk, participant) for participant in participants)
+    if event.pk:
+        members.update(_members_by_id([event]))
+    clashes = {}
+    for conflict in find_conflicts([target, *(event_item(other) for other in others)]):
+        if target.key in (conflict.first, conflict.second):
+            other_pk = conflict.second if conflict.first == target.key else conflict.first
+            clashes.setdefault(other_pk, []).append(members[conflict.member_id])
+    return [
+        {"event": by_pk[pk], "members": clashes[pk]}
+        for pk in sorted(clashes, key=lambda pk: (by_pk[pk].starts_at, pk))
+    ]
 
 
 def _day_timeline_context(request, workspace, events, period):

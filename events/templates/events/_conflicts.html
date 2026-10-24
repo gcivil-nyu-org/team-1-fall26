@@ -1,0 +1,11 @@
+{% load tz %}
+<section class="panel conflict-warning schedule-conflicts" role="alert" aria-labelledby="conflicts-heading">
+    <h2 id="conflicts-heading"><span aria-hidden="true">⚠</span> {{ conflicts|length }} scheduling conflict{{ conflicts|length|pluralize }}</h2>
+    {% timezone timezone_name %}
+    <ul>
+        {% for conflict in conflicts %}
+            <li>{% for member in conflict.members %}<strong translate="no">{{ member.username }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}: <a data-dialog href="{% url 'events:detail' conflict.first.pk %}?{{ timezone_query }}">{{ conflict.first.title }}</a> and <a data-dialog href="{% url 'events:detail' conflict.second.pk %}?{{ timezone_query }}">{{ conflict.second.title }}</a> overlap {{ conflict.starts_at|date:'M j, g:i A' }} – {% if conflict.starts_at|date:'Y-m-d' == conflict.ends_at|date:'Y-m-d' %}{{ conflict.ends_at|time:'g:i A' }}{% else %}{{ conflict.ends_at|date:'M j, g:i A' }}{% endif %}</li>
+        {% endfor %}
+    </ul>
+    {% endtimezone %}
+</section>

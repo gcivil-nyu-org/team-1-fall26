@@ -59,6 +59,7 @@
                 <a data-planner-page href="?{{ next_query }}">Next {{ form.cleaned_data.view }}</a>
             </nav>
         {% endif %}
+        {% if conflicts %}{% include "events/_conflicts.html" %}{% endif %}
         {% if timeline %}
             {% include "events/_day_timeline.html" %}
         {% else %}
@@ -70,6 +71,7 @@
                 <div class="event-summary"><h2><a data-dialog href="{% url 'events:detail' event.pk %}?{{ timezone_query }}">{{ event.title }}</a></h2>
                 <p>{{ event.starts_at|date:"M j, Y" }} at {{ event.starts_at|time:"g:i A" }} – {{ event.ends_at|date:"M j, Y" }} at {{ event.ends_at|time:"g:i A" }}</p>
                 {% if event.source == 'google' %}<p class="event-source">From Google Calendar</p>{% endif %}
+                {% if event.conflicts_with %}<p class="conflict-badge"><span aria-hidden="true">⚠</span> Conflicts with {% for other in event.conflicts_with %}<a data-dialog href="{% url 'events:detail' other.pk %}?{{ timezone_query }}">{{ other.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
                 {% if not workspace and event.workspace %}
                     <p><a href="{% url 'events:workspace_list' event.workspace_id %}?view=upcoming&amp;{{ timezone_query }}">{{ event.workspace.name }}</a></p>
                 {% endif %}
