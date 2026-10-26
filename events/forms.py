@@ -11,7 +11,8 @@ from accounts.models import Workspace
 
 from .access import event_participants, family_workspaces
 from .models import Event
-
+from .access import event_participants, family_workspaces
+from .conflicts import find_overlapping_events
 
 class EventTimezoneForm(forms.Form):
     timezone = forms.ChoiceField(required=False)
@@ -173,7 +174,39 @@ class EventForm(EventTimezoneForm):
             for field, errors in error.error_dict.items():
                 form_field = field_names.get(field, field)
                 self.add_error(form_field if form_field in self.fields else None, errors)
+
         else:
             self.event = event
+
+            participants = cleaned_data.get("participants")
+
+            if self.workspace is not None and participants:
+                conflicts = find_overlapping_events(
+                    workspace=self.workspace,
+                    starts_at=event.starts_at,
+                    ends_at=event.ends_at,
+                    participants=participants,
+                )
+
+                if conflicts.exists():
+                    conflict = conflicts.first()
+
+                    conflicting_members = [
+                        member.username
+                        for member in participants
+                        if conflict.participants.filter(pk=member.pk).exists()
+                    ]
+
+                    member_names = ", ".join(conflicting_members)
+
+                    self.add_error(
+                        None,
+                        (
+                            f"Scheduling conflict: {member_names} already "
+                            f"has an event called '{conflict.title}' "
+                            "during the selected time. "
+                            "Please choose another time."
+                        ),
+                    )
 
         return cleaned_data
