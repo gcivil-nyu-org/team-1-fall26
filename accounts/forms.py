@@ -30,6 +30,7 @@ class WorkspaceForm(forms.ModelForm):
 
 class InviteMemberForm(forms.Form):
     email = forms.EmailField(
+        required=False,
         widget=forms.EmailInput(
             attrs={"placeholder": "name@example.com"},
         ),
@@ -47,7 +48,7 @@ class InviteMemberForm(forms.Form):
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
 
-        if Membership.objects.filter(
+        if email and Membership.objects.filter(
             workspace=self.workspace,
             user__email__iexact=email,
         ).exists():
@@ -56,6 +57,17 @@ class InviteMemberForm(forms.Form):
             )
 
         return email
+
+    def clean(self):
+        cleaned = super().clean()
+        # Kids often have no email address; their parent shares the link.
+        if (
+            cleaned.get("role") == Membership.Role.PARENT
+            and not cleaned.get("email")
+            and "email" not in self.errors
+        ):
+            self.add_error("email", "Parents need an email address.")
+        return cleaned
 
 
 class UsernameChangeForm(forms.ModelForm):

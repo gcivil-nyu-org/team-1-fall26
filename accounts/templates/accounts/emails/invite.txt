@@ -1,13 +1,11 @@
-{% autoescape off %}Hi!
+{% autoescape off %}{{ membership.invited_by.username }} added you to {{ membership.workspace.name }} on Syncmily as a {{ membership.get_role_display|lower }}.
 
-{{ membership.invited_by.username }} has invited you to join "{{ membership.workspace.name }}" on Syncmily as a {{ membership.get_role_display|lower }}.
-
-Open this link to choose your password and join:
+Choose your password here. The link works for 7 days:
 {{ accept_url }}
 
-Your username is {{ membership.user.username }}. You can change it from your
-profile after signing in.
-This link expires in 7 days.
+Your username is {{ membership.user.username }}. You can change it after you sign in.
 
-- The Syncmily team
+If you weren't expecting this, you can ignore this email.
+
+Syncmily
 {% endautoescape %}

@@ -22,6 +22,11 @@ urlpatterns = [
         name="manage_members",
     ),
     path(
+        "workspaces/<uuid:workspace_id>/members/<int:membership_id>/resend/",
+        views.resend_invite,
+        name="resend_invite",
+    ),
+    path(
         "dashboard/",
         views.dashboard,
         name="dashboard",

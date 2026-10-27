@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -15,6 +16,9 @@ from .models import GoogleIdentity, Membership, Workspace
 # Temporary until members can pick their own password at sign-up.
 INVITE_SALT = "accounts.invite"
 INVITE_MAX_AGE = 7 * 24 * 60 * 60
+# Invites and resends a primary admin can send per hour, so the form can't be
+# used to mail strangers in bulk.
+INVITES_PER_HOUR = 20
 
 USERNAME_PREFIXES = {
     Membership.Role.PARENT: ("Parent", 2),  # Parent1 is the primary admin.
@@ -75,7 +79,40 @@ def invite_member(*, workspace, invited_by, email, role, attempts=3):
 
 
 def make_invite_token(membership):
-    return signing.dumps({"membership": membership.pk}, salt=INVITE_SALT)
+    # "sent" ties the link to the latest invite: a resend moves invited_at,
+    # so every earlier link stops working.
+    return signing.dumps(
+        {"membership": membership.pk, "sent": invite_stamp(membership)},
+        salt=INVITE_SALT,
+    )
+
+
+def invite_stamp(membership):
+    return int(membership.invited_at.timestamp())
+
+
+def invite_url(request, membership):
+    return request.build_absolute_uri(
+        reverse(
+            "accounts:accept_invite",
+            kwargs={"token": make_invite_token(membership)},
+        )
+    )
+
+
+def invites_left(user):
+    sent = Membership.objects.filter(
+        invited_by=user,
+        invited_at__gte=timezone.now() - timedelta(hours=1),
+    ).count()
+    return max(INVITES_PER_HOUR - sent, 0)
+
+
+def reissue_invite(membership):
+    """Start a fresh invite for a pending member; older links stop working."""
+    Membership.objects.filter(pk=membership.pk).update(invited_at=timezone.now())
+    membership.refresh_from_db(fields=["invited_at"])
+    return membership
 
 
 def get_membership_from_token(token):
@@ -86,31 +123,33 @@ def get_membership_from_token(token):
     try:
         data = signing.loads(token, salt=INVITE_SALT, max_age=INVITE_MAX_AGE)
         membership_id = int(data["membership"])
+        sent = int(data["sent"])
     except (signing.BadSignature, KeyError, TypeError, ValueError):
         return None
 
-    return (
+    membership = (
         Membership.objects
         .select_related("user", "workspace")
         .filter(pk=membership_id)
         .first()
     )
+    if membership is None or invite_stamp(membership) != sent:
+        return None
+    return membership
 
 
 def send_invitation_email(request, membership):
-    accept_url = request.build_absolute_uri(
-        reverse(
-            "accounts:accept_invite",
-            kwargs={"token": make_invite_token(membership)},
-        )
-    )
+    """
+    Email the invite link. Raises OSError (including SMTPException) when the
+    mail server refuses it, so callers only say "sent" after it was accepted.
+    """
     context = {
         "membership": membership,
-        "accept_url": accept_url,
+        "accept_url": invite_url(request, membership),
     }
 
     send_mail(
-        subject=f"You're invited to {membership.workspace.name} on Syncmily",
+        subject=f"Join {membership.workspace.name} on Syncmily",
         message=render_to_string("accounts/emails/invite.txt", context),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[membership.user.email],
