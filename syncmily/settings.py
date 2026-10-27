@@ -146,10 +146,14 @@ EMAIL_BACKEND = os.environ.get(
     "DJANGO_EMAIL_BACKEND",
     "django.core.mail.backends.console.EmailBackend",
 )
+# A bare address: Elastic Beanstalk's env file is sourced by a shell in the
+# deploy hooks, where "<" and ">" would break it. The display name is added here.
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DJANGO_DEFAULT_FROM_EMAIL",
-    "Syncmily <no-reply@syncmily.local>",
+    "no-reply@syncmily.local",
 )
+if "<" not in DEFAULT_FROM_EMAIL:
+    DEFAULT_FROM_EMAIL = f"Syncmily <{DEFAULT_FROM_EMAIL}>"
 
 # Only used when DJANGO_EMAIL_BACKEND is the SMTP backend.
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")

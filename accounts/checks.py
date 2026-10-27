@@ -32,7 +32,7 @@ def check_email_delivery(app_configs, **kwargs):
         problems.append(Warning(
             f"DEFAULT_FROM_EMAIL is {settings.DEFAULT_FROM_EMAIL}; mail from a "
             ".local address lands in spam or bounces.",
-            hint="Set DJANGO_DEFAULT_FROM_EMAIL, e.g. Syncmily <no-reply@syncmily.app>.",
+            hint="Set DJANGO_DEFAULT_FROM_EMAIL to a bare address, e.g. no-reply@syncmily.app.",
             id="accounts.W001",
         ))
     return problems

@@ -94,6 +94,6 @@ jobs:
           echo "DJANGO_SECRET_KEY=$secret" >> "$GITHUB_ENV"
           echo "FIELD_ENCRYPTION_KEYS=$fernet" >> "$GITHUB_ENV"
       - name: Production settings pass Django's deployment checklist
-        run: DJANGO_DEBUG=false DJANGO_HTTPS=true DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend DJANGO_DEFAULT_FROM_EMAIL="Syncmily <no-reply@syncmily.app>" python manage.py check --deploy --fail-level WARNING
+        run: DJANGO_DEBUG=false DJANGO_HTTPS=true DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend DJANGO_DEFAULT_FROM_EMAIL=no-reply@syncmily.app python manage.py check --deploy --fail-level WARNING
       - name: Tests (including chat and cross-household isolation)
         run: python manage.py test
