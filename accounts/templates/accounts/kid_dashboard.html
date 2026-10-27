@@ -27,6 +27,74 @@
         </div>
     </header>
 
+    <!-- My Week -->
+    {% if my_week %}
+    <section class="kid-week-section" aria-labelledby="kid-week-heading">
+        <div class="kid-week-head">
+            <h2 id="kid-week-heading">
+                <span aria-hidden="true">📅</span>
+                My week
+                <small>{{ week_start|date:"M j" }} – {{ week_last|date:"M j" }}</small>
+            </h2>
+            <nav class="kid-week-nav" aria-label="Change week">
+                <a href="?week={{ previous_week }}">Previous</a>
+                <a href="{% url 'accounts:dashboard' %}" {% if is_this_week %}aria-current="true"{% endif %}>This week</a>
+                <a href="?week={{ next_week }}">Next</a>
+            </nav>
+        </div>
+
+        <ol class="kid-week">
+            {% for chip in my_week.chips %}
+                <li class="kid-day kid-day-{{ forloop.counter }}{% if chip.is_today %} is-today{% endif %}{% if not chip.items %} is-free{% endif %}">
+                    <a class="kid-day-link" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">
+                        <span class="kid-day-name">{{ chip.date|date:"D" }}</span>
+                        <span class="kid-day-date">{{ chip.date|date:"j" }}</span>
+                        {% if chip.is_today %}<span class="kid-day-badge">Today</span>{% endif %}
+                    </a>
+                    {% for item in chip.items %}
+                        <a class="kid-plan{% if item.tentative %} is-maybe{% endif %}" href="{% url 'events:detail' item.event.pk %}">
+                            <time>{% if item.all_day %}All day{% elif item.starts_earlier %}Continues{% else %}{{ item.event.starts_at|time:"g:i A" }}{% endif %}</time>
+                            <span>{{ item.event.title }}</span>
+                            {% if not item.event.participants.all %}<small>Whole family</small>{% endif %}
+                            {% if item.tentative %}<small>Maybe</small>{% endif %}
+                        </a>
+                    {% empty %}
+                        <p class="kid-free">Free day</p>
+                    {% endfor %}
+                    {% if chip.more %}<a class="kid-more" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">+{{ chip.more }} more</a>{% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    </section>
+    {% endif %}
+
+    <!-- Today's Timeline (only while looking at this week) -->
+    {% if rail %}
+    <section class="kid-timeline-section" aria-labelledby="kid-timeline-heading">
+        <h2 id="kid-timeline-heading">
+            <span aria-hidden="true">⏰</span>
+            My day
+            <small>{{ today|date:"l, M j" }} · {% if rail.items %}{{ rail.items|length }} plan{{ rail.items|length|pluralize }}{% else %}nothing planned{% endif %}</small>
+        </h2>
+        <div class="kid-timeline">
+            <div class="kid-rail">
+                {% for hour in rail.hours %}
+                    <i style="top:{{ hour.top }}%"><span>{% if hour.hour == 0 %}12 AM{% elif hour.hour < 12 %}{{ hour.hour }} AM{% elif hour.hour == 12 %}12 PM{% else %}{{ hour.hour|add:"-12" }} PM{% endif %}</span></i>
+                {% endfor %}
+                {% for item in rail.items %}
+                    <a class="kid-slot kid-slot-{{ forloop.counter|divisibleby:2|yesno:'b,a' }}{% if item.event.is_tentative %} is-maybe{% endif %}"
+                       style="top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"
+                       href="{% url 'events:detail' item.event.pk %}">
+                        <time>{{ item.event.starts_at|time:"g:i A" }}</time>
+                        <span>{{ item.event.title }}</span>
+                    </a>
+                {% endfor %}
+                {% if rail.now_top is not None %}<div class="kid-now" style="top:{{ rail.now_top }}%"><span>Now</span></div>{% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Upcoming Events -->
     <section aria-labelledby="kid-events-heading">
         <h2 id="kid-events-heading">

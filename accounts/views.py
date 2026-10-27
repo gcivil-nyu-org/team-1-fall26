@@ -146,9 +146,14 @@ def dashboard(request):
         ).filter(pk=workspace.pk).exists(),
         "can_view_events": family_workspaces(request.user).filter(pk=workspace.pk).exists(),
     }
-    if family["role"] == Membership.Role.KID:
-        return render(request, "accounts/kid_dashboard.html", context)
     context.update(_week_context(request, workspace))
+    if family["role"] == Membership.Role.KID:
+        # A kid's week is just their own row: their plans plus whole-family ones.
+        context["my_week"] = next(
+            (row for row in context["week"]["rows"] if row["user"].pk == request.user.pk),
+            None,
+        )
+        return render(request, "accounts/kid_dashboard.html", context)
     return render(request, "accounts/parent_dashboard.html", context)
 
 
