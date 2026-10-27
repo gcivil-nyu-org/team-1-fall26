@@ -22,6 +22,7 @@ from calendars.models import CalendarConnection
 from .access import family_events, family_workspaces
 from .forms import EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
 from .models import Event
+from .travel_conflicts import find_travel_checks
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
 
 
@@ -55,10 +56,15 @@ def create_event(request, workspace_id=None):
         workspace=workspace,
     )
     event_details = None
+    travel_checks = []
     timezone_name = timezone.get_current_timezone_name()
     if request.method == "POST" and form.is_valid():
         event_details = form.event
         timezone_name = form.cleaned_data["timezone"]
+        travel_checks = find_travel_checks(
+            event_details,
+            form.cleaned_data["participants"],
+        )
         if saving:
             try:
                 submission = signing.loads(
@@ -89,6 +95,9 @@ def create_event(request, workspace_id=None):
                                 "ends_at": event_details.ends_at,
                                 "location": event_details.location,
                                 "timezone_name": event_details.timezone_name,
+                                "transport_mode": event_details.transport_mode,
+                                "latitude": event_details.latitude,
+                                "longitude": event_details.longitude,
                             },
                         )
                         if created:
@@ -120,6 +129,7 @@ def create_event(request, workspace_id=None):
                 reverse("events:workspace_create", args=[workspace.pk])
                 if workspace else reverse("events:create")
             ),
+            "travel_checks": travel_checks,
         },
     )
 

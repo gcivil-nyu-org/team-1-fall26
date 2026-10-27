@@ -25,6 +25,7 @@ class EventFormTests(SimpleTestCase):
             "start_time": "15:30",
             "end_time": "16:30",
             "location": "School field",
+            "transport_mode": "transit",
         }
 
     def test_valid_event(self):
@@ -98,6 +99,7 @@ class WorkspaceEventTests(TestCase):
             "start_time": "18:00",
             "end_time": "19:00",
             "action": "save",
+            "transport_mode": "transit",
         }
         self.client.force_login(self.admin)
 
@@ -432,6 +434,7 @@ class FamilyEventTests(TestCase):
             "timezone": "America/New_York",
             "location": "Riverside Park",
             "action": "save",
+            "transport_mode": "transit",
         }
 
     def token(self):

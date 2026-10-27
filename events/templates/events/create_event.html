@@ -1,60 +1,322 @@
 {% extends 'events/base.html' %}
 {% load tz %}
+{% load static %}
 {% block title %}Create family event | Syncmily{% endblock %}
 {% block content %}
-    <header class="page-heading event-page-heading">
-        <p class="eyebrow">MAKE A LITTLE TIME TOGETHER</p>
-        <h1>Create family event</h1>
-        {% if workspace %}<p class="event-workspace-context"><span class="context-dot" aria-hidden="true"></span><a href="{{ workspace_url }}">{{ workspace.name }}</a></p>{% endif %}
-    </header>
-    <div class="event-layout">
-        <section class="panel event-editor" aria-labelledby="details-heading">
-            <form data-event-form id="event-form" method="post" action="{{ create_url }}">
-                {% csrf_token %}
-                {% for field in form.hidden_fields %}{{ field }}{% endfor %}
-                <nav class="form-progress wizard-controls" aria-label="Event creation steps">
-                    <button type="button" data-event-step="details"><span>1</span>Details</button>
-                    <span class="progress-line" aria-hidden="true"></span>
-                    <button type="button" data-event-step="family"><span>2</span>Family</button>
-                    <span class="progress-line" aria-hidden="true"></span>
-                    <span data-step-indicator="review"><span>3</span>Review</span>
-                </nav>
-                {% if form.errors %}
-                    <div class="error-summary" role="alert"><h3>Please check your event details</h3>{{ form.non_field_errors }}<ul>{% for field in form %}{% for error in field.errors %}<li><a href="#{% if field.name == 'participants' %}participants-heading{% else %}{{ field.id_for_label }}{% endif %}">{{ field.label }}: {{ error }}</a></li>{% endfor %}{% endfor %}</ul></div>
-                {% endif %}
-                <div class="editor-intro details-intro"><h2 id="details-heading">What’s the plan?</h2><p>Give it a name, pick a time, and we’ll take it from there.</p></div>
-                <div class="editor-intro family-intro wizard-controls"><h2>Who’s coming along?</h2><p>Add the family members taking part. The event stays visible to your whole workspace.</p></div>
-                {% if not can_save %}<p class="editor-notice">You can preview here. Choose a workspace where you’re a parent or primary admin to save an event.</p>{% endif %}
-                <div class="event-fields">
-                    {% for field in form.visible_fields %}
-                        {% if field.name == 'participants' %}
-                            {% if workspace %}
-                                <fieldset class="form-field field-participants"><legend id="participants-heading">{{ field.label }}</legend><p class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{{ field.errors }}{% if field.field.queryset %}<div class="family-selection-tools wizard-controls"><output data-family-count aria-live="polite"></output><button type="button" data-family-select="all">Select everyone</button><button type="button" data-family-select="none">Clear</button></div>{{ field }}{% else %}<p class="helptext">No active family members are available to select.</p>{% endif %}</fieldset>
-                            {% endif %}
-                        {% else %}<div class="form-field field-{{ field.name }}">{{ field.as_field_group }}</div>{% endif %}
-                    {% endfor %}
+<header class="page-heading event-page-heading">
+    <p class="eyebrow">MAKE A LITTLE TIME TOGETHER</p>
+    <h1>Create family event</h1>
+    {% if workspace %}
+        <p class="event-workspace-context">
+            <span class="context-dot" aria-hidden="true"></span>
+            <a href="{{ workspace_url }}">{{ workspace.name }}</a>
+        </p>
+    {% endif %}
+</header>
+<div class="event-layout">
+    <section class="panel event-editor" aria-labelledby="details-heading">
+        <form data-event-form id="event-form" method="post" action="{{ create_url }}">
+            {% csrf_token %}
+            {% for field in form.hidden_fields %}
+                {{ field }}
+            {% endfor %}
+<!-- Wizard progress -->
+            <nav class="form-progress wizard-controls" aria-label="Event creation steps">
+                <button type="button" data-event-step="details">
+                    <span>1</span>Details
+                </button>
+                <span class="progress-line" aria-hidden="true"></span>
+                <button type="button" data-event-step="family">
+                    <span>2</span>Family
+                </button>
+                <span class="progress-line" aria-hidden="true"></span>
+                <span data-step-indicator="review">
+                    <span>3</span>Review
+                </span>
+            </nav>
+<!-- Form validation errors -->
+            {% if form.errors %}
+                <div class="error-summary" role="alert">
+                    <h3>Please check your event details</h3>
+                    {{ form.non_field_errors }}
+                    <ul>
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li>
+                                    <a href="#{% if field.name == 'participants' %}participants-heading{% else %}{{ field.id_for_label }}{% endif %}">
+                                        {{ field.label }}: {{ error }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
                 </div>
-                {% if event_details %}
-                    {% timezone timezone_name %}
-                    <section data-event-review id="event-review" class="event-review" aria-labelledby="review-heading">
-                        <div class="review-icon" aria-hidden="true">✓</div><h2 id="review-heading">Review your event</h2>
-                        {% if not form.errors %}<p role="status">Looking good. Check the details below before saving.</p>{% else %}<p role="status">This event has not been saved. Please review the errors.</p>{% endif %}
-                        <div class="review-ticket"><span class="review-date">{{ event_details.starts_at|date:'D, M j' }}</span><h3>{{ event_details.title }}</h3><p>{{ event_details.starts_at|time:'g:i A' }} – {{ event_details.ends_at|time:'g:i A' }}{% if event_details.starts_at|date:'Y-m-d' != event_details.ends_at|date:'Y-m-d' %} · ends {{ event_details.ends_at|date:'M j, Y' }}{% endif %}</p><span class="review-timezone">{{ timezone_name }}</span><dl><dt>Location</dt><dd>{{ event_details.location|default:'No location provided' }}</dd><dt>Family members</dt><dd>{% for participant in form.cleaned_data.participants %}<span class="person-chip">{{ participant.username }}</span>{% empty %}No family members selected{% endfor %}</dd></dl></div>
+            {% endif %}
+<!-- Step 1: Details -->
+            <div class="editor-intro details-intro">
+                <h2 id="details-heading">What’s the plan?</h2>
+                <p>Give it a name, pick a time, and we’ll take it from there.</p>
+            </div>
+<!-- Step 2: Family -->
+            <div class="editor-intro family-intro wizard-controls">
+                <h2>Who’s coming along?</h2>
+                <p>
+                    Add the family members taking part.
+                    The event stays visible to your whole workspace.
+                </p>
+            </div>
+            {% if not can_save %}
+                <p class="editor-notice">
+                    You can preview here. Choose a workspace where
+                    you’re a parent or primary admin to save an event.
+                </p>
+            {% endif %}
+<!-- Event form fields -->
+            <div class="event-fields">
+                {% for field in form.visible_fields %}
+                    {% if field.name == 'participants' %}
+                        {% if workspace %}
+                            <fieldset class="form-field field-participants">
+                                <legend id="participants-heading">
+                                    {{ field.label }}
+                                </legend>
+                                <p class="helptext" id="{{ field.auto_id }}_helptext">
+                                    {{ field.help_text }}
+                                </p>
+                                {{ field.errors }}
+                                {% if field.field.queryset %}
+                                    <div class="family-selection-tools wizard-controls">
+                                        <output data-family-count aria-live="polite"></output>
+                                        <button type="button" data-family-select="all">
+                                            Select everyone
+                                        </button>
+                                        <button type="button" data-family-select="none">
+                                            Clear
+                                        </button>
+                                    </div>
+                                    {{ field }}
+                                {% else %}
+                                    <p class="helptext">
+                                        No active family members are available to select.
+                                    </p>
+                                {% endif %}
+                            </fieldset>
+                        {% endif %}
+                    {% else %}
+                        <div class="form-field field-{{ field.name }}">
+                            {{ field.as_field_group }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+<!-- Step 3: Event review -->
+            {% if event_details %}
+                {% timezone timezone_name %}
+                    <section
+data-event-review
+id="event-review"
+class="event-review"
+aria-labelledby="review-heading"
+                    >
+                        <div class="review-icon" aria-hidden="true">✓</div>
+                        <h2 id="review-heading">Review your event</h2>
+                        {% if not form.errors %}
+                            <p role="status">
+                                Looking good. Check the details below before saving.
+                            </p>
+                        {% else %}
+                            <p role="status">
+                                This event has not been saved.
+                                Please review the errors.
+                            </p>
+                        {% endif %}
+<!-- Event summary -->
+                        <div class="review-ticket">
+                            <span class="review-date">
+                                {{ event_details.starts_at|date:'D, M j' }}
+                            </span>
+                            <h3>{{ event_details.title }}</h3>
+                            <p>
+                                {{ event_details.starts_at|time:'g:i A' }}
+                                –
+                                {{ event_details.ends_at|time:'g:i A' }}
+                                {% if event_details.starts_at|date:'Y-m-d' != event_details.ends_at|date:'Y-m-d' %}
+                                    · ends {{ event_details.ends_at|date:'M j, Y' }}
+                                {% endif %}
+                            </p>
+                            <span class="review-timezone">
+                                {{ timezone_name }}
+                            </span>
+                            <dl>
+                                <dt>Location</dt>
+                                <dd>
+                                    {{ event_details.location|default:'No location provided' }}
+                                </dd>
+                                <dt>Transportation</dt>
+                                <dd>
+                                    {{ event_details.get_transport_mode_display }}
+                                </dd>
+                                <dt>Family members</dt>
+                                <dd>
+                                    {% for participant in form.cleaned_data.participants %}
+                                        <span class="person-chip">
+                                            {{ participant.username }}
+                                        </span>
+                                    {% empty %}
+                                        No family members selected
+                                    {% endfor %}
+                                </dd>
+                            </dl>
+                        </div>
+<!-- Travel feasibility warning -->
+                        {% if travel_checks %}
+                            <div class="travel-warning" role="status">
+                                <h3>Travel feasibility check</h3>
+                                <p>
+                                    We reviewed travel feasibility between consecutive events
+                                    for the selected family members.
+                                </p>
+                                {% for check in travel_checks %}
+                                    <div class="travel-warning-item">
+                                        {% if check.status == "insufficient" %}
+                                            <h4>⚠️ Not enough travel time</h4>
+                                        {% elif check.status == "sufficient" %}
+                                            <h4>✓ Estimated travel time fits</h4>
+                                        {% else %}
+                                            <h4>ℹ️ Travel time not verified</h4>
+                                        {% endif %}
+                                        <p>
+                                            <strong>{{ check.participant.username }}</strong>
+                                            has consecutive events:
+                                        </p>
+                                        <p>
+                                            <strong>{{ check.previous_event.title }}</strong>
+                                            ({{ check.previous_event.location }})
+                                            →
+                                            <strong>{{ check.next_event.title }}</strong>
+                                            ({{ check.next_event.location }})
+                                        </p>
+                                        <p>
+                                            Available travel time:
+                                            <strong>{{ check.available_minutes }} minutes</strong>
+                                        </p>
+                                        <p>
+                                            Transportation:
+                                            <strong>
+                                                {{ event_details.get_transport_mode_display }}
+                                            </strong>
+                                        </p>
+                                        {% if check.estimated_minutes is not None %}
+                                            <p>
+                                                Estimated travel time:
+                                                <strong>{{ check.estimated_minutes }} minutes</strong>
+                                            </p>
+                                        {% endif %}
+                                        {% if check.status == "insufficient" %}
+                                            <p>
+                                                The estimated journey takes longer than the time
+                                                available between these events. Consider changing
+                                                the event time or transportation arrangements.
+                                            </p>
+                                        {% elif check.status == "sufficient" %}
+                                            <p>
+                                                The estimated journey fits within the available
+                                                time. Allow extra time for traffic, parking,
+                                                and unexpected delays.
+                                            </p>
+                                        {% else %}
+                                            <p>
+                                                We could not verify the travel duration for this
+                                                transportation mode or location. Please check
+                                                the journey before saving.
+                                            </p>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </section>
-                    {% endtimezone %}
+                {% endtimezone %}
+            {% endif %}
+<!-- Wizard navigation and actions -->
+            <div class="form-actions form-footer editor-actions">
+                <button
+class="wizard-controls button-secondary step-back"
+type="button"
+data-event-step="details"
+                >
+                    ← Back
+                </button>
+                <a class="editor-reset" href="{{ create_url }}">
+                    Start over
+                </a>
+                <button
+class="wizard-controls step-next"
+type="button"
+data-event-step="family"
+                >
+                    Continue <span aria-hidden="true">→</span>
+                </button>
+                <button
+class="step-preview"
+type="submit"
+name="action"
+value="preview"
+                >
+                    Check event details <span aria-hidden="true">→</span>
+                </button>
+                {% if can_save %}
+                    <button
+class="step-save"
+type="submit"
+name="action"
+value="save"
+                    >
+                        Save event <span aria-hidden="true">✓</span>
+                    </button>
                 {% endif %}
-                <div class="form-actions form-footer editor-actions">
-                    <button class="wizard-controls button-secondary step-back" type="button" data-event-step="details">← Back</button>
-                    <a class="editor-reset" href="{{ create_url }}">Start over</a>
-                    <button class="wizard-controls step-next" type="button" data-event-step="family">Continue <span aria-hidden="true">→</span></button>
-                    <button class="step-preview" type="submit" name="action" value="preview">Check event details <span aria-hidden="true">→</span></button>
-                    {% if can_save %}<button class="step-save" type="submit" name="action" value="save">Save event <span aria-hidden="true">✓</span></button>{% endif %}
-                    <button class="wizard-controls button-secondary step-edit" type="button" data-event-step="details">Edit details</button>
-                </div>
-                <p data-review-notice id="review-notice" role="status"></p>
-                <p class="editor-footnote">{% if workspace %}<a href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">View upcoming events</a>{% elif request.user.is_authenticated %}<a href="{% url 'events:list' %}">View my events</a>{% endif %}</p>
-            </form>
-        </section>
-        <aside class="setup-note event-side-note"><div class="note-calendar" aria-hidden="true"><span>{% now 'M' %}</span><strong>{% now 'j' %}</strong></div><h2>One plan.<br>Everyone in the loop.</h2><p>From a quick school run to a whole weekend away. Put the details here so they don’t get lost in a group chat.</p>{% if workspace %}<div class="workspace-label"><span>PLANNING WITH</span><strong>{{ workspace.name }}</strong></div>{% endif %}</aside>
-    </div>
+                <button
+class="wizard-controls button-secondary step-edit"
+type="button"
+data-event-step="details"
+                >
+                    Edit details
+                </button>
+            </div>
+            <p data-review-notice id="review-notice" role="status"></p>
+            <p class="editor-footnote">
+                {% if workspace %}
+                    <a href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">
+                        View upcoming events
+                    </a>
+                {% elif request.user.is_authenticated %}
+                    <a href="{% url 'events:list' %}">
+                        View my events
+                    </a>
+                {% endif %}
+            </p>
+        </form>
+    </section>
+<!-- Sidebar -->
+    <aside class="setup-note event-side-note">
+        <div class="note-calendar" aria-hidden="true">
+            <span>{% now 'M' %}</span>
+            <strong>{% now 'j' %}</strong>
+        </div>
+        <h2>
+            One plan.<br>
+            Everyone in the loop.
+        </h2>
+        <p>
+            From a quick school run to a whole weekend away.
+            Put the details here so they don’t get lost in a group chat.
+        </p>
+        {% if workspace %}
+            <div class="workspace-label">
+                <span>PLANNING WITH</span>
+                <strong>{{ workspace.name }}</strong>
+            </div>
+        {% endif %}
+    </aside>
+</div>
 {% endblock %}
