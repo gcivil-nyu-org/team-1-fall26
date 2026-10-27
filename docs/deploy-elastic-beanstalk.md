@@ -1,7 +1,9 @@
 # Deploying Syncmily to Elastic Beanstalk
 
-Syncmily runs on the **Syncmily / django-env** Elastic Beanstalk environment in
-`us-east-1` (Python on Amazon Linux 2023, behind an application load balancer).
+Syncmily runs on the **Syncmily / syncmily-env** Elastic Beanstalk environment in
+`us-east-1`: a single instance (Python 3.14 on Amazon Linux 2023, no load
+balancer) with an RDS Postgres database, `syncmily-db`. nginx on the instance
+terminates HTTPS with a Let's Encrypt certificate (see `03_https.sh`).
 
 ## What the repo configures
 
@@ -34,12 +36,23 @@ logging → Environment properties**. Never commit their values.
 
 ## Deploy
 
+Deploy from a clean checkout of `develop` after its CI passes. When the deploy
+includes migrations, snapshot the database first:
+
 ```
-eb deploy django-env
-eb health django-env
+aws rds create-db-snapshot --db-instance-identifier syncmily-db \
+    --db-snapshot-identifier syncmily-db-pre-<label>
+eb deploy syncmily-env --label <label>
+eb health syncmily-env
 ```
 
-`eb deploy` uploads the last commit, so commit before deploying.
+`eb deploy` uploads the last commit, so commit before deploying. Use a label
+that names the PR and commit, such as `pr120-f35495e`. The AWS profile comes
+from `.elasticbeanstalk/config.yml`, or pass `--profile`.
+
+To roll back, fix forward when you can. Redeploying an older label isn't
+enough after a migration that adds a required column, because the old code
+doesn't fill it in: migrate the app back first, or restore the snapshot.
 
 ## Dependencies
 
