@@ -14,6 +14,8 @@ DARK_TEXT = "#000000"
 LIGHT_TEXT = "#ffffff"
 # Hour to scroll to on days without events, so the view doesn't open on midnight.
 MORNING_HOUR = 8
+# Paint-deck ramps in shell.css, handed out in family order. A colour a parent picked overrides the deck.
+DECK_HUES = ("a", "b", "c", "d", "e", "f", "g", "h")
 
 
 def relative_luminance(color):
@@ -60,16 +62,20 @@ def family_members(workspaces):
     members = []
     for user in users:
         workspace, role = roles[user.pk]
-        color = colors.get((workspace.pk, user.pk)) or default_color(role)
+        custom_color = colors.get((workspace.pk, user.pk))
+        color = custom_color or default_color(role)
         members.append({
             "user": user,
             "workspace": workspace,
             "role": role,
             "is_kid": role == Membership.Role.KID,
             "color": color,
+            "custom_color": custom_color,
             "text_color": text_color_for(color),
         })
     members.sort(key=lambda member: (member["is_kid"], member["user"].username.lower(), member["user"].pk))
+    for index, member in enumerate(members):
+        member["hue"] = DECK_HUES[index % len(DECK_HUES)]
     return members
 
 

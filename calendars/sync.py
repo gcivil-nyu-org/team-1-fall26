@@ -127,6 +127,8 @@ def sync_connection(connection, now=None):
                 "ends_at": ends_at,
                 "timezone_name": timezone_name,
                 "location": (item.get("location") or "").strip()[:255],
+                # Google marks unconfirmed events "tentative"; keep that on our side.
+                "is_tentative": item.get("status") == "tentative",
             }
             seen.add(external_id)
             event = existing.get(external_id)

@@ -1,0 +1,215 @@
+/* Syncmily shell: the paint-chip design tokens and the app chrome (top bar, phone tab bar, switches).
+ * Colour is data (who); chrome is ink and white.
+ *
+ * Loaded on every page. Pages already moved to the new design add `paint` to <body> and load paint.css.
+ * The older pages still define --ink, --line and --track on :root, so the tokens here live on `.ui`
+ * (the bar and ported page bodies) instead of :root, and dark mode only applies to
+ * ported pages. Selectors in the chrome are prefixed with .bar so they beat the older
+ * global button and link rules. */
+/* Schibsted Grotesk is linked in base.html (a <link> loads in parallel; @import would chain). */
+
+/* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
+ * The family's deck (Workspace.palette) is set as data-deck on <body>; Primaries is the default.
+ * e..h were derived in OKLCH from each deck's own a-ramp lightness steps. Every ramp keeps 4.5:1 for
+ * dark ink on step 3, white on steps 4-5, and step 5 text on step 1. */
+:root, [data-deck="primaries"] {
+  --a1:#e3eefb; --a2:#bcd6f5; --a3:#86b3ea; --a4:#2c68b8; --a5:#1d4f91;   /* Harbor blue */
+  --b1:#e4f3e1; --b2:#bfe2b8; --b3:#8ccb80; --b4:#2e7a2b; --b5:#21602a;   /* Fern */
+  --c1:#fdf3d2; --c2:#fbe39a; --c3:#f6c84a; --c4:#94640a; --c5:#6b4500;   /* Marigold */
+  --d1:#fde6e1; --d2:#fac2b6; --d3:#f48f7a; --d4:#bf3f28; --d5:#93301f;   /* Coral */
+  --e1:#edeafa; --e2:#d5cdf2; --e3:#b4a4e5; --e4:#7055b0; --e5:#563f8b;   /* Violet */
+  --f1:#ddf1f1; --f2:#addede; --f3:#5fc2c2; --f4:#017979; --f5:#015c5d;   /* Teal */
+  --g1:#f8e7f0; --g2:#edc6db; --g3:#db98bd; --g4:#9f427b; --g5:#7c2f5f;   /* Magenta */
+  --h1:#e9edf2; --h2:#cbd4df; --h3:#a1b2c4; --h4:#546c85; --h5:#3e5267;   /* Slate */
+}
+[data-deck="garden"] {
+  --a1:#e8efe9; --a2:#c6d8ca; --a3:#97b89e; --a4:#4a6e52; --a5:#2f4a35;   /* Sage */
+  --b1:#f1e8f0; --b2:#dcc4d9; --b3:#bd96b8; --b4:#7a4a74; --b5:#55304f;   /* Plum */
+  --c1:#f6eedd; --c2:#e8d2a3; --c3:#d4b066; --c4:#8a6420; --c5:#5e4313;   /* Ochre */
+  --d1:#e2f0f0; --d2:#b8dbdb; --d3:#7fbcbc; --d4:#2f6f72; --d5:#1d4a4c;   /* Teal */
+  --e1:#ececf5; --e2:#d2cfe7; --e3:#ada8d3; --e4:#635d8b; --e5:#423d60;   /* Lavender */
+  --f1:#f6eae5; --f2:#e9cbbe; --f3:#d6a089; --f4:#8c533a; --f5:#603622;   /* Terracotta */
+  --g1:#e6eef5; --g2:#c1d5e7; --g3:#8eb3d3; --g4:#3e688b; --g5:#264660;   /* Dusty blue */
+  --h1:#edeee4; --h2:#d3d5bd; --h3:#b0b285; --h4:#666834; --h5:#44451e;   /* Moss */
+}
+[data-deck="bold"] {
+  --a1:#e4e9ff; --a2:#bac6ff; --a3:#7f95ff; --a4:#2f4fe0; --a5:#1c2f99;   /* Cobalt */
+  --b1:#ffe3f1; --b2:#ffb8da; --b3:#ff7fbb; --b4:#c21f6e; --b5:#8a124c;   /* Magenta */
+  --c1:#eef6d6; --c2:#d6eb9a; --c3:#b4d64f; --c4:#5b7a10; --c5:#3d530a;   /* Lime */
+  --d1:#ffead9; --d2:#ffcaa0; --d3:#ff9a52; --d4:#c4510c; --d5:#8a3706;   /* Tangerine */
+  --e1:#ede6fb; --e2:#d1bff5; --e3:#ad87ed; --e4:#7a36c7; --e5:#501d87;   /* Violet */
+  --f1:#d8eff2; --f2:#97d6de; --f3:#01b3c2; --f4:#01727b; --f5:#034950;   /* Cyan */
+  --g1:#fbe4e2; --g2:#f4b9b3; --g3:#e67b74; --g4:#b81b25; --g5:#7b0512;   /* Red */
+  --h1:#f0ead8; --h2:#dac89a; --h3:#bd9a31; --h4:#7b6103; --h5:#4f3e03;   /* Gold */
+}
+
+.ui, body.paint {
+  --counter:#e9ecea; --card:#ffffff; --raised:#f4f6f5;
+  --ink:#181a19; --muted:#585d5a; --line:#dfe3e0; --control:#c4cac6;
+  --primary:#181a19; --on-primary:#ffffff;
+  --paint-ink:#181a19;
+  --danger:#b3261e;
+  --track:#e3e7e4cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
+  --radius:4px; --radius-control:6px;
+  --font:"Schibsted Grotesk", system-ui, sans-serif;
+}
+[data-theme="dark"] body.paint, [data-theme="dark"] body.paint .ui {
+  --counter:#111312; --card:#1b1e1c; --raised:#232724;
+  --ink:#f1f3f2; --muted:#b0b6b2; --line:#2e3330; --control:#4a504c;
+  --primary:#f1f3f2; --on-primary:#111312;
+  --danger:#ff8a80;
+  --track:#262a28cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
+}
+/* On the root so scrollbars and form controls follow the theme too. */
+:root:has(body.paint) { color-scheme: light; }
+:root[data-theme="dark"]:has(body.paint) { color-scheme: dark; }
+
+/* Member hue: set data-hue on any element and use --s1..--s5 inside it. */
+[data-hue="a"] { --s1:var(--a1); --s2:var(--a2); --s3:var(--a3); --s4:var(--a4); --s5:var(--a5); }
+[data-hue="b"] { --s1:var(--b1); --s2:var(--b2); --s3:var(--b3); --s4:var(--b4); --s5:var(--b5); }
+[data-hue="c"] { --s1:var(--c1); --s2:var(--c2); --s3:var(--c3); --s4:var(--c4); --s5:var(--c5); }
+[data-hue="d"] { --s1:var(--d1); --s2:var(--d2); --s3:var(--d3); --s4:var(--d4); --s5:var(--d5); }
+[data-hue="e"] { --s1:var(--e1); --s2:var(--e2); --s3:var(--e3); --s4:var(--e4); --s5:var(--e5); }
+[data-hue="f"] { --s1:var(--f1); --s2:var(--f2); --s3:var(--f3); --s4:var(--f4); --s5:var(--f5); }
+[data-hue="g"] { --s1:var(--g1); --s2:var(--g2); --s3:var(--g3); --s4:var(--g4); --s5:var(--g5); }
+[data-hue="h"] { --s1:var(--h1); --s2:var(--h2); --s3:var(--h3); --s4:var(--h4); --s5:var(--h5); }
+/* A colour a parent picked (style="--hue:#rrggbb") replaces the deck: the ramp is mixed from it.
+ * Steps 4-5 carry white text, so they are darkened well past the picked colour. */
+[data-hue][style*="--hue"] {
+  --s1:color-mix(in oklab, var(--hue) 14%, #fff); --s2:color-mix(in oklab, var(--hue) 34%, #fff);
+  --s3:color-mix(in oklab, var(--hue) 62%, #fff); --s4:color-mix(in oklab, var(--hue) 62%, #000);
+  --s5:color-mix(in oklab, var(--hue) 42%, #000);
+}
+
+.sr-only { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: 16px; top: -48px; z-index: 20; background: var(--primary); color: var(--on-primary); padding: 8px 12px; border-radius: var(--radius-control); font: 600 14px/20px var(--font); }
+.skip:focus { top: 8px; }
+
+/* Top bar */
+.bar { position: sticky; top: 0; z-index: 10; box-sizing: border-box; height: 60px; display: flex; align-items: center; gap: 32px; padding: 0 32px; background: var(--card); border-bottom: 1px solid var(--line); color: var(--ink); font: 400 14px/20px var(--font); -webkit-font-smoothing: antialiased; }
+.bar * { box-sizing: border-box; }
+.bar a, .bar a:hover { color: inherit; }
+.bar :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+.bar .mark { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; text-decoration: none; }
+.bar .nav { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--track); border: 1px solid var(--track-edge); box-shadow: inset 0 1px 2px #1a1c1b0d; }
+.bar .nav a { padding: 6px 12px; border-radius: var(--radius-control); color: var(--muted); text-decoration: none; }
+.bar .nav a:hover { color: var(--ink); background: var(--raised); }
+.bar .nav a[aria-current="page"] { color: var(--ink); font-weight: 600; view-transition-name: nav-pill; }
+.bar .bar-end { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.bar .me { display: flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; }
+.bar .me-name { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui .dot, body.paint .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; background: var(--s4, var(--ink)); color: #fff; flex-shrink: 0; }
+.bar .sign-out { margin: 0; }
+
+/* Buttons (shared with ported pages) */
+.ui .btn, body.paint .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 0; height: 36px; padding: 0 16px; border-radius: var(--radius-control); border: 1px solid var(--primary); background: var(--primary); color: var(--on-primary); font: 600 14px/20px var(--font); text-decoration: none; cursor: pointer; box-shadow: none; transition: transform .12s ease-out, opacity .12s; }
+.ui .btn:hover, body.paint .btn:hover { opacity: .88; background: var(--primary); border-color: var(--primary); color: var(--on-primary); box-shadow: none; }
+.ui .btn:active, body.paint .btn:active { transform: scale(.98); }
+.ui .btn-quiet, body.paint .btn-quiet, .ui .btn-quiet:hover, body.paint .btn-quiet:hover { background: transparent; color: var(--ink); border-color: var(--control); }
+.ui .btn-quiet:hover, body.paint .btn-quiet:hover { background: var(--raised); opacity: 1; }
+.ui .btn svg, body.paint .btn svg { width: 16px; height: 16px; }
+
+/* Liquid glass (archisvaze/liquid-glass layer model, MIT; liquid_glass.js sizes --lg-specular per pill):
+ * a soft outer shadow on the pill, inner glow + tint + specular rim on ::before, backdrop on ::after. */
+.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb {
+  position: relative; isolation: isolate; background: transparent; border: 1px solid transparent;
+  box-shadow: 0 4px 14px #1a1c1b1f, 0 1px 2px #1a1c1b14;
+}
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::before,
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+}
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::before {
+  z-index: -1; box-shadow: inset 0 0 20px -5px var(--glass-glow); background: var(--lg-specular, none) center / 100% 100% no-repeat, var(--glass-tint);
+}
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::after {
+  z-index: -2; -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: var(--lg-backdrop, blur(3px) saturate(150%));
+}
+
+/* Switches: role="switch"; the glass thumb slides with a transform. */
+.bar .switch { display: grid; place-items: center; min-width: 44px; min-height: 44px; height: auto; gap: 0; padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; cursor: pointer; border-radius: 999px; }
+.bar .switch:hover, .bar .switch:active { background: none; box-shadow: none; transform: none; }
+.bar .switch .track { position: relative; display: flex; align-items: center; justify-content: space-between; width: 60px; height: 32px; padding: 0 9px; border-radius: 999px; background: var(--track); border: 1px solid var(--track-edge); box-shadow: inset 0 1px 2px #1a1c1b1a; color: var(--muted); }
+.bar .switch svg { position: relative; z-index: 1; width: 14px; height: 14px; }
+/* Icons sit exactly on the thumb's two resting centres (thumb: left 3px, 24px wide, slides 28px). */
+.bar .theme-switch svg { position: absolute; top: 50%; margin-top: -7px; }
+.bar .theme-switch .ico-sun { left: 8px; }
+.bar .theme-switch .ico-moon { left: 36px; transform: translate(.45px, .15px); } /* the crescent's ink sits left of its box */
+.bar .switch .glass-thumb { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 999px; transition: transform .26s cubic-bezier(.2, .8, .2, 1); }
+.bar .switch[aria-checked="true"] .glass-thumb { transform: translateX(28px); }
+.bar .theme-switch[aria-checked="false"] .ico-sun, .bar .theme-switch[aria-checked="true"] .ico-moon { color: var(--ink); }
+.bar .switch:hover .track { background: color-mix(in oklab, var(--track) 80%, var(--ink) 8%); }
+/* The 12h/24h switch keeps one look in light and dark: an opaque light track and thumb. */
+.bar .clock-switch .track, .bar .clock-switch:hover .track { width: 76px; padding: 0 3px; justify-content: flex-start; gap: 2px; background: #e3e7e4; border-color: #d3d8d5; box-shadow: inset 0 1px 2px rgb(26 28 27 / .1); }
+.bar .clock-switch .glass-thumb { width: 34px; box-shadow: 0 2px 8px rgb(26 28 27 / .18), 0 1px 2px rgb(26 28 27 / .12); }
+.bar .clock-switch .glass-thumb::before { box-shadow: inset 0 0 20px -5px #fff; background: var(--lg-specular, none) center / 100% 100% no-repeat, #f6f7f6; }
+.bar .clock-switch .glass-thumb::after { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bar .clock-switch .lbl { position: relative; z-index: 1; flex: 0 0 34px; text-align: center; line-height: 24px; font-size: 11px; font-weight: 600; color: #4b504d; }
+.bar .clock-switch[aria-checked="false"] .lbl:first-child, .bar .clock-switch[aria-checked="true"] .lbl:nth-child(2) { color: #181a19; }
+.bar .clock-switch[aria-checked="true"] .glass-thumb { transform: translateX(36px); } /* 34px label + 2px gap */
+
+/* Account menu */
+.bar .account { position: relative; margin: 0; padding: 0; border: 0; font-size: inherit; color: inherit; } /* the older pages style every <details> */
+.bar .account summary { list-style: none; cursor: pointer; border-radius: 999px; }
+.bar .account summary::-webkit-details-marker { display: none; }
+.bar .acct-menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 8px); min-width: 200px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); display: grid; gap: 2px; }
+.bar .acct-menu a, .bar .acct-menu button { display: block; width: 100%; min-height: 0; height: auto; padding: 8px 10px; border: 0; border-radius: var(--radius-control); background: none; box-shadow: none; color: var(--ink); font: 500 14px/20px var(--font); text-align: left; text-decoration: none; cursor: pointer; }
+.bar .acct-menu a:hover, .bar .acct-menu button:hover { background: var(--raised); color: var(--ink); box-shadow: none; }
+
+/* Colors tab: the family's paint deck, tucked into the bar. Four swatches show the current deck. */
+.deck-strip { display: inline-flex; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.deck-strip i { width: 6px; height: 14px; }
+.deck-strip i:nth-child(1) { background: var(--a3); } .deck-strip i:nth-child(2) { background: var(--b3); }
+.deck-strip i:nth-child(3) { background: var(--c3); } .deck-strip i:nth-child(4) { background: var(--d3); }
+.bar .palette-tab { position: relative; margin: 0; padding: 0; border: 0; font-size: inherit; color: inherit; }
+.bar .palette-tab summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: var(--radius-control); color: var(--muted); font-size: 13px; cursor: pointer; }
+.bar .palette-tab summary::-webkit-details-marker { display: none; }
+.bar .palette-tab summary:hover, .bar .palette-tab[open] summary { color: var(--ink); background: var(--raised); }
+.bar .palette-menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 8px); min-width: 200px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.bar .palette-menu p, .bar .acct-palette p { margin: 4px 10px 6px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.bar .palette-options { display: grid; gap: 2px; margin: 0; }
+.bar .palette-options button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 0; height: auto; padding: 8px 10px; border: 0; border-radius: var(--radius-control); background: none; box-shadow: none; color: var(--ink); font: 500 14px/20px var(--font); text-align: left; cursor: pointer; }
+.bar .palette-options button:hover { background: var(--raised); color: var(--ink); box-shadow: none; transform: none; }
+.bar .palette-options button[aria-pressed="true"] { font-weight: 600; }
+.bar .palette-options button[aria-pressed="true"]::after { content: "✓"; margin-left: auto; }
+.bar .acct-palette { display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+@media (max-width: 1100px) { .bar .palette-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
+/* Phones: the bar is full, so the deck choice moves into the account menu. */
+@media (max-width: 560px) { .bar .palette-tab { display: none; } .bar .acct-palette { display: block; } }
+
+/* Page loads: the selected pills slide into place, everything else cross-fades. */
+@view-transition { navigation: auto; }
+::view-transition-group(nav-pill), ::view-transition-group(seg-pill) { animation-duration: .26s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .16s; }
+@media (prefers-reduced-transparency: reduce) {
+  :is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::after { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::before { background: var(--card); }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .ui .btn, body.paint .btn, .bar .switch .glass-thumb { transition: none; }
+}
+
+/* Phone: the same nav becomes a tab bar fixed to the bottom of the screen. */
+.bar .nav-short { display: none; }
+@media (max-width: 900px) {
+  .bar { gap: 8px; padding: 0 16px; }
+  .bar .bar-end { gap: 4px; }
+  .bar .btn { white-space: nowrap; padding: 0 12px; }
+  .bar .me .me-name { display: none; }
+  .bar .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 0 0 env(safe-area-inset-bottom); border: 0; border-top: 1px solid var(--line); border-radius: 0; background: var(--card); box-shadow: none; font-size: 12px; font-weight: 500; }
+  .bar .nav a { padding: 12px 0 16px; border-radius: 0; text-align: center; }
+  .bar .nav a:hover { background: none; }
+  .bar .nav a[aria-current="page"] { font-weight: 600; box-shadow: none; view-transition-name: none; }
+  .bar .nav a[aria-current="page"]::before, .bar .nav a[aria-current="page"]::after { content: none; }
+  .bar .nav-long { display: none; }
+  .bar .nav-short { display: inline; }
+  body { padding-bottom: 64px; }
+}
+/* Only the narrowest phones drop the wordmark: icon + switches + add + avatar need ~390px. */
+@media (max-width: 440px) { .bar .mark .mark-text { display: none; } }
+/* "Add event" keeps its label until the bar runs out of room; below that it is an icon button. */
+@media (max-width: 560px) {
+  .bar .add-btn { width: 44px; padding: 0; }
+  .bar .add-btn .btn-label { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

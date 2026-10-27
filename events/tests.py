@@ -449,6 +449,15 @@ class FamilyEventTests(TestCase):
             "participants": participants or [],
         })
 
+    def test_parent_can_mark_a_plan_not_confirmed_yet(self):
+        self.data["is_tentative"] = "on"
+        self.save_event([self.kid.pk])
+        self.assertTrue(Event.objects.get().is_tentative)
+
+    def test_plans_are_confirmed_unless_ticked(self):
+        self.save_event([self.kid.pk])
+        self.assertFalse(Event.objects.get().is_tentative)
+
     def test_accepted_parent_can_create_with_family_members(self):
         response = self.save_event([self.admin.pk, self.parent.pk, self.kid.pk])
         event = Event.objects.get()

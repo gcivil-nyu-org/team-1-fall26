@@ -556,6 +556,13 @@ class CalendarSyncTests(TestCase):
         self.assertEqual((unchanged.created, unchanged.updated), (0, 0))
         self.assertEqual(Event.objects.get().title, "Soccer final")
 
+    def test_tentative_google_events_stay_unconfirmed_until_google_confirms(self):
+        self.sync([self.timed("sleepover", status="tentative")])
+        self.assertTrue(Event.objects.get().is_tentative)
+        result, _ = self.sync([self.timed("sleepover")])
+        self.assertEqual(result.updated, 1)
+        self.assertFalse(Event.objects.get().is_tentative)
+
     def test_cancelled_and_missing_events_are_removed(self):
         self.sync([self.timed("soccer"), self.timed("piano")])
         result, _ = self.sync([{"id": "soccer", "status": "cancelled"}])

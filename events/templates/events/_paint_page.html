@@ -1,0 +1,13 @@
+{% extends 'events/base.html' %}
+{% load static %}
+{% comment %}
+    Base for screens moved to the paint-chip design: drops the older stylesheets, scripts and
+    planner dialog, loads paint.css, and shows the clock and light switches.
+{% endcomment %}
+{% block legacy_css %}{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'events/paint.css' %}?v=3">{% endblock %}
+{% block legacy_js %}{% endblock %}
+{% block legacy_dialog %}{% endblock %}
+{% block body_class %}paint{% endblock %}
+{% block main_class %}page{% endblock %}
+{% block switches %}{% include 'events/_switches.html' %}{% endblock %}
