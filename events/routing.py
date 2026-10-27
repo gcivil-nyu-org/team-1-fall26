@@ -1,3 +1,4 @@
+import os
 
 import math
 from dataclasses import dataclass
@@ -7,7 +8,10 @@ import requests
 
 OSRM_BASE_URL = "https://router.project-osrm.org"
 VALHALLA_BASE_URL = "https://valhalla1.openstreetmap.de"
-OTP_GRAPHQL_URL = "http://localhost:8080/otp/routers/default/index/graphql"
+OTP_GRAPHQL_URL = os.environ.get(
+    "OTP_GRAPHQL_URL",
+    "http://localhost:8080/otp/routers/default/index/graphql",
+)
 
 
 @dataclass
