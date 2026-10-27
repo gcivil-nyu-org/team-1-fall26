@@ -495,3 +495,29 @@
         transition: none;
     }
 }
+
+/* Family Checklists card */
+
+.family-ui .family-checklists {
+    margin-top: 24px;
+    padding: 32px;
+    border-radius: 24px;
+}
+
+.family-ui .family-checklists h2 {
+    margin-bottom: 12px;
+}
+
+.family-ui .family-checklists p {
+    max-width: 650px;
+}
+
+.family-ui .family-checklists .family-actions {
+    margin-top: 20px;
+}
+
+@media (max-width: 600px) {
+    .family-ui .family-checklists {
+        padding: 24px;
+    }
+}

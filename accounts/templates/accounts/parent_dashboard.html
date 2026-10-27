@@ -59,6 +59,9 @@
                 <p class="sub">Nothing on the calendar yet.</p>
             {% endfor %}
             {% get_current_timezone as tz_name %}<p class="note">Times are in {{ tz_name }}. <a href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">Full schedule</a></p>
+            <h2 id="checklists-heading" class="rail-next">Checklists</h2>
+            <a class="row" href="{% url 'checklists:list' workspace.pk %}"><div class="grow">Open the family checklists<small>Chores, groceries and trips, shared with everyone</small></div></a>
+            {% if can_create_events %}<a class="row" href="{% url 'checklists:create' workspace.pk %}"><div class="grow">New checklist</div></a>{% endif %}
         </aside>
     </div>
 {% endblock %}

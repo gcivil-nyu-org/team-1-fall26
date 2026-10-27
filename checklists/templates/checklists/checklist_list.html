@@ -1,0 +1,97 @@
+{% extends "events/base.html" %}
+{% load static %}
+
+{% block title %}Family Checklists | Syncmily{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="{% static 'checklists/checklists.css' %}?v=2">
+{% endblock %}
+
+{% block content %}
+<div class="checklist-page">
+
+    <a class="cl-back"
+       href="{% url 'accounts:dashboard' %}">
+        ← Back to Dashboard
+    </a>
+
+    <header class="cl-header">
+        <div>
+            <p class="cl-eyebrow">LITTLE TASKS, BIG TEAMWORK</p>
+            <h1>Family Checklists</h1>
+            <p class="cl-subtitle">
+                Keep everyone organized in {{ workspace.name }}.
+                One little checkmark at a time.
+            </p>
+        </div>
+
+        {% if can_manage %}
+            <a class="cl-button"
+               href="{% url 'checklists:create' workspace.pk %}">
+                New Checklist
+                <span aria-hidden="true">＋</span>
+            </a>
+        {% endif %}
+    </header>
+
+    {% if checklists %}
+        <div class="cl-grid">
+            {% for checklist in checklists %}
+                <article class="cl-card">
+
+                    <h2>
+                        <a href="{% url 'checklists:detail' checklist.pk %}">
+                            {{ checklist.title }}
+                        </a>
+                    </h2>
+
+                    {% if checklist.event %}
+                        <p class="cl-event">
+                            📅 {{ checklist.event.title }}
+                        </p>
+                    {% endif %}
+
+                    <p class="cl-muted">
+                        {{ checklist.completed_items }}
+                        of {{ checklist.total_items }}
+                        tasks completed
+                    </p>
+
+                    <progress class="cl-progress"
+                              value="{{ checklist.completed_items }}"
+                              max="{{ checklist.total_items|default:1 }}"
+                              aria-label="Progress for {{ checklist.title }}">
+                    </progress>
+
+                    <a class="cl-button cl-button-secondary"
+                       href="{% url 'checklists:detail' checklist.pk %}">
+                        View Checklist
+                        <span aria-hidden="true">→</span>
+                    </a>
+
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="cl-empty">
+            <span class="cl-empty-icon" aria-hidden="true">📝</span>
+
+            <h2>No checklists yet!</h2>
+
+            <p>
+                Every organized family starts somewhere.
+                Your first checklist is just a click away.
+            </p>
+
+            {% if can_manage %}
+                <a class="cl-button"
+                   href="{% url 'checklists:create' workspace.pk %}">
+                    Create Your First Checklist
+                    <span aria-hidden="true">＋</span>
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

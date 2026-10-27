@@ -188,5 +188,34 @@
 
         </div>
     </div>
+
+    <section class="family-card family-checklists"
+            aria-labelledby="checklists-heading">
+
+        <p class="family-eyebrow">LITTLE TASKS, BIG TEAMWORK</p>
+
+        <h2 id="checklists-heading">
+            Let's get things checked off!
+        </h2>
+
+        <p>
+            Packing for a family trip? Getting ready for
+            a special occasion? Or just keeping track of
+            everyday household tasks?
+
+            Create shared checklists, tick off completed
+            tasks, and keep everyone on the same page.
+        </p>
+
+        <div class="family-actions">
+            <a class="family-button"
+            href="{% url 'checklists:list' workspace.pk %}">
+                View family checklists
+                <span aria-hidden="true">→</span>
+            </a>
+        </div>
+
+    </section>
+
 </div>
 {% endblock %}

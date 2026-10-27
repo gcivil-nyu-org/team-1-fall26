@@ -18,6 +18,7 @@ ALLOWED_HOSTS = [
 ]
 
 INSTALLED_APPS = [
+    "checklists.apps.ChecklistsConfig",
     "daphne",
     "accounts.apps.AccountsConfig",
     "events.apps.EventsConfig",

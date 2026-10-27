@@ -57,6 +57,12 @@ def _event_times(item, calendar_timezone):
     if "dateTime" in start and "dateTime" in end:
         starts_at = datetime.fromisoformat(start["dateTime"])
         ends_at = datetime.fromisoformat(end["dateTime"])
+        # Google omits the UTC offset when timeZone is given: read the wall time in that zone.
+        end_zone = _zone(end.get("timeZone"), zone_name)[0] if end.get("timeZone") else zone
+        if starts_at.tzinfo is None:
+            starts_at = starts_at.replace(tzinfo=zone)
+        if ends_at.tzinfo is None:
+            ends_at = ends_at.replace(tzinfo=end_zone)
     elif "date" in start and "date" in end:
         # All-day events: Google's end date is exclusive, so midnight to midnight.
         starts_at = datetime.combine(date.fromisoformat(start["date"]), time.min, zone)
