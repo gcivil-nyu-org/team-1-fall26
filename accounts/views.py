@@ -129,6 +129,7 @@ def dashboard(request):
     upcoming_events = (
         family_events(request.user)
         .filter(workspace=workspace, ends_at__gt=timezone.now())
+        .select_related("dropoff_driver", "pickup_driver")
         .order_by("starts_at", "pk")[:5]
     )
     members = workspace.memberships.select_related("user")
@@ -166,6 +167,7 @@ def _week_context(request, workspace):
     events = list(
         family_events(request.user)
         .filter(workspace=workspace, starts_at__lt=ends_at, ends_at__gt=starts_at)
+        .select_related("dropoff_driver", "pickup_driver")
         .prefetch_related("participants")
         .order_by("starts_at", "pk")
     )

@@ -55,6 +55,7 @@
                                 · {{ event.location }}
                             {% endif %}
                         </p>
+                        {% if event.requires_transport %}<p>{% include "events/_driver_summary.html" %}</p>{% endif %}
                     </article>
                 {% endtimezone %}
             {% empty %}

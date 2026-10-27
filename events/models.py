@@ -35,6 +35,21 @@ class Event(models.Model):
         null=True,
         blank=True,
     )
+    requires_transport = models.BooleanField(default=False, db_default=False)
+    dropoff_driver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="dropoff_events",
+        null=True,
+        blank=True,
+    )
+    pickup_driver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="pickup_events",
+        null=True,
+        blank=True,
+    )
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name="family_events",
@@ -87,6 +102,13 @@ class Event(models.Model):
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(dropoff_driver__isnull=True, pickup_driver__isnull=True)
+                    | models.Q(requires_transport=True, workspace__isnull=False)
+                ),
+                name="event_drivers_require_family_transport",
+            ),
             models.CheckConstraint(
                 condition=models.Q(ends_at__gt=models.F("starts_at")),
                 name="event_end_after_start",
@@ -143,6 +165,24 @@ class Event(models.Model):
             <= self.starts_at.astimezone(datetime_timezone.utc)
         ):
             errors["ends_at"] = "End time must be after start time."
+
+        driver_ids = {self.dropoff_driver_id, self.pickup_driver_id} - {None}
+        if driver_ids:
+            from .access import event_drivers
+
+            eligible_ids = set()
+            if self.workspace_id:
+                eligible_ids = set(
+                    event_drivers(self.workspace)
+                    .filter(pk__in=driver_ids)
+                    .values_list("pk", flat=True)
+                )
+            for field in ("dropoff_driver", "pickup_driver"):
+                driver_id = getattr(self, f"{field}_id")
+                if driver_id and driver_id not in eligible_ids:
+                    errors[field] = "Choose an active adult in this family."
+                elif driver_id and not self.requires_transport:
+                    errors[field] = "Mark transportation as needed before assigning a driver."
 
         if errors:
             raise ValidationError(errors)
