@@ -16,6 +16,11 @@ class Event(models.Model):
     class Source(models.TextChoices):
         SYNCMILY = "syncmily", "Syncmily"
         GOOGLE = "google", "Google Calendar"
+    class TransportMode(models.TextChoices):
+        DRIVING = "driving", "Car"
+        TRANSIT = "transit", "Subway / Bus"
+        WALKING = "walking", "Walking"
+        CYCLING = "cycling", "Cycling"
 
     submission_id = models.UUIDField(default=uuid4, unique=True, editable=False)
     created_by = models.ForeignKey(
@@ -39,7 +44,26 @@ class Event(models.Model):
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     timezone_name = models.CharField(max_length=64, default=default_timezone_name)
-    location = models.CharField(max_length=255, blank=True)
+    location = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+    latitude = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Latitude of the event location.",
+    )
+
+    longitude = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Longitude of the event location.",
+    )
+    transport_mode = models.CharField(
+        max_length=20,
+        choices=TransportMode.choices,
+        default=TransportMode.TRANSIT,
+    )
     source = models.CharField(
         max_length=20,
         choices=Source.choices,
