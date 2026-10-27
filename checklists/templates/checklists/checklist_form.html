@@ -1,0 +1,103 @@
+
+{% extends "events/base.html" %}
+{% load static %}
+
+{% block title %}
+{% if editing %}Edit Checklist{% else %}New Checklist{% endif %} | Syncmily
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="{% static 'checklists/checklists.css' %}?v=6">
+{% endblock %}
+
+{% block content %}
+<div class="checklist-page">
+
+    <a class="cl-back"
+       href="{% url 'checklists:list' workspace.pk %}">
+        ← Back to Checklists
+    </a>
+
+    <header class="cl-header">
+        <div>
+            <p class="cl-eyebrow">
+                {% if editing %}
+                    MAKE IT YOURS
+                {% else %}
+                    LET'S GET ORGANIZED
+                {% endif %}
+            </p>
+
+            <h1>
+                {% if editing %}
+                    Edit your checklist
+                {% else %}
+                    A new list, a fresh start.
+                {% endif %}
+            </h1>
+
+            <p class="cl-subtitle">
+                From tiny errands to big family plans,
+                everything starts with a little list.
+            </p>
+        </div>
+    </header>
+
+    <section class="cl-card cl-form-card">
+
+        <form method="post">
+            {% csrf_token %}
+
+            {{ form.non_field_errors }}
+
+            <div class="cl-field">
+                <label for="{{ form.title.id_for_label }}">
+                    What's this checklist for?
+                </label>
+
+                {{ form.title }}
+                {{ form.title.errors }}
+
+                <p class="cl-muted">
+                    Give it a name everyone in your family
+                    will recognize.
+                </p>
+            </div>
+
+            <div class="cl-field">
+                <label for="{{ form.event.id_for_label }}">
+                    Link to a family event
+                    <span class="cl-optional">Optional</span>
+                </label>
+
+                {{ form.event }}
+                {{ form.event.errors }}
+
+                <p class="cl-muted">
+                    Preparing for a birthday, trip, or
+                    family activity? Connect this checklist
+                    to an event on your calendar.
+                </p>
+            </div>
+
+            <div class="cl-form-actions">
+                <button type="submit" class="cl-button">
+                    {% if editing %}
+                        Save Changes
+                    {% else %}
+                        Create Checklist
+                    {% endif %}
+                    <span aria-hidden="true">→</span>
+                </button>
+
+                <a class="cl-button cl-button-secondary"
+                   href="{% url 'checklists:list' workspace.pk %}">
+                    Cancel
+                </a>
+            </div>
+
+        </form>
+    </section>
+
+</div>
+{% endblock %}
