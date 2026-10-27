@@ -44,12 +44,12 @@
 }
 
 .ui, body.paint {
-  --counter:#e9ecea; --card:#ffffff; --raised:#f4f6f5;
-  --ink:#181a19; --muted:#585d5a; --line:#dfe3e0; --control:#c4cac6;
+  --counter:#f2ece1; --card:#ffffff; --raised:#f8f4ec;
+  --ink:#181a19; --muted:#585d5a; --line:#e6ded0; --control:#c4cac6;
   --primary:#181a19; --on-primary:#ffffff;
   --paint-ink:#181a19;
   --danger:#b3261e;
-  --track:#e3e7e4cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
+  --track:#e6ded0cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
   --radius:4px; --radius-control:6px;
   --font:"Schibsted Grotesk", system-ui, sans-serif;
 }
