@@ -261,3 +261,98 @@ class DriverAssignmentTests(TestCase):
         self.assertTrue(self.event.requires_transport)
         self.assertEqual(self.event.pickup_driver, self.parent)
         self.assertEqual(self.event.dropoff_driver, self.owner)
+
+    def creation_submission(self, **fields):
+        url = reverse("events:workspace_create", args=[self.workspace.pk])
+        token = self.client.get(url).context["form"]["submission_token"].value()
+        data = {
+            "title": "School pickup",
+            "date": self.event_day.isoformat(),
+            "start_time": "17:00",
+            "end_time": "18:00",
+            "timezone": "America/New_York",
+            "transport_mode": "driving",
+            "submission_token": token,
+            "action": "save",
+            **fields,
+        }
+        return url, data
+
+    def test_create_form_offers_optional_family_drivers(self):
+        url, _ = self.creation_submission()
+        form = self.client.get(url).context["form"]
+        for name in ("requires_transport", "dropoff_driver", "pickup_driver"):
+            self.assertFalse(form.fields[name].required)
+        for name in ("dropoff_driver", "pickup_driver"):
+            self.assertSetEqual(set(form.fields[name].queryset), {self.owner, self.parent})
+
+    def test_creation_previews_and_saves_both_drivers_with_the_event(self):
+        url, data = self.creation_submission(**self.data, participants=[self.kid.pk])
+        response = self.client.post(url, {**data, "action": "preview"})
+        self.assertContains(response, "Drop-off:")
+        self.assertContains(response, "Pickup:")
+        self.assertEqual(Event.objects.count(), 1)
+        preview = response.context["event_details"]
+        self.assertEqual(preview.dropoff_driver, self.owner)
+        self.assertEqual(preview.pickup_driver, self.parent)
+        response = self.client.post(url, data)
+        event = Event.objects.exclude(pk=self.event.pk).get()
+        self.assertRedirects(response, reverse("events:detail", args=[event.pk]) + "?timezone=America%2FNew_York")
+        self.assertTrue(event.requires_transport)
+        self.assertEqual(event.dropoff_driver, self.owner)
+        self.assertEqual(event.pickup_driver, self.parent)
+        self.assertSetEqual(set(event.participants.all()), {self.kid})
+
+    def test_creation_does_not_require_transportation_or_any_drivers(self):
+        for fields in ({}, {"requires_transport": "on"}):
+            with self.subTest(fields=fields):
+                url, data = self.creation_submission(**fields)
+                response = self.client.post(url, data)
+                self.assertEqual(response.status_code, 302)
+                event = Event.objects.latest("pk")
+                self.assertEqual(event.requires_transport, bool(fields))
+                self.assertIsNone(event.dropoff_driver)
+                self.assertIsNone(event.pickup_driver)
+
+    def test_creation_can_assign_just_one_driver(self):
+        for field in ("dropoff_driver", "pickup_driver"):
+            with self.subTest(field=field):
+                url, data = self.creation_submission(requires_transport="on", **{field: self.parent.pk})
+                self.assertEqual(self.client.post(url, data).status_code, 302)
+                event = Event.objects.latest("pk")
+                self.assertEqual(getattr(event, field), self.parent)
+                other = "pickup_driver" if field == "dropoff_driver" else "dropoff_driver"
+                self.assertIsNone(getattr(event, other))
+
+    def test_creation_rejects_ineligible_driver_ids_before_saving(self):
+        for field in ("dropoff_driver", "pickup_driver"):
+            for user in (self.kid, self.pending, self.inactive, self.outsider):
+                with self.subTest(field=field, user=user.username):
+                    url, data = self.creation_submission(**{**self.data, field: user.pk})
+                    response = self.client.post(url, data)
+                    self.assertIn(field, response.context["form"].errors)
+                    self.assertEqual(Event.objects.count(), 1)
+
+    def test_creation_checks_driver_eligibility_again_after_preview(self):
+        url, data = self.creation_submission(**self.data)
+        self.assertIsNotNone(self.client.post(url, {**data, "action": "preview"}).context["event_details"])
+        Membership.objects.filter(user=self.parent).delete()
+        response = self.client.post(url, data)
+        self.assertIn("pickup_driver", response.context["form"].errors)
+        self.assertEqual(Event.objects.count(), 1)
+
+    def test_creation_retry_does_not_duplicate_or_change_driver_assignments(self):
+        url, data = self.creation_submission(**self.data)
+        self.client.post(url, data)
+        self.client.post(url, {**data, "pickup_driver": self.owner.pk})
+        self.assertEqual(Event.objects.count(), 2)
+        self.assertEqual(Event.objects.exclude(pk=self.event.pk).get().pickup_driver, self.parent)
+
+    def test_creation_by_second_caregiver_can_include_driver_assignments(self):
+        self.client.force_login(self.parent)
+        url, data = self.creation_submission(**self.data)
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        event = Event.objects.exclude(pk=self.event.pk).get()
+        self.assertEqual(event.created_by, self.parent)
+        self.assertEqual(event.dropoff_driver, self.owner)
+        self.assertEqual(event.pickup_driver, self.parent)

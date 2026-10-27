@@ -156,6 +156,8 @@ aria-labelledby="review-heading"
                                 <dd>
                                     {{ event_details.get_transport_mode_display }}
                                 </dd>
+                                <dt>Drivers</dt>
+                                <dd>{% if event_details.requires_transport %}{% include "events/_driver_summary.html" with event=event_details %}{% else %}No transportation requested{% endif %}</dd>
                                 <dt>Status</dt>
                                 <dd>{% if event_details.is_tentative %}Not confirmed yet{% else %}Confirmed{% endif %}</dd>
                                 <dt>Family members</dt>

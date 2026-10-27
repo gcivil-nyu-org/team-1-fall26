@@ -146,6 +146,9 @@ class EventForm(EventTimezoneForm):
         "latitude",
         "longitude",
         "transport_mode",
+        "requires_transport",
+        "dropoff_driver",
+        "pickup_driver",
         "is_tentative",
         "participants",
     ]
@@ -239,6 +242,11 @@ class EventForm(EventTimezoneForm):
         )
 
         self.workspace = workspace
+
+        if workspace is not None:
+            driver_form = EventDriverForm(instance=Event(workspace=workspace))
+            self.fields.update(driver_form.fields)
+            self.order_fields(self.field_order)
 
         self.fields["participants"].queryset = event_participants(
             workspace
@@ -341,6 +349,9 @@ class EventForm(EventTimezoneForm):
             longitude=longitude,
             transport_mode=cleaned_data["transport_mode"],
             is_tentative=cleaned_data.get("is_tentative", False),
+            requires_transport=cleaned_data.get("requires_transport", False),
+            dropoff_driver=cleaned_data.get("dropoff_driver"),
+            pickup_driver=cleaned_data.get("pickup_driver"),
         )
 
         try:
