@@ -29,7 +29,7 @@
             <h3>All day</h3>
             <ul>
                 {% for item in timeline.all_day %}
-                    <li data-event-card><a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}">{{ item.event.title }}</a>{% for member in item.members %}<span class="member-chip" style="--member-color: {{ member.color }}; --member-text: {{ member.text_color }}" translate="no">{{ member.user.username }}</span>{% endfor %}</li>
+                    <li data-event-card><a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}">{{ item.event.title }} {% include "events/_driver_summary.html" with event=item.event %}</a>{% for member in item.members %}<span class="member-chip" style="--member-color: {{ member.color }}; --member-text: {{ member.text_color }}" translate="no">{{ member.user.username }}</span>{% endfor %}</li>
                 {% endfor %}
             </ul>
         </div>
@@ -46,7 +46,7 @@
                     <ol class="lane-track">
                         {% for item in lane.items %}
                             <li data-event-card class="timeline-event{% if item.starts_before %} starts-before{% endif %}{% if item.ends_after %} ends-after{% endif %}" style="left: {{ item.left }}%; width: {{ item.width }}%">
-                                <a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}"{% if item.event.source == 'google' %} title="From Google Calendar"{% endif %}><strong>{{ item.event.title }}</strong><span class="sr-only">, </span>{% if item.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<span>{% if item.starts_before %}{{ item.event.starts_at|date:"M j, g:i A" }}{% else %}{{ item.event.starts_at|time:"g:i A" }}{% endif %} – {% if item.ends_after %}{{ item.event.ends_at|date:"M j, g:i A" }}{% else %}{{ item.event.ends_at|time:"g:i A" }}{% endif %}</span></a>
+                                <a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}"{% if item.event.source == 'google' %} title="From Google Calendar"{% endif %}><strong>{{ item.event.title }}</strong><span class="sr-only">, </span>{% if item.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<span>{% if item.starts_before %}{{ item.event.starts_at|date:"M j, g:i A" }}{% else %}{{ item.event.starts_at|time:"g:i A" }}{% endif %} – {% if item.ends_after %}{{ item.event.ends_at|date:"M j, g:i A" }}{% else %}{{ item.event.ends_at|time:"g:i A" }}{% endif %}</span>{% include "events/_driver_summary.html" with event=item.event %}</a>
                             </li>
                         {% empty %}
                             <li class="lane-empty">Nothing scheduled</li>

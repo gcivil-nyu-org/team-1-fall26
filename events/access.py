@@ -30,6 +30,20 @@ def family_events(user):
     )
 
 
+def event_drivers(workspace):
+    if workspace is None:
+        return get_user_model().objects.none()
+
+    return get_user_model().objects.filter(is_active=True).filter(
+        Q(pk=workspace.primary_admin_id)
+        | Q(
+            membership__workspace=workspace,
+            membership__role=Membership.Role.PARENT,
+            membership__accepted_at__isnull=False,
+        )
+    ).order_by("username", "pk")
+
+
 def event_participants(workspace):
     if workspace is None:
         return get_user_model().objects.none()
