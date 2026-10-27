@@ -3,11 +3,11 @@
         <span class="account-avatar" aria-hidden="true">{{ workspace.primary_admin.username|first|upper }}</span>
         <span class="member-name">{{ workspace.primary_admin.username }}<small>Parent · Primary admin</small></span>
     </li>
-    {% for member in members %}
+    {% for member in members %}{% if member.user_id != workspace.primary_admin_id %}
         <li>
             <span class="account-avatar {% if member.role == 'kid' %}avatar-kid{% endif %}" aria-hidden="true">{{ member.user.username|first|upper }}</span>
             <span class="member-name">{{ member.user.username }}<small>{{ member.get_role_display }}{% if show_emails %} · {{ member.user.email }}{% endif %}</small></span>
             {% if member.is_pending %}<span class="status-badge status-pending">Invite pending</span>{% else %}<span class="status-badge status-active">Active</span>{% endif %}
         </li>
-    {% endfor %}
+    {% endif %}{% endfor %}
 </ul>

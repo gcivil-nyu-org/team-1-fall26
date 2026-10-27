@@ -1,4 +1,5 @@
 {% extends 'events/base.html' %}
+{% load static %}
 {% block title %}Members of {{ workspace.name }} | Syncmily{% endblock %}
 {% block content %}
     <div class="breadcrumbs"><a href="{% url 'accounts:dashboard' %}">Dashboard</a><span>/</span><a href="{% url 'accounts:workspace_detail' workspace.pk %}">{{ workspace.name }}</a><span>/</span><span>Members</span></div>
@@ -29,14 +30,26 @@
                     <label for="{{ form.email.id_for_label }}">Email address</label>
                     {{ form.email }}
                     {{ form.email.errors }}
-                    <p class="helptext">We'll email them a link where they choose their own password.</p>
+                    <p class="helptext">We'll email them a link to choose their password. Optional for kids: leave it empty and copy the link from the list instead.</p>
                 </div>
-                <div class="form-actions form-footer"><button type="submit">Send invitation <span aria-hidden="true">→</span></button><a href="{% url 'accounts:dashboard' %}">Back to dashboard</a></div>
+                <div class="form-actions form-footer"><button type="submit">Invite</button><a href="{% url 'accounts:dashboard' %}">Back to dashboard</a></div>
             </form>
         </section>
         <aside class="panel workspace-info">
             <h2>Members ({{ members|length|add:1 }})</h2>
             {% include 'accounts/_member_list.html' with show_emails=True %}
+            {% for member in members %}{% if member.is_pending %}
+                <div class="invite-link">
+                    <label for="invite-link-{{ member.pk }}">Invite link for {{ member.user.username }}</label>
+                    <input id="invite-link-{{ member.pk }}" type="text" value="{{ member.invite_url }}" readonly spellcheck="false">
+                    <div class="form-actions">
+                        <button type="button" class="button-secondary" data-copy="invite-link-{{ member.pk }}">Copy link</button>
+                        <form method="post" action="{% url 'accounts:resend_invite' workspace.pk member.pk %}">{% csrf_token %}<button type="submit" class="button-secondary">{% if member.user.email %}Resend email{% else %}New link{% endif %}</button></form>
+                    </div>
+                    <p class="helptext">Works for 7 days. A new email or link replaces this one.</p>
+                </div>
+            {% endif %}{% endfor %}
         </aside>
     </div>
 {% endblock %}
+{% block scripts %}<script src="{% static 'accounts/copy_link.js' %}?v=1" defer></script>{% endblock %}
