@@ -1,0 +1,473 @@
+
+/* Syncmily Family Checklists */
+
+.checklist-page {
+    --cl-sage: #52684e;
+    --cl-peach: #fff0e6;
+    --cl-cream: #fffdf9;
+    --cl-border: #e5ddd3;
+
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.checklist-page .cl-back {
+    display: inline-block;
+    margin-bottom: 28px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.checklist-page .cl-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 36px;
+}
+
+.checklist-page .cl-eyebrow {
+    color: #a34d35;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.checklist-page .cl-subtitle {
+    color: #756b6d;
+    font-size: 16px;
+}
+
+.checklist-page .cl-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 11px 20px;
+    border: 1px solid #a34d35;
+    border-radius: 12px;
+    background: #a34d35;
+    color: white;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.checklist-page .cl-button:hover {
+    background: #85402d;
+    color: white;
+}
+
+.checklist-page .cl-button-secondary {
+    background: white;
+    color: #a34d35;
+}
+
+.checklist-page .cl-button-secondary:hover {
+    background: #fff0e6;
+    color: #85402d;
+}
+
+.checklist-page .cl-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.checklist-page .cl-card {
+    padding: 30px;
+    border: 1px solid var(--cl-border);
+    border-radius: 22px;
+    background: var(--cl-cream);
+    box-shadow: 0 10px 32px rgba(56, 47, 53, 0.05);
+}
+
+.checklist-page .cl-card h2 {
+    margin-bottom: 18px;
+    font-size: 22px;
+}
+
+.checklist-page .cl-card h2 a {
+    color: #382f35;
+    text-decoration: none;
+}
+
+.checklist-page .cl-card h2 a:hover {
+    color: #a34d35;
+}
+
+.checklist-page .cl-event {
+    display: inline-block;
+    padding: 7px 12px;
+    border-radius: 20px;
+    background: var(--cl-peach);
+    color: #97543b;
+    font-size: 13px;
+}
+
+.checklist-page .cl-muted {
+    color: #756b6d;
+    font-size: 14px;
+}
+
+.checklist-page .cl-progress {
+    display: block;
+    width: 100%;
+    height: 12px;
+    margin: 18px 0 24px;
+    appearance: none;
+    -webkit-appearance: none;
+    overflow: hidden;
+    border: none;
+    border-radius: 20px;
+    background: #e9e5df;
+    accent-color: var(--cl-sage);
+}
+
+.checklist-page .cl-progress::-webkit-progress-bar {
+    background: #e9e5df;
+    border-radius: 20px;
+}
+
+.checklist-page .cl-progress::-webkit-progress-value {
+    background: var(--cl-sage);
+    border-radius: 20px;
+}
+
+.checklist-page .cl-progress::-moz-progress-bar {
+    background: var(--cl-sage);
+    border-radius: 20px;
+}
+
+.checklist-page .cl-empty {
+    padding: 64px 28px;
+    border: 1px dashed #d7c9bb;
+    border-radius: 22px;
+    background: var(--cl-cream);
+    text-align: center;
+}
+
+.checklist-page .cl-empty-icon {
+    display: block;
+    margin-bottom: 16px;
+    font-size: 42px;
+}
+
+.checklist-page .cl-empty p {
+    color: #756b6d;
+}
+
+@media (max-width: 760px) {
+    .checklist-page .cl-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .checklist-page .cl-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .checklist-page .cl-card {
+        padding: 24px;
+    }
+}
+
+
+/* ==========================================
+   CHECKLIST DETAIL
+   ========================================== */
+
+.checklist-page .cl-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.checklist-page .cl-detail-actions form,
+.checklist-page .cl-task-actions form {
+    margin: 0;
+}
+
+.checklist-page .cl-button-danger {
+    background: #fff8f6;
+    color: #a33c35;
+    border-color: #e5c5bc;
+}
+
+.checklist-page .cl-button-danger:hover {
+    background: #f8e5df;
+    color: #8c302a;
+}
+
+.checklist-page .cl-progress-card {
+    margin-bottom: 38px;
+    background: #edf2e8;
+    border-color: #d8e5d1;
+}
+
+.checklist-page .cl-progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.checklist-page .cl-progress-top h2 {
+    margin-bottom: 8px;
+}
+
+.checklist-page .cl-progress-number {
+    flex-shrink: 0;
+    font-size: clamp(34px, 5vw, 56px);
+    font-weight: 800;
+    color: #52684e;
+}
+
+.checklist-page .cl-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.checklist-page .cl-section-heading h2 {
+    margin: 0;
+}
+
+.checklist-page .cl-task-count {
+    background: #f0e9e0;
+    color: #756b6d;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.checklist-page .cl-tasks {
+    display: grid;
+    gap: 12px;
+}
+
+.checklist-page .cl-task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 24px;
+    background: #fffdf9;
+    border: 1px solid #e5ddd3;
+    border-radius: 16px;
+}
+
+.checklist-page .cl-task.is-complete {
+    background: #f0f5ed;
+    border-color: #d6e3cf;
+}
+
+.checklist-page .cl-task-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.checklist-page .cl-task-main form {
+    margin: 0;
+}
+
+.checklist-page .cl-task-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0;
+    gap: 15px;
+    border: 0;
+    background: transparent;
+    color: #382f35;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.checklist-page .cl-task-toggle:hover {
+    background: transparent;
+    color: #52684e;
+}
+
+.checklist-page .cl-check-icon {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border: 2px solid #c5cec0;
+    border-radius: 9px;
+    background: white;
+    color: transparent;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.checklist-page .is-complete .cl-check-icon {
+    background: #52684e;
+    border-color: #52684e;
+    color: white;
+}
+
+.checklist-page .is-complete .cl-task-text {
+    color: #748371;
+    text-decoration: line-through;
+}
+
+.checklist-page .cl-completed-by {
+    margin: 7px 0 0 45px;
+    color: #73816e;
+    font-size: 12px;
+}
+
+.checklist-page .cl-task-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 12px;
+}
+
+.checklist-page .cl-task-actions a,
+.checklist-page .cl-task-actions button {
+    min-height: auto;
+    padding: 7px 10px;
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    color: #a34d35;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.checklist-page .cl-task-actions a:hover,
+.checklist-page .cl-task-actions button:hover {
+    background: #fff0e6;
+    color: #85402d;
+}
+
+.checklist-page .cl-add-task {
+    margin-top: 34px;
+}
+
+.checklist-page .cl-add-task h2 {
+    margin-bottom: 22px;
+}
+
+.checklist-page .cl-add-task form {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.checklist-page .cl-add-field {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.checklist-page .cl-add-field input {
+    width: 100%;
+    border-radius: 10px;
+}
+
+@media (max-width: 600px) {
+    .checklist-page .cl-task {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .checklist-page .cl-task-actions {
+        padding-left: 45px;
+    }
+
+    .checklist-page .cl-progress-top {
+        align-items: flex-start;
+    }
+
+    .checklist-page .cl-progress-number {
+        font-size: 36px;
+    }
+}
+.checklist-page .cl-progress-card {
+    margin-bottom: 38px;
+    background: #edf2e8;
+    border-color: #d8e5d1;
+}
+
+.checklist-page .cl-task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 24px;
+    background: #fffdf9;
+    border: 1px solid #e5ddd3;
+    border-radius: 16px;
+}
+
+/* Checklist create and edit forms */
+
+.checklist-page .cl-form-card {
+    max-width: 760px;
+}
+
+.checklist-page .cl-field {
+    margin-bottom: 28px;
+}
+
+.checklist-page .cl-field label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.checklist-page .cl-field input,
+.checklist-page .cl-field select {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid #ddd0c4;
+    border-radius: 10px;
+    background: #fffdf9;
+    padding: 12px 14px;
+}
+
+.checklist-page .cl-field input:focus,
+.checklist-page .cl-field select:focus {
+    outline: 2px solid #d9b7a4;
+    outline-offset: 2px;
+}
+
+.checklist-page .cl-optional {
+    margin-left: 8px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #edf2e8;
+    color: #52684e;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.checklist-page .cl-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding-top: 22px;
+    border-top: 1px solid #e5ddd3;
+}
