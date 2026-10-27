@@ -96,6 +96,7 @@ def create_event(request, workspace_id=None):
                                 "location": event_details.location,
                                 "timezone_name": event_details.timezone_name,
                                 "transport_mode": event_details.transport_mode,
+                                "is_tentative": event_details.is_tentative,
                                 "latitude": event_details.latitude,
                                 "longitude": event_details.longitude,
                             },

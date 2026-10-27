@@ -639,3 +639,9 @@ input:focus, select:focus { border-color: #a34d35; box-shadow: 0 0 0 3px #a34d35
     .lane-name { padding: 0 8px 0 10px; font-size: 12px; }
     .all-day-strip { flex-direction: column; gap: 8px; }
 }
+
+/* "Not confirmed yet": a checkbox beside its label, not a full-width input. */
+.field-is_tentative { display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+.field-is_tentative input[type="checkbox"] { grid-row: 1; grid-column: 1; width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--accent); }
+.field-is_tentative label { grid-column: 2; margin: 0; }
+.field-is_tentative .helptext { grid-column: 2; }

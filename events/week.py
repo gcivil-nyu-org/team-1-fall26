@@ -129,6 +129,7 @@ def build_week(events, members, week_start, tz, today):
                     "all_day": event.starts_at <= day["start"] and event.ends_at >= day["end"],
                     "starts_earlier": event.starts_at < day["start"],
                     "is_long": overlap_end - overlap_start >= LONG_EVENT,
+                    "tentative": event.is_tentative,
                 })
             chips.append({
                 **day,
@@ -136,6 +137,8 @@ def build_week(events, members, week_start, tz, today):
                 "items": items[:VISIBLE_ITEMS],
                 "more": max(len(items) - VISIBLE_ITEMS, 0),
                 "count": len(items),
+                # A day whose only plans are unconfirmed gets a dashed edge.
+                "tentative": bool(items) and all(item["tentative"] for item in items),
             })
         rows.append({**member, "chips": chips})
     return {"days": days, "rows": rows}

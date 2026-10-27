@@ -63,8 +63,36 @@ class WeekLayoutTests(TestCase):
     def test_members_get_deck_hues_in_family_order_and_wrap(self):
         members = family_members([self.workspace])
         self.assertEqual([member["user"].username for member in members], ["Ana", "Mateo", "Lucia", "Tomas", "Zoe"])
-        self.assertEqual([member["hue"] for member in members], ["a", "b", "c", "d", "a"])
-        self.assertEqual(len(DECK_HUES), 4)
+        self.assertEqual([member["hue"] for member in members], ["a", "b", "c", "d", "e"])
+        self.assertEqual(DECK_HUES, ("a", "b", "c", "d", "e", "f", "g", "h"))
+
+    def test_ninth_member_wraps_to_the_first_hue(self):
+        User = get_user_model()
+        for index in range(4):
+            user = User.objects.create_user(username=f"Zz{index}")
+            Membership.objects.create(
+                workspace=self.workspace, user=user, role=Membership.Role.KID,
+                invited_by=self.admin, accepted_at=django_timezone.now(),
+            )
+        hues = [member["hue"] for member in family_members([self.workspace])]
+        self.assertEqual(len(hues), 9)
+        self.assertEqual(hues[:8], list(DECK_HUES))
+        self.assertEqual(hues[8], "a")
+
+    def test_a_day_of_only_unconfirmed_plans_is_dashed(self):
+        tuesday = self.monday + timedelta(days=1)
+        maybe = self.event("Sleepover?", at(self.monday, 18), at(self.monday, 20), [self.kid])
+        maybe.is_tentative = True
+        maybe.save()
+        self.event("Swim", at(tuesday, 16), at(tuesday, 17), [self.kid])
+        other = self.event("Party?", at(tuesday, 18), at(tuesday, 19), [self.kid])
+        other.is_tentative = True
+        other.save()
+        chips = self.row(self.week(), self.kid)["chips"]
+        self.assertTrue(chips[0]["tentative"])
+        self.assertTrue(chips[0]["items"][0]["tentative"])
+        self.assertFalse(chips[1]["tentative"])  # one confirmed plan keeps the edge solid
+        self.assertFalse(chips[2]["tentative"])  # a free day is not "unconfirmed"
 
     def test_picked_colour_overrides_the_deck(self):
         MemberColor.objects.create(workspace=self.workspace, user=self.kid, color="#2e7d32")
@@ -206,3 +234,88 @@ class RailColumnTests(TestCase):
         items = [{"top": 10, "height": 30}, {"top": 15, "height": 5}, {"top": 25, "height": 5}]
         place_side_by_side(items)
         self.assertEqual([(item["column"], item["columns"]) for item in items], [(0, 2), (1, 2), (1, 2)])
+
+
+class PaletteTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.admin = User.objects.create_user(username="Ana")
+        cls.parent = User.objects.create_user(username="Mateo")
+        cls.kid = User.objects.create_user(username="Lucia")
+        cls.outsider = User.objects.create_user(username="Other")
+        cls.workspace = Workspace.objects.create(name="Reyes", primary_admin=cls.admin)
+        Workspace.objects.create(name="Other family", primary_admin=cls.outsider)
+        for user, role in ((cls.parent, Membership.Role.PARENT), (cls.kid, Membership.Role.KID)):
+            Membership.objects.create(
+                workspace=cls.workspace, user=user, role=role,
+                invited_by=cls.admin, accepted_at=django_timezone.now(),
+            )
+
+    def setUp(self):
+        self.url = reverse("accounts:set_palette", args=[self.workspace.pk])
+
+    def test_new_families_start_on_primaries(self):
+        self.assertEqual(self.workspace.palette, Workspace.Palette.PRIMARIES)
+
+    def test_a_parent_changes_the_family_deck_and_returns_to_the_page(self):
+        self.client.force_login(self.parent)
+        response = self.client.post(self.url, {"palette": "garden", "next": "/events/?view=day"})
+        self.assertRedirects(response, "/events/?view=day", fetch_redirect_response=False)
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.palette, "garden")
+        page = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(page, 'data-deck="garden"')
+        self.assertContains(page, 'value="garden" aria-pressed="true"', count=2)  # bar tab + phone menu
+
+    def test_kids_see_the_deck_but_cannot_change_it(self):
+        self.workspace.palette = "bold"
+        self.workspace.save()
+        self.client.force_login(self.kid)
+        page = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(page, 'data-deck="bold"')
+        self.assertNotContains(page, "palette-options")
+        self.assertEqual(self.client.post(self.url, {"palette": "garden"}).status_code, 404)
+
+    def test_other_families_cannot_change_it(self):
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(self.url, {"palette": "garden"}).status_code, 404)
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.palette, "primaries")
+
+    def test_unknown_palette_and_offsite_next_are_refused(self):
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.post(self.url, {"palette": "neon"}).status_code, 400)
+        response = self.client.post(self.url, {"palette": "bold", "next": "https://evil.example/"})
+        self.assertRedirects(response, reverse("accounts:dashboard"), fetch_redirect_response=False)
+
+    def test_get_is_not_allowed(self):
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+
+
+class TentativeEventTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.admin = User.objects.create_user(username="Ana")
+        cls.workspace = Workspace.objects.create(name="Reyes", primary_admin=cls.admin)
+
+    def test_unconfirmed_plan_is_saved_and_shown_as_not_confirmed(self):
+        event = Event.objects.create(
+            created_by=self.admin, workspace=self.workspace, title="Sleepover?",
+            starts_at=django_timezone.now() + timedelta(hours=1),
+            ends_at=django_timezone.now() + timedelta(hours=2), is_tentative=True,
+        )
+        self.client.force_login(self.admin)
+        detail = self.client.get(reverse("events:detail", args=[event.pk]))
+        self.assertContains(detail, "Not confirmed yet")
+        week = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(week, "Not confirmed")
+
+    def test_events_are_confirmed_by_default(self):
+        event = Event.objects.create(
+            created_by=self.admin, workspace=self.workspace, title="Swim",
+            starts_at=django_timezone.now(), ends_at=django_timezone.now() + timedelta(hours=1),
+        )
+        self.assertFalse(event.is_tentative)

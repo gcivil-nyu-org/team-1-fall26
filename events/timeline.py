@@ -15,7 +15,7 @@ LIGHT_TEXT = "#ffffff"
 # Hour to scroll to on days without events, so the view doesn't open on midnight.
 MORNING_HOUR = 8
 # Paint-deck ramps in shell.css, handed out in family order. A colour a parent picked overrides the deck.
-DECK_HUES = ("a", "b", "c", "d")
+DECK_HUES = ("a", "b", "c", "d", "e", "f", "g", "h")
 
 
 def relative_luminance(color):

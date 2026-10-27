@@ -146,6 +146,7 @@ class EventForm(EventTimezoneForm):
         "latitude",
         "longitude",
         "transport_mode",
+        "is_tentative",
         "participants",
     ]
 
@@ -209,6 +210,12 @@ class EventForm(EventTimezoneForm):
         label="How will you travel to this event?",
         choices=Event.TransportMode.choices,
         initial=Event.TransportMode.TRANSIT,
+    )
+
+    is_tentative = forms.BooleanField(
+        label="Not confirmed yet",
+        required=False,
+        help_text="It shows with a dashed edge until it’s settled.",
     )
 
     participants = forms.ModelMultipleChoiceField(
@@ -333,6 +340,7 @@ class EventForm(EventTimezoneForm):
             latitude=latitude,
             longitude=longitude,
             transport_mode=cleaned_data["transport_mode"],
+            is_tentative=cleaned_data.get("is_tentative", False),
         )
 
         try:

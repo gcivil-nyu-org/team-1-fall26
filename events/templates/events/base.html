@@ -11,10 +11,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&amp;display=swap">
     {% block legacy_css %}
-    <link rel="stylesheet" href="{% static 'events/event_form.css' %}?v=11">
+    <link rel="stylesheet" href="{% static 'events/event_form.css' %}?v=12">
     <link rel="stylesheet" href="{% static 'accounts/accounts.css' %}?v=4">
     {% endblock %}
-    <link rel="stylesheet" href="{% static 'events/shell.css' %}?v=1">
+    <link rel="stylesheet" href="{% static 'events/shell.css' %}?v=2">
     {% block page_css %}{% endblock %}
 
     <script src="{% static 'events/shell.js' %}?v=1" defer></script>
@@ -26,7 +26,7 @@
 
     {% block scripts %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-deck="{% if shell %}{{ shell.palette }}{% else %}primaries{% endif %}">
 {% block shell %}
     <a class="skip ui" href="#main-content">Skip to content</a>
     {% with nav=request.resolver_match.url_name %}
@@ -44,6 +44,12 @@
         </nav>
         {% endif %}
         <div class="bar-end">
+            {% if shell.palette_url %}
+                <details class="palette-tab">
+                    <summary><span class="deck-strip" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="palette-label">Colors</span></summary>
+                    <div class="palette-menu"><p>Family colors</p>{% include 'events/_palette_options.html' %}</div>
+                </details>
+            {% endif %}
             {% block switches %}{% endblock %}
             {% if shell %}
                 {% if shell.add_event_url %}
@@ -55,6 +61,7 @@
                     </summary>
                     <div class="acct-menu">
                         <a href="{% url 'accounts:profile' %}">Profile &amp; settings</a>
+                        {% if shell.palette_url %}<div class="acct-palette"><p>Family colors</p>{% include 'events/_palette_options.html' %}</div>{% endif %}
                         <form class="sign-out" method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
                     </div>
                 </details>

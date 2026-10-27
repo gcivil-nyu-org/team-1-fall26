@@ -5,6 +5,11 @@ from django.db import models
 
 
 class Workspace(models.Model):
+    class Palette(models.TextChoices):
+        PRIMARIES = "primaries", "Primaries"
+        GARDEN = "garden", "Garden"
+        BOLD = "bold", "Bold"
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -17,6 +22,14 @@ class Workspace(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="created_workspaces",
+    )
+
+    # The paint deck the family's schedule is drawn in, chosen by a parent.
+    palette = models.CharField(
+        max_length=16,
+        choices=Palette.choices,
+        default=Palette.PRIMARIES,
+        db_default=Palette.PRIMARIES,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

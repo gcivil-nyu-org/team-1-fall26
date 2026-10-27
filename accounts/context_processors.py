@@ -6,6 +6,7 @@ from django.utils.functional import SimpleLazyObject
 from events.access import family_workspaces
 from events.timeline import family_members
 
+from .models import Workspace
 from .services import get_family_context
 
 
@@ -30,6 +31,10 @@ def _shell(user):
             if family and family["is_primary_admin"] else reverse("accounts:dashboard")
         ),
         "add_event_url": reverse("events:workspace_create", args=[workspace.pk]) if can_create else None,
+        "palette": workspace.palette if workspace else Workspace.Palette.PRIMARIES,
+        # Parents choose the deck; kids see the family's choice.
+        "palette_url": reverse("accounts:set_palette", args=[workspace.pk]) if can_create else None,
+        "palettes": Workspace.Palette.choices,
     }
 
 

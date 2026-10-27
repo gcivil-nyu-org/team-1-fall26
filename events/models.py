@@ -64,6 +64,8 @@ class Event(models.Model):
         choices=TransportMode.choices,
         default=TransportMode.TRANSIT,
     )
+    # A plan that isn't settled yet (a maybe sleepover). Drawn with a dashed edge.
+    is_tentative = models.BooleanField(default=False, db_default=False)
     source = models.CharField(
         max_length=20,
         choices=Source.choices,

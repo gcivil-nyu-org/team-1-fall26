@@ -77,6 +77,9 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .paint .l3 { background: var(--s4); color: #fff; }
 .paint .l4 { background: var(--s5); color: #fff; }
 [data-theme="dark"] .paint .l0 { background: color-mix(in oklab, var(--s5) 30%, var(--card)); color: var(--s2); }
+/* Not confirmed yet: a dashed edge inset in the chip, in the chip's own ink. */
+.tent { outline: 1.5px dashed currentColor; outline-offset: -5px; }
+.chip .maybe { display: block; font-weight: 400; font-style: italic; }
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; color: var(--muted); font-size: 12px; }
 .ramp { display: flex; }
 .ramp i { width: 18px; height: 12px; }

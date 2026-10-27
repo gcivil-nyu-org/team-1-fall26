@@ -10,9 +10,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError, transaction
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from calendars import google
@@ -500,3 +502,21 @@ def profile(request):
             "backup_codes_left": two_step.backup_codes_left(request.user),
         },
     )
+
+
+@login_required
+@require_POST
+def set_palette(request, workspace_id):
+    """A parent picks the paint deck their family's schedule is drawn in."""
+    workspace = get_object_or_404(family_workspaces(request.user, caregivers_only=True), pk=workspace_id)
+    palette = request.POST.get("palette", "")
+    if palette not in Workspace.Palette.values:
+        return HttpResponseBadRequest("Choose Primaries, Garden or Bold.")
+    if workspace.palette != palette:
+        workspace.palette = palette
+        workspace.save(update_fields=["palette"])
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}, request.is_secure()):
+        next_url = reverse("accounts:dashboard")
+    return redirect(next_url)
+
