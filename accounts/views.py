@@ -1,5 +1,6 @@
 
 import logging
+from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,6 +18,8 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from calendars import google
 from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
+from events.timeline import family_members
+from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
 from . import two_step
 from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
@@ -39,6 +42,8 @@ logger = logging.getLogger(__name__)
 # lockout backend, which only guards password guesses.
 DIRECT_LOGIN_BACKEND = "django.contrib.auth.backends.ModelBackend"
 GOOGLE_LOGIN_SESSION_KEY = "google_login_oauth"
+# How far the week view pages back or forward (about five years either way).
+WEEK_RANGE_DAYS = 5 * 366
 
 
 @login_required
@@ -126,25 +131,57 @@ def dashboard(request):
     )
     members = workspace.memberships.select_related("user")
 
-    template = (
-        "accounts/kid_dashboard.html"
-        if family["role"] == Membership.Role.KID
-        else "accounts/parent_dashboard.html"
-    )
+    context = {
+        **family,
+        "members": members,
+        "upcoming_events": upcoming_events,
+        "can_create_events": family_workspaces(
+            request.user, caregivers_only=True,
+        ).filter(pk=workspace.pk).exists(),
+        "can_view_events": family_workspaces(request.user).filter(pk=workspace.pk).exists(),
+    }
+    if family["role"] == Membership.Role.KID:
+        return render(request, "accounts/kid_dashboard.html", context)
+    context.update(_week_context(request, workspace))
+    return render(request, "accounts/parent_dashboard.html", context)
 
-    return render(
-        request,
-        template,
-        {
-            **family,
-            "members": members,
-            "upcoming_events": upcoming_events,
-            "can_create_events": family_workspaces(
-                request.user, caregivers_only=True,
-            ).filter(pk=workspace.pk).exists(),
-            "can_view_events": family_workspaces(request.user).filter(pk=workspace.pk).exists(),
-        },
+
+def _week_context(request, workspace):
+    """The paint-chip week for one family: ?week=YYYY-MM-DD picks the week, default this one."""
+    tz = timezone.get_current_timezone()
+    today = timezone.localdate()
+    try:
+        chosen = date.fromisoformat(request.GET.get("week", ""))
+    except ValueError:
+        chosen = today
+    # Far-off dates (0001-01-01) would overflow the previous/next links; nobody plans decades out.
+    if abs((chosen - today).days) > WEEK_RANGE_DAYS:
+        chosen = today
+    week_start = week_start_for(chosen)
+    week_end = week_start + timedelta(days=7)
+    starts_at, _ = local_day_bounds(week_start, tz)
+    ends_at, _ = local_day_bounds(week_end, tz)
+    events = list(
+        family_events(request.user)
+        .filter(workspace=workspace, starts_at__lt=ends_at, ends_at__gt=starts_at)
+        .prefetch_related("participants")
+        .order_by("starts_at", "pk")
     )
+    members = family_members([workspace])
+    return {
+        "week": build_week(events, members, week_start, tz, today),
+        "week_start": week_start,
+        "week_last": week_end - timedelta(days=1),
+        "is_this_week": week_start == week_start_for(today),
+        "previous_week": (week_start - timedelta(days=7)).isoformat(),
+        "next_week": week_end.isoformat(),
+        "today": today,
+        "rail": build_today_rail(
+            [event for event in events if event.starts_at.astimezone(tz).date() <= today
+             and event.ends_at.astimezone(tz).date() >= today],
+            members, today, tz, timezone.now(),
+        ) if week_start == week_start_for(today) else None,
+    }
 
 
 @login_required
@@ -289,6 +326,11 @@ class SignInView(LoginView):
 
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields["username"].widget.attrs["spellcheck"] = "false"
+        return form
 
     def get_context_data(self, **kwargs):
         return {**super().get_context_data(**kwargs), "google_sign_in": google_sign_in_enabled()}
