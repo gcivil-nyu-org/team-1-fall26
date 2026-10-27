@@ -23,8 +23,8 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 
 /* Flash messages */
 .flashes { display: grid; gap: 8px; margin-bottom: 16px; }
-.flash { padding: 10px 14px; border-radius: var(--radius); background: var(--card); border-left: 3px solid var(--ink); }
-.flash-error { border-left-color: var(--danger); }
+.flash { padding: 10px 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); }
+.flash-error { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 35%, var(--card)); background: color-mix(in oklab, var(--danger) 8%, var(--card)); }
 
 /* Week: one paint card per member. Mobile-first; the layout follows its container, not the viewport.
  * A day column needs ~96px for the longest real labels without splitting a word.
