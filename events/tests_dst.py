@@ -208,7 +208,8 @@ class DaylightSavingScheduleTests(TestCase):
 
     def form(self, date, start, end, zone="America/New_York"):
         return EventForm(
-            {"title": "T", "date": date, "start_time": start, "end_time": end, "timezone": zone},
+            {"title": "T", "date": date, "start_time": start, "end_time": end, "timezone": zone,
+             "transport_mode": "transit"},
             user=self.admin, workspace=self.workspace,
         )
 
@@ -223,7 +224,7 @@ class DaylightSavingScheduleTests(TestCase):
     def test_form_overnight_event_across_the_change_ends_at_the_right_instant(self):
         form = EventForm(
             {"title": "T", "date": "2026-10-31", "start_time": "22:00", "end_date": "2026-11-01",
-             "end_time": "03:00", "timezone": "America/New_York"},
+             "end_time": "03:00", "timezone": "America/New_York", "transport_mode": "transit"},
             user=self.admin, workspace=self.workspace,
         )
         self.assertTrue(form.is_valid(), form.errors)
