@@ -340,3 +340,35 @@ class AccountPageTests(FamilyMixin, TestCase):
         self.assertContains(response, 'class="steps"')
         self.assertContains(response, 'class="qr"')
         self.assertContains(response, 'autocomplete="one-time-code"')
+
+
+class SignInPageTests(FamilyMixin, TestCase):
+    def test_sign_in_pages_share_the_paint_deck_layout(self):
+        from accounts.services import invite_member, make_invite_token
+
+        invite = invite_member(workspace=self.workspace, invited_by=self.ana, email="kid@example.com",
+                               role=Membership.Role.KID)
+        pages = {
+            reverse("accounts:login"): 200,
+            reverse("accounts:signup"): 200,
+            reverse("accounts:accept_invite", args=[make_invite_token(invite)]): 200,
+            reverse("accounts:accept_invite", args=["not-a-token"]): 400,
+        }
+        for url, status in pages.items():
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, status)
+                self.assertContains(response, '<body class="paint"', status_code=status)
+                self.assertContains(response, '<main id="main-content" class="auth">', status_code=status)
+                self.assertContains(response, 'class="auth-deck"', status_code=status)
+                self.assertNotContains(response, 'class="bar ui"', status_code=status)
+
+    def test_invite_page_names_who_invited_and_the_username(self):
+        from accounts.services import invite_member, make_invite_token
+
+        invite = invite_member(workspace=self.workspace, invited_by=self.ana, email="kid@example.com",
+                               role=Membership.Role.KID)
+        response = self.client.get(reverse("accounts:accept_invite", args=[make_invite_token(invite)]))
+        self.assertContains(response, "Join Reyes family")
+        self.assertContains(response, "Ana</span> invited you as a kid")
+        self.assertContains(response, invite.user.username)

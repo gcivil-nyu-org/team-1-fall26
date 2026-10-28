@@ -491,3 +491,9 @@ body.paint .btn-small:hover { background: var(--raised); color: var(--ink); }
 .setup-form { margin-top: 16px; }
 .paint .codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
 .codes li { padding: 10px 12px; border-radius: var(--radius); background: var(--raised); font-size: 15px; text-align: center; }
+
+/* Sign-in layout pages */
+.paint .auth-note { margin: -8px 0 24px; color: var(--muted); }
+.invite-facts { margin: -8px 0 16px; }
+.auth-body .form-error { margin-bottom: 16px; }
+.auth-body h1:first-child { margin-top: 40px; }

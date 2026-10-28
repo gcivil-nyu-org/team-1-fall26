@@ -1,44 +1,39 @@
-{% extends 'events/base.html' %}
+{% extends 'accounts/_auth_page.html' %}
 {% block title %}Create an account | Syncmily{% endblock %}
-{% block content %}
-    {% include 'accounts/_messages.html' %}
-    <div class="setup-layout">
-        <section class="panel" aria-labelledby="signup-heading">
-            <div class="panel-heading"><h2 id="signup-heading">Create your Syncmily account</h2></div>
+{% block auth_body %}
+            <h1>Create your account</h1>
+            <p class="lede">Then start your family, or join one from an invite.</p>
+            {% include 'events/_flashes.html' %}
+            {% if google_sign_in %}
+                {% include 'accounts/_google_button.html' %}
+                <div class="or">or choose a username</div>
+            {% endif %}
             <form method="post" novalidate>
                 {% csrf_token %}
-                {{ form.non_field_errors }}
-                <div class="form-field">
+                {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+                <div class="field">
                     <label for="{{ form.username.id_for_label }}">Username</label>
                     {{ form.username }}
                     {{ form.username.errors }}
-                    <p class="helptext">Letters, digits and @ . + - _ only. You can change it later.</p>
+                    <small>Letters, digits and @ . + - _ only. You can change it later.</small>
                 </div>
-                <div class="form-field">
+                <div class="field">
                     <label for="{{ form.email.id_for_label }}">Email</label>
                     {{ form.email }}
                     {{ form.email.errors }}
                 </div>
-                <div class="form-field">
+                <div class="field">
                     <label for="{{ form.password1.id_for_label }}">Password</label>
                     {{ form.password1 }}
                     {{ form.password1.errors }}
-                    <p class="helptext">At least 8 characters, not all numbers, and not a common password.</p>
+                    <small>At least 8 characters, not all numbers, and not a common password.</small>
                 </div>
-                <div class="form-field">
-                    <label for="{{ form.password2.id_for_label }}">Confirm password</label>
+                <div class="field">
+                    <label for="{{ form.password2.id_for_label }}">Type it again</label>
                     {{ form.password2 }}
                     {{ form.password2.errors }}
                 </div>
-                <div class="form-actions form-footer"><button type="submit">Create account <span aria-hidden="true">→</span></button><a href="{% url 'accounts:login' %}">I already have an account</a></div>
+                <button class="btn btn-wide" type="submit">Create account</button>
             </form>
-            {% include 'accounts/_google_sign_in.html' %}
-        </section>
-        <aside class="setup-note">
-            <p class="eyebrow">NEW TO SYNCMILY?</p>
-            <h2>Plan together in two steps.</h2>
-            <ol class="steps-list"><li><strong>Create your account</strong><span>With a password, or with your Google account.</span></li><li><strong>Start your family</strong><span>Create a family workspace, then invite the rest of your household.</span></li></ol>
-            <p>Joining someone else’s family? Use the invitation link they sent you instead.</p>
-        </aside>
-    </div>
+            <p class="auth-foot">Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a>. Joining a family? Open the link in your invitation email.</p>
 {% endblock %}
