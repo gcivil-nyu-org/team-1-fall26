@@ -2,67 +2,111 @@
  * Colour is data (who); chrome is ink and white.
  *
  * Loaded on every page. Pages already moved to the new design add `paint` to <body> and load paint.css.
- * The older pages still define --ink, --line and --track on :root, so the tokens here live on `.ui`
- * (the bar and ported page bodies) instead of :root, and dark mode only applies to
- * ported pages. Selectors in the chrome are prefixed with .bar so they beat the older
+ * The older pages still define --ink, --muted, --line and --track on :root, so those names (and the
+ * canvas, --counter) live on `.ui` (the bar and ported page bodies) instead of :root, and dark mode only
+ * applies to ported pages. Selectors in the chrome are prefixed with .bar so they beat the older
  * global button and link rules. */
 /* Schibsted Grotesk is linked in base.html (a <link> loads in parallel; @import would chain). */
 
-/* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
- * The family's deck (Workspace.palette) is set as data-deck on <body>; Primaries is the default.
- * e..h were derived in OKLCH from each deck's own a-ramp lightness steps. Every ramp keeps 4.5:1 for
- * dark ink on step 3, white on steps 4-5, and step 5 text on step 1. */
-:root, [data-deck="primaries"] {
-  --a1:#e3eefb; --a2:#bcd6f5; --a3:#86b3ea; --a4:#2c68b8; --a5:#1d4f91;   /* Harbor blue */
-  --b1:#e4f3e1; --b2:#bfe2b8; --b3:#8ccb80; --b4:#2e7a2b; --b5:#21602a;   /* Fern */
-  --c1:#fdf3d2; --c2:#fbe39a; --c3:#f6c84a; --c4:#94640a; --c5:#6b4500;   /* Marigold */
-  --d1:#fde6e1; --d2:#fac2b6; --d3:#f48f7a; --d4:#bf3f28; --d5:#93301f;   /* Coral */
-  --e1:#edeafa; --e2:#d5cdf2; --e3:#b4a4e5; --e4:#7055b0; --e5:#563f8b;   /* Violet */
-  --f1:#ddf1f1; --f2:#addede; --f3:#5fc2c2; --f4:#017979; --f5:#015c5d;   /* Teal */
-  --g1:#f8e7f0; --g2:#edc6db; --g3:#db98bd; --g4:#9f427b; --g5:#7c2f5f;   /* Magenta */
-  --h1:#e9edf2; --h2:#cbd4df; --h3:#a1b2c4; --h4:#546c85; --h5:#3e5267;   /* Slate */
-}
-[data-deck="garden"] {
-  --a1:#e8efe9; --a2:#c6d8ca; --a3:#97b89e; --a4:#4a6e52; --a5:#2f4a35;   /* Sage */
-  --b1:#f1e8f0; --b2:#dcc4d9; --b3:#bd96b8; --b4:#7a4a74; --b5:#55304f;   /* Plum */
-  --c1:#f6eedd; --c2:#e8d2a3; --c3:#d4b066; --c4:#8a6420; --c5:#5e4313;   /* Ochre */
-  --d1:#e2f0f0; --d2:#b8dbdb; --d3:#7fbcbc; --d4:#2f6f72; --d5:#1d4a4c;   /* Teal */
-  --e1:#ececf5; --e2:#d2cfe7; --e3:#ada8d3; --e4:#635d8b; --e5:#423d60;   /* Lavender */
-  --f1:#f6eae5; --f2:#e9cbbe; --f3:#d6a089; --f4:#8c533a; --f5:#603622;   /* Terracotta */
-  --g1:#e6eef5; --g2:#c1d5e7; --g3:#8eb3d3; --g4:#3e688b; --g5:#264660;   /* Dusty blue */
-  --h1:#edeee4; --h2:#d3d5bd; --h3:#b0b285; --h4:#666834; --h5:#44451e;   /* Moss */
-}
-[data-deck="bold"] {
-  --a1:#e4e9ff; --a2:#bac6ff; --a3:#7f95ff; --a4:#2f4fe0; --a5:#1c2f99;   /* Cobalt */
-  --b1:#ffe3f1; --b2:#ffb8da; --b3:#ff7fbb; --b4:#c21f6e; --b5:#8a124c;   /* Magenta */
-  --c1:#eef6d6; --c2:#d6eb9a; --c3:#b4d64f; --c4:#5b7a10; --c5:#3d530a;   /* Lime */
-  --d1:#ffead9; --d2:#ffcaa0; --d3:#ff9a52; --d4:#c4510c; --d5:#8a3706;   /* Tangerine */
-  --e1:#ede6fb; --e2:#d1bff5; --e3:#ad87ed; --e4:#7a36c7; --e5:#501d87;   /* Violet */
-  --f1:#d8eff2; --f2:#97d6de; --f3:#01b3c2; --f4:#01727b; --f5:#034950;   /* Cyan */
-  --g1:#fbe4e2; --g2:#f4b9b3; --g3:#e67b74; --g4:#b81b25; --g5:#7b0512;   /* Red */
-  --h1:#f0ead8; --h2:#dac89a; --h3:#bd9a31; --h4:#7b6103; --h5:#4f3e03;   /* Gold */
+/* Colour tokens. Values come from docs/design/palette.py (OKLCH in, hex out; --write regenerates this region);
+ * docs/design/check_colours.py measures every pair the pages use (WCAG 2.x and APCA) and colour-blind separation,
+ * and fails on a miss. Roles, values and how to add a colour: docs/design/colour.md. Components use the roles,
+ * not the --nNN ramp. */
+
+/* Neutrals: one warm ramp at the canvas hue (OKLCH h 83). The number is the OKLCH lightness. */
+:root {
+  --n100:#ffffff; --n97:#f8f4ec; --n94:#f2ece1; --n90:#e6ded0; --n80:#c2bdb5; --n56:#78746c;
+  --n47:#5e5a53; --n31:#33302b; --n27:#292622; --n23:#1f1d19; --n20:#191714; --n18:#13110f;
 }
 
+/* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
+ * The family's deck (Workspace.palette) is set as data-deck on <body>; Primaries is the default.
+ * Every ramp shares the step lightness (OKLCH L .955 .875 .775 .545 .435), so a chip's depth reads the same weight
+ * whoever it belongs to. Steps 1-3 carry --paint-ink, 4-5 carry --on-deep (white), and step 5 reads on step 1.
+ * Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4 for protan, deutan and tritan vision. */
+:root, [data-deck="primaries"] {
+  --a1:#eaf0fe; --a2:#c5d6f9; --a3:#95b5f8; --a4:#456cc2; --a5:#2f4d92;   /* Harbor blue */
+  --b1:#e0f7e7; --b2:#afe5c1; --b3:#6ace91; --b4:#15854e; --b5:#0d6137;   /* Fern */
+  --c1:#f8f1d0; --c2:#e9d687; --c3:#d1b534; --c4:#8f6911; --c5:#694c0a;   /* Marigold */
+  --d1:#feebeb; --d2:#f9c8c7; --d3:#f4999a; --d4:#af4c52; --d5:#833339;   /* Coral */
+  --e1:#f4ecfe; --e2:#dfccf9; --e3:#c6a3f0; --e4:#8259ae; --e5:#603e82;   /* Violet */
+  --f1:#dcf7f4; --f2:#a3e5df; --f3:#45cdc6; --f4:#15817b; --f5:#0d5e5a;   /* Teal */
+  --g1:#ecf4de; --g2:#cedeac; --g3:#a9c269; --g4:#647b12; --g5:#48590a;   /* Leaf */
+  --h1:#feeaf2; --h2:#f9c4dc; --h3:#ef95c1; --h4:#ab477d; --h5:#7f305b;   /* Magenta */
+}
+[data-deck="garden"] {
+  --a1:#e7f4ea; --a2:#c2dfc8; --a3:#94c3a0; --a4:#4b7d5a; --a5:#345c3f;   /* Sage */
+  --b1:#f7ecfa; --b2:#e4cceb; --b3:#cca6d7; --b4:#865f91; --b5:#62446b;   /* Plum */
+  --c1:#faeedd; --c2:#ebd2ac; --c3:#d7af6e; --c4:#94661a; --c5:#6d490a;   /* Ochre */
+  --d1:#dff6f5; --d2:#aee2e0; --d3:#6dc8c6; --d4:#15807f; --d5:#0d5d5c;   /* Teal */
+  --e1:#edeffe; --e2:#ced3f9; --e3:#a9b0f2; --e4:#6468ac; --e5:#474b81;   /* Lavender */
+  --f1:#feece5; --f2:#f6cbb9; --f3:#e7a486; --f4:#a05c3d; --f5:#774128;   /* Terracotta */
+  --g1:#e5f2fe; --g2:#b7dbf9; --g3:#80bdee; --g4:#3176a8; --g5:#1d567e;   /* Dusty blue */
+  --h1:#f1f2de; --h2:#d8daae; --h3:#b9bb73; --h4:#747520; --h5:#54550e;   /* Moss */
+}
+[data-deck="bold"] {
+  --a1:#eaf0fe; --a2:#c7d6f9; --a3:#99b4f8; --a4:#4063dd; --a5:#2c47a5;   /* Cobalt */
+  --b1:#feeaf2; --b2:#f9c5da; --b3:#f98fbf; --b4:#bc2e7b; --b5:#8b1d5a;   /* Magenta */
+  --c1:#dcf8e8; --c2:#9fe9c2; --c3:#48d297; --c4:#15845a; --c5:#0d6040;   /* Emerald */
+  --d1:#feece2; --d2:#f9cbae; --d3:#f89c5d; --d4:#a95711; --d5:#7c3e09;   /* Tangerine */
+  --e1:#f2edfe; --e2:#dccdf9; --e3:#c3a3f8; --e4:#8251c2; --e5:#5f3990;   /* Violet */
+  --f1:#feebe9; --f2:#f9c8c2; --f3:#f9978d; --f4:#c33431; --f5:#912220;   /* Red */
+  --g1:#e3f3fe; --g2:#b1ddf9; --g3:#64c1f8; --g4:#1478aa; --g5:#0c577c;   /* Sky */
+  --h1:#f8f0d6; --h2:#ead591; --h3:#d6b234; --h4:#906811; --h5:#694b0a;   /* Gold */
+}
+
+/* Colour roles. Global, so accounts.css and checklists.css can use them on pages not yet ported. */
+:root {
+  --card:var(--n100); --raised:var(--n97); --control:var(--n56);
+  --primary:var(--n20); --on-primary:var(--n100);
+  --paint-ink:var(--n20); --on-deep:var(--n100);
+  --focus:var(--n20); --selection:var(--n80); --on-selection:var(--n20); --shade:var(--n18);
+  --danger:#b3261e; --danger-soft:#ffeeeb; --success:#297243; --success-soft:#e9f7ec;
+  --warning:#8d5b11; --warning-soft:#fef2d5; --info:#3063a6; --info-soft:#ebf3ff;
+}
 .ui, body.paint {
-  --counter:#f2ece1; --card:#ffffff; --raised:#f8f4ec;
-  --ink:#181a19; --muted:#585d5a; --line:#e6ded0; --control:#c4cac6;
-  --primary:#181a19; --on-primary:#ffffff;
-  --paint-ink:#181a19;
-  --danger:#b3261e;
+  --counter:var(--n94); --ink:var(--n20); --muted:var(--n47); --line:var(--n90);
   --track:#e6ded0cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
   --radius:4px; --radius-control:6px;
   --font:"Schibsted Grotesk", system-ui, sans-serif;
 }
+body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
+
+/* Dark: ported pages only. The theme switch sets data-theme (theme_boot.js, before first paint); with
+ * scripts off the OS setting applies. Both blocks hold the same values (check_colours.py compares them).
+ * Chips keep their paint, so a member's colour is the same at night; quiet chips (step 1) dim into the card. */
 [data-theme="dark"] body.paint, [data-theme="dark"] body.paint .ui {
-  --counter:#111312; --card:#1b1e1c; --raised:#232724;
-  --ink:#f1f3f2; --muted:#b0b6b2; --line:#2e3330; --control:#4a504c;
-  --primary:#f1f3f2; --on-primary:#111312;
-  --danger:#ff8a80;
-  --track:#262a28cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
+  --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
+  --ink:var(--n97); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+  --primary:var(--n97); --on-primary:var(--n18); --accent:var(--n97);
+  --paint-ink:var(--n20); --on-deep:var(--n100);
+  --focus:var(--n97); --selection:var(--n31); --on-selection:var(--n97);
+  --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
+  --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
+  --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
 }
-/* On the root so scrollbars and form controls follow the theme too. */
-:root:has(body.paint) { color-scheme: light; }
-:root[data-theme="dark"]:has(body.paint) { color-scheme: dark; }
+[data-theme="dark"] body.paint[data-deck="primaries"] { --a1:#242c3b; --b1:#213022; --c1:#342b1a; --d1:#3c2522; --e1:#312837; --f1:#21302b; --g1:#2b2e1a; --h1:#3b242c; }
+[data-theme="dark"] body.paint[data-deck="garden"] { --a1:#272f24; --b1:#322930; --c1:#352a1a; --d1:#212f2c; --e1:#2a2b36; --f1:#38281e; --g1:#222e36; --h1:#2e2d1a; }
+[data-theme="dark"] body.paint[data-deck="bold"] { --a1:#232b41; --b1:#3f222b; --c1:#213024; --d1:#3a2719; --e1:#30273b; --f1:#40231d; --g1:#212e35; --h1:#342a1a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.paint, :root:not([data-theme="light"]) body.paint .ui {
+    --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
+    --ink:var(--n97); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+    --primary:var(--n97); --on-primary:var(--n18); --accent:var(--n97);
+    --paint-ink:var(--n20); --on-deep:var(--n100);
+    --focus:var(--n97); --selection:var(--n31); --on-selection:var(--n97);
+    --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
+    --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
+    --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
+  }
+  :root:not([data-theme="light"]) body.paint[data-deck="primaries"] { --a1:#242c3b; --b1:#213022; --c1:#342b1a; --d1:#3c2522; --e1:#312837; --f1:#21302b; --g1:#2b2e1a; --h1:#3b242c; }
+  :root:not([data-theme="light"]) body.paint[data-deck="garden"] { --a1:#272f24; --b1:#322930; --c1:#352a1a; --d1:#212f2c; --e1:#2a2b36; --f1:#38281e; --g1:#222e36; --h1:#2e2d1a; }
+  :root:not([data-theme="light"]) body.paint[data-deck="bold"] { --a1:#232b41; --b1:#3f222b; --c1:#213024; --d1:#3a2719; --e1:#30273b; --f1:#40231d; --g1:#212e35; --h1:#342a1a; }
+}
+/* On the root so scrollbars, form controls and the overscroll area follow the theme too. */
+:root:has(body.paint) { color-scheme: light; --counter:var(--n94); }
+:root[data-theme="dark"]:has(body.paint) { color-scheme: dark; --counter:var(--n18); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):has(body.paint) { color-scheme: dark; --counter:var(--n18); } }
 
 /* Member hue: set data-hue on any element and use --s1..--s5 inside it. */
 [data-hue="a"] { --s1:var(--a1); --s2:var(--a2); --s3:var(--a3); --s4:var(--a4); --s5:var(--a5); }
@@ -73,13 +117,21 @@
 [data-hue="f"] { --s1:var(--f1); --s2:var(--f2); --s3:var(--f3); --s4:var(--f4); --s5:var(--f5); }
 [data-hue="g"] { --s1:var(--g1); --s2:var(--g2); --s3:var(--g3); --s4:var(--g4); --s5:var(--g5); }
 [data-hue="h"] { --s1:var(--h1); --s2:var(--h2); --s3:var(--h3); --s4:var(--h4); --s5:var(--h5); }
-/* A colour a parent picked (style="--hue:#rrggbb") replaces the deck: the ramp is mixed from it.
- * Steps 4-5 carry white text, so they are darkened well past the picked colour. */
-[data-hue][style*="--hue"] {
-  --s1:color-mix(in oklab, var(--hue) 14%, #fff); --s2:color-mix(in oklab, var(--hue) 34%, #fff);
-  --s3:color-mix(in oklab, var(--hue) 62%, #fff); --s4:color-mix(in oklab, var(--hue) 62%, #000);
-  --s5:color-mix(in oklab, var(--hue) 42%, #000);
+/* A colour a parent picked (style="--hue:#rrggbb") is redrawn at the decks' step lightness, chroma capped
+ * at what every hue reaches in sRGB, so any pick keeps the contrast the decks pass. Browsers without
+ * relative colour syntax show the member's deck hue instead. */
+@supports (color: oklch(from red l c h)) {
+  [data-hue][style*="--hue"] {
+    --s1:oklch(from var(--hue) .955 min(c, .021) h); --s2:oklch(from var(--hue) .875 min(c, .06) h);
+    --s3:oklch(from var(--hue) .775 min(c, .113) h); --s4:oklch(from var(--hue) .545 min(c, .091) h);
+    --s5:oklch(from var(--hue) .435 min(c, .074) h);
+  }
+  [data-theme="dark"] body.paint [data-hue][style*="--hue"] { --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) body.paint [data-hue][style*="--hue"] { --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }
+  }
 }
+/* End of colour tokens. */
 
 .sr-only { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip { position: absolute; left: 16px; top: -48px; z-index: 20; background: var(--primary); color: var(--on-primary); padding: 8px 12px; border-radius: var(--radius-control); font: 600 14px/20px var(--font); }
