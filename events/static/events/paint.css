@@ -184,6 +184,8 @@ body.paint .dot.dot-quiet { background: var(--raised); color: var(--muted); }
 .pill.tent { background: transparent; color: var(--ink); outline: 1.5px dashed currentColor; outline-offset: -1.5px; }
 [data-theme="dark"] .paint .pill[data-hue], [data-theme="dark"] .paint [data-hue] > .pill { background: color-mix(in oklab, var(--s5) 40%, var(--card)); color: var(--s1); }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.paint a.pill { text-decoration: none; }
+.paint a.pill:hover { text-decoration: underline; }
 .empty-row { padding: 20px 0 8px; }
 .paint .panel > .span + .actions, .paint .panel > .span + form { margin-top: 12px; }
 .empty-row h3 { font-size: 14px; }
@@ -433,3 +435,30 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
   .msgs { max-height: none; }
   .chat-side { overflow-y: auto; }
 }
+
+/* ===== Checklists ===== */
+.lists .row .grow { display: grid; gap: 2px; }
+.progress { display: block; height: 4px; margin-top: 6px; max-width: 220px; border-radius: 2px; background: var(--s1, var(--raised)); overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--s4, var(--ink)); }
+.head-tools form { margin: 0; }
+.checklist > .span { margin-bottom: 4px; }
+.check-row { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 0; border-top: 1px solid var(--line); }
+.checklist > .span + .check-row { border-top: 0; }
+.check-row form { margin: 0; }
+.check-row .grow { flex: 1; min-width: 0; }
+.check-row b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.check-row small { display: block; color: var(--muted); font-size: 12px; }
+.check-row.done b { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.box { display: grid; place-items: center; width: 44px; height: 44px; margin-left: -10px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.box span { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--s4, var(--ink)); border-radius: 50%; transition: background-color .15s; }
+.box[aria-checked="true"] span { background: var(--s4, var(--ink)); }
+.box[aria-checked="true"] span::after { content: ""; width: 10px; height: 5px; margin-top: -2px; border: solid var(--on-deep); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+.box:hover span { background: color-mix(in oklab, var(--s4, var(--ink)) 14%, transparent); }
+.box[aria-checked="true"]:hover span { background: var(--s4, var(--ink)); }
+.row-tools { display: flex; gap: 2px; }
+body.paint .btn-small, body.paint .btn-small:hover { height: 32px; padding: 0 10px; border-color: transparent; color: var(--muted); font-size: 13px; font-weight: 500; }
+body.paint .btn-small:hover { background: var(--raised); color: var(--ink); }
+.inline-add { display: flex; gap: 8px; margin-top: 16px; }
+.paint .inline-add input { flex: 1; min-width: 0; }
+@media (max-width: 900px) { body.paint .page .btn-small { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .box span { transition: none; } }

@@ -260,3 +260,57 @@ class ChatPageTests(FamilyMixin, TestCase):
         response = self.client.get(reverse("chat:home"))
         self.assertPaint(response)
         self.assertContains(response, reverse("chat:workspace_chat", args=[self.workspace.pk]))
+
+
+class ChecklistPageTests(FamilyMixin, TestCase):
+    def setUp(self):
+        from checklists.models import Checklist, ChecklistItem
+
+        self.party = self.plan("Halloween party", at(31, 14), 150, [self.lucia])
+        self.checklist = Checklist.objects.create(
+            workspace=self.workspace, event=self.party, title="Halloween", created_by=self.ana,
+        )
+        self.item = ChecklistItem.objects.create(
+            checklist=self.checklist, description="Buy candy", is_completed=True, completed_by=self.mateo,
+            completed_at=at(26, 9), position=0,
+        )
+        ChecklistItem.objects.create(checklist=self.checklist, description="Glue wings", position=1)
+
+    def test_lists_take_their_event_persons_colour(self):
+        self.client.force_login(self.ana)
+        response = self.client.get(reverse("checklists:list", args=[self.workspace.pk]))
+        self.assertPaint(response)
+        self.assertContains(response, 'data-hue="c"')
+        self.assertContains(response, "1 of 2 done")
+        self.assertContains(response, "New checklist")
+
+    def test_items_are_checkboxes_with_who_did_them_and_confirmed_deletes(self):
+        self.client.force_login(self.ana)
+        response = self.client.get(reverse("checklists:detail", args=[self.checklist.pk]))
+        self.assertPaint(response)
+        self.assertContains(response, 'role="checkbox" aria-checked="true" aria-label="Buy candy"')
+        self.assertContains(response, 'role="checkbox" aria-checked="false" aria-label="Glue wings"')
+        self.assertContains(response, "Done by")
+        self.assertContains(response, "Mateo")
+        self.assertContains(response, 'data-confirm=', count=3)
+        self.assertNotContains(response, "onsubmit")
+        self.assertContains(response, reverse("checklists:item_add", args=[self.checklist.pk]))
+
+    def test_kids_can_tick_but_not_manage(self):
+        self.client.force_login(self.lucia)
+        response = self.client.get(reverse("checklists:detail", args=[self.checklist.pk]))
+        self.assertPaint(response)
+        self.assertContains(response, reverse("checklists:item_toggle", args=[self.item.pk]))
+        self.assertNotContains(response, "Delete list")
+        self.assertNotContains(response, reverse("checklists:item_add", args=[self.checklist.pk]))
+
+    def test_forms(self):
+        self.client.force_login(self.ana)
+        for url in (reverse("checklists:create", args=[self.workspace.pk]),
+                    reverse("checklists:edit", args=[self.checklist.pk]),
+                    reverse("checklists:item_edit", args=[self.item.pk])):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertPaint(response)
+                self.assertContains(response, 'class="btn" type="submit"')
+        self.assertContains(self.client.get(reverse("checklists:create", args=[self.workspace.pk])), "Halloween party, Sat 31 Oct 2026")

@@ -1,103 +1,30 @@
-
-{% extends "events/base.html" %}
-{% load static %}
-
-{% block title %}
-{% if editing %}Edit Checklist{% else %}New Checklist{% endif %} | Syncmily
-{% endblock %}
-
-{% block scripts %}
-<link rel="stylesheet" href="{% static 'checklists/checklists.css' %}?v=6">
-{% endblock %}
-
+{% extends "events/_paint_page.html" %}
+{% block title %}{% if editing %}Edit {{ checklist.title }}{% else %}New checklist{% endif %} | Syncmily{% endblock %}
 {% block content %}
-<div class="checklist-page">
-
-    <a class="cl-back"
-       href="{% url 'checklists:list' workspace.pk %}">
-        ← Back to Checklists
-    </a>
-
-    <header class="cl-header">
-        <div>
-            <p class="cl-eyebrow">
-                {% if editing %}
-                    MAKE IT YOURS
-                {% else %}
-                    LET'S GET ORGANIZED
-                {% endif %}
-            </p>
-
-            <h1>
-                {% if editing %}
-                    Edit your checklist
-                {% else %}
-                    A new list, a fresh start.
-                {% endif %}
-            </h1>
-
-            <p class="cl-subtitle">
-                From tiny errands to big family plans,
-                everything starts with a little list.
-            </p>
-        </div>
-    </header>
-
-    <section class="cl-card cl-form-card">
-
+    <p class="crumbs"><a href="{% url 'checklists:list' workspace.pk %}">Checklists</a>{% if editing %} / <a href="{% url 'checklists:detail' checklist.pk %}">{{ checklist.title }}</a>{% endif %}</p>
+    <div class="head">
+        <h1>{% if editing %}Edit checklist{% else %}New checklist{% endif %}</h1>
+    </div>
+    <section class="panel narrow">
         <form method="post">
             {% csrf_token %}
-
-            {{ form.non_field_errors }}
-
-            <div class="cl-field">
-                <label for="{{ form.title.id_for_label }}">
-                    What's this checklist for?
-                </label>
-
+            {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="field">
+                <label for="{{ form.title.id_for_label }}">Name</label>
                 {{ form.title }}
                 {{ form.title.errors }}
-
-                <p class="cl-muted">
-                    Give it a name everyone in your family
-                    will recognize.
-                </p>
+                <small>A name everyone will recognise, like Packing for Boston.</small>
             </div>
-
-            <div class="cl-field">
-                <label for="{{ form.event.id_for_label }}">
-                    Link to a family event
-                    <span class="cl-optional">Optional</span>
-                </label>
-
+            <div class="field">
+                <label for="{{ form.event.id_for_label }}">For an event <span class="opt">optional</span></label>
                 {{ form.event }}
                 {{ form.event.errors }}
-
-                <p class="cl-muted">
-                    Preparing for a birthday, trip, or
-                    family activity? Connect this checklist
-                    to an event on your calendar.
-                </p>
+                <small>A list linked to an event takes that event’s colour.</small>
             </div>
-
-            <div class="cl-form-actions">
-                <button type="submit" class="cl-button">
-                    {% if editing %}
-                        Save Changes
-                    {% else %}
-                        Create Checklist
-                    {% endif %}
-                    <span aria-hidden="true">→</span>
-                </button>
-
-                <a class="cl-button cl-button-secondary"
-                   href="{% url 'checklists:list' workspace.pk %}">
-                    Cancel
-                </a>
+            <div class="actions">
+                <a class="btn btn-quiet" href="{% if editing %}{% url 'checklists:detail' checklist.pk %}{% else %}{% url 'checklists:list' workspace.pk %}{% endif %}">Cancel</a>
+                <button class="btn" type="submit">{% if editing %}Save changes{% else %}Create list{% endif %}</button>
             </div>
-
         </form>
     </section>
-
-</div>
 {% endblock %}

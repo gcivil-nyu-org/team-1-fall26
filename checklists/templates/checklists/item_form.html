@@ -1,72 +1,23 @@
-
-{% extends "events/base.html" %}
-{% load static %}
-
-{% block title %}Edit Task | Syncmily{% endblock %}
-
-{% block scripts %}
-<link rel="stylesheet" href="{% static 'checklists/checklists.css' %}?v=7">
-{% endblock %}
-
+{% extends "events/_paint_page.html" %}
+{% block title %}Edit item | Syncmily{% endblock %}
 {% block content %}
-<div class="checklist-page">
-
-    <a class="cl-back"
-       href="{% url 'checklists:detail' checklist.pk %}">
-        ← Back to Checklist
-    </a>
-
-    <header class="cl-header">
-        <div>
-            <p class="cl-eyebrow">LITTLE DETAILS MATTER</p>
-            <h1>Edit your task</h1>
-
-            <p class="cl-subtitle">
-                Updating a task in
-                <strong>{{ checklist.title }}</strong>.
-                Keep your family's plans on track.
-            </p>
-        </div>
-    </header>
-
-    <section class="cl-card cl-form-card"
-             aria-labelledby="edit-task-heading">
-
-        <h2 id="edit-task-heading">Task details</h2>
-
+    <p class="crumbs"><a href="{% url 'checklists:list' checklist.workspace_id %}">Checklists</a> / <a href="{% url 'checklists:detail' checklist.pk %}">{{ checklist.title }}</a></p>
+    <div class="head">
+        <h1>Edit item</h1>
+    </div>
+    <section class="panel narrow">
         <form method="post">
             {% csrf_token %}
-
-            {{ form.non_field_errors }}
-
-            <div class="cl-field">
-                <label for="{{ form.description.id_for_label }}">
-                    What needs to get done?
-                </label>
-
+            {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="field">
+                <label for="{{ form.description.id_for_label }}">Item</label>
                 {{ form.description }}
                 {{ form.description.errors }}
-
-                <p class="cl-muted">
-                    Make the task clear and easy for everyone
-                    in your household to understand.
-                </p>
             </div>
-
-            <div class="cl-form-actions">
-                <button type="submit" class="cl-button">
-                    Save Changes
-                    <span aria-hidden="true">✓</span>
-                </button>
-
-                <a class="cl-button cl-button-secondary"
-                   href="{% url 'checklists:detail' checklist.pk %}">
-                    Cancel
-                </a>
+            <div class="actions">
+                <a class="btn btn-quiet" href="{% url 'checklists:detail' checklist.pk %}">Cancel</a>
+                <button class="btn" type="submit">Save item</button>
             </div>
         </form>
-
     </section>
-
-</div>
 {% endblock %}

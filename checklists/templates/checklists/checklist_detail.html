@@ -1,188 +1,55 @@
-
-{% extends "events/base.html" %}
-{% load static %}
-
+{% extends "events/_paint_page.html" %}
+{% load paint %}
 {% block title %}{{ checklist.title }} | Syncmily{% endblock %}
-
-{% block scripts %}
-<link rel="stylesheet" href="{% static 'checklists/checklists.css' %}?v=6">
-{% endblock %}
-
 {% block content %}
-<div class="checklist-page">
-
-    <a class="cl-back"
-       href="{% url 'checklists:list' checklist.workspace.pk %}">
-        ← Back to Checklists
-    </a>
-
-    <header class="cl-header">
-        <div>
-            <p class="cl-eyebrow">YOUR FAMILY'S TO-DO LIST</p>
-            <h1>{{ checklist.title }}</h1>
-
-            {% if checklist.event %}
-                <p class="cl-event">
-                    📅 {{ checklist.event.title }}
-                </p>
-            {% endif %}
-
-            <p class="cl-subtitle">
-                Created by {{ checklist.created_by.username }}
-            </p>
-        </div>
-
+<div class="narrow">
+    <p class="crumbs"><a href="{% url 'checklists:list' checklist.workspace.pk %}">Checklists</a> / {{ checklist.title }}</p>
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>{{ checklist.title }}</h1>
+        {% if checklist.event %}<a class="pill" href="{% url 'events:detail' checklist.event.pk %}" data-dialog{% if member %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>For {{ checklist.event.title }}, {{ checklist.event.starts_at|date:"D j M" }}</a>{% endif %}
         {% if can_manage %}
-            <div class="cl-detail-actions">
-                <a class="cl-button cl-button-secondary"
-                   href="{% url 'checklists:edit' checklist.pk %}">
-                    Edit Checklist
-                </a>
-
-                <form method="post"
-                      action="{% url 'checklists:delete' checklist.pk %}"
-                      onsubmit="return confirm('Delete this checklist and all its tasks?');">
+            <div class="head-tools">
+                <a class="btn btn-quiet" href="{% url 'checklists:edit' checklist.pk %}">Edit list</a>
+                <form method="post" action="{% url 'checklists:delete' checklist.pk %}" data-confirm="“{{ checklist.title }}” and its {{ total_items }} item{{ total_items|pluralize }} go for everyone in the family." data-confirm-title="Delete this checklist?">
                     {% csrf_token %}
-                    <button type="submit"
-                            class="cl-button cl-button-danger">
-                        Delete Checklist
-                    </button>
+                    <button class="btn btn-quiet btn-danger" type="submit">Delete list</button>
                 </form>
             </div>
         {% endif %}
-    </header>
-
-    <!-- Progress -->
-    <section class="cl-card cl-progress-card"
-             aria-labelledby="cl-progress-heading">
-
-        <div class="cl-progress-top">
-            <div>
-                <p class="cl-eyebrow">TEAM PROGRESS</p>
-                <h2 id="cl-progress-heading">
-                    Every little check counts!
-                </h2>
-                <p class="cl-muted">
-                    {{ completed_items }} of {{ total_items }}
-                    tasks completed
-                </p>
-            </div>
-
-            <strong class="cl-progress-number">
-                {{ progress }}%
-            </strong>
-        </div>
-
-        <progress class="cl-progress"
-                  value="{{ completed_items }}"
-                  max="{{ total_items|default:1 }}"
-                  aria-label="Checklist completion progress">
-        </progress>
-
-    </section>
-
-    <!-- Tasks -->
-    <section class="cl-task-section"
-             aria-labelledby="cl-tasks-heading">
-
-        <div class="cl-section-heading">
-            <h2 id="cl-tasks-heading">Your tasks</h2>
-
-            <span class="cl-task-count">
-                {{ total_items }}
-                task{{ total_items|pluralize }}
-            </span>
-        </div>
-
-        <div class="cl-tasks">
-            {% for item in items %}
-                <article class="cl-task {% if item.is_completed %}is-complete{% endif %}">
-
-                    <div class="cl-task-main">
-                        <form method="post"
-                              action="{% url 'checklists:item_toggle' item.pk %}">
+    </div>
+    <section class="panel checklist" aria-labelledby="items-heading"{% if member %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>
+        <h2 class="sr-only" id="items-heading">Items</h2>
+        <p class="span">{% if total_items %}{{ completed_items }} of {{ total_items }} done{% else %}Nothing on this list yet.{% if can_manage %} Add the first item below.{% endif %}{% endif %}{% if checklist.created_by %} · Made by <span translate="no">{{ checklist.created_by|person }}</span>{% endif %}</p>
+        {% for item in items %}
+            <div class="check-row{% if item.is_completed %} done{% endif %}">
+                <form method="post" action="{% url 'checklists:item_toggle' item.pk %}">
+                    {% csrf_token %}
+                    <button class="box" type="submit" role="checkbox" aria-checked="{% if item.is_completed %}true{% else %}false{% endif %}" aria-label="{{ item.description }}"><span aria-hidden="true"></span></button>
+                </form>
+                <div class="grow">
+                    <b>{{ item.description }}</b>
+                    {% if item.is_completed and item.completed_by %}<small>Done by <span translate="no">{{ item.completed_by|person }}</span>{% if item.completed_at %}, {{ item.completed_at|date:"D j" }}{% endif %}</small>{% endif %}
+                </div>
+                {% if can_manage %}
+                    <div class="row-tools">
+                        <a class="btn btn-quiet btn-small" href="{% url 'checklists:item_edit' item.pk %}" aria-label="Edit {{ item.description }}">Edit</a>
+                        <form method="post" action="{% url 'checklists:item_delete' item.pk %}" data-confirm="“{{ item.description }}” comes off the list for everyone." data-confirm-title="Remove this item?">
                             {% csrf_token %}
-
-                            <button type="submit"
-                                    class="cl-task-toggle"
-                                    aria-label="{% if item.is_completed %}Mark {{ item.description }} incomplete{% else %}Mark {{ item.description }} complete{% endif %}">
-
-                                <span class="cl-check-icon"
-                                      aria-hidden="true">✓</span>
-
-                                <span class="cl-task-text">
-                                    {{ item.description }}
-                                </span>
-                            </button>
+                            <button class="btn btn-quiet btn-small" type="submit" aria-label="Remove {{ item.description }}">Remove</button>
                         </form>
-
-                        {% if item.is_completed and item.completed_by %}
-                            <p class="cl-completed-by">
-                                ✓ Completed by
-                                {{ item.completed_by.username }}
-                            </p>
-                        {% endif %}
                     </div>
-
-                    {% if can_manage %}
-                        <div class="cl-task-actions">
-                            <a href="{% url 'checklists:item_edit' item.pk %}">
-                                Edit
-                            </a>
-
-                            <form method="post"
-                                  action="{% url 'checklists:item_delete' item.pk %}"
-                                  onsubmit="return confirm('Remove this task?');">
-                                {% csrf_token %}
-                                <button type="submit">
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
-                    {% endif %}
-
-                </article>
-            {% empty %}
-                <div class="cl-empty">
-                    <span class="cl-empty-icon" aria-hidden="true">🌱</span>
-                    <h2>A fresh start!</h2>
-                    <p>
-                        No tasks yet. Add something your family
-                        can check off together.
-                    </p>
-                </div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <!-- Add a Task: caregivers only -->
-    {% if can_manage %}
-        <section class="cl-card cl-add-task"
-                 aria-labelledby="cl-add-heading">
-
-            <p class="cl-eyebrow">GROW YOUR LIST</p>
-            <h2 id="cl-add-heading">Add a new task</h2>
-
-            <form method="post"
-                  action="{% url 'checklists:item_add' checklist.pk %}">
+                {% endif %}
+            </div>
+        {% endfor %}
+        {% if can_manage %}
+            <form class="inline-add" method="post" action="{% url 'checklists:item_add' checklist.pk %}">
                 {% csrf_token %}
-
-                <div class="cl-add-field">
-                    <label for="{{ item_form.description.id_for_label }}">
-                        What needs to get done?
-                    </label>
-
-                    {{ item_form.description }}
-                    {{ item_form.description.errors }}
-                </div>
-
-                <button type="submit" class="cl-button">
-                    Add Task
-                    <span aria-hidden="true">＋</span>
-                </button>
+                <label class="sr-only" for="{{ item_form.description.id_for_label }}">New item</label>
+                {{ item_form.description }}
+                <button class="btn" type="submit">Add</button>
             </form>
-        </section>
-    {% endif %}
-
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
