@@ -9,6 +9,11 @@
         document.getElementById("chat-user-id").textContent
     );
 
+    // Names and paint colours by user id, so new messages look like the ones the server drew.
+    const members = JSON.parse(
+        document.getElementById("chat-members").textContent
+    );
+
     const messages = document.getElementById("chat-messages");
     const form = document.getElementById("chat-form");
     const input = document.getElementById("chat-input");
@@ -28,43 +33,74 @@
         messages.scrollTop = messages.scrollHeight;
     }
 
-    function appendMessage(data) {
-        const wrapper = document.createElement("div");
-        wrapper.className = "message";
+    function pad(number) {
+        return String(number).padStart(2, "0");
+    }
 
-        if (String(data.sender_id) === String(currentUserId)) {
-            wrapper.classList.add("own");
+    function appendMessage(data) {
+        const mine = String(data.sender_id) === String(currentUserId);
+        const member = members[String(data.sender_id)] || {
+            name: data.sender, initial: (data.sender || "?").charAt(0).toUpperCase(), hue: "", color: "",
+        };
+        const sent = new Date(data.created_at);
+        const valid = !Number.isNaN(sent.getTime());
+
+        document.getElementById("chat-empty")?.remove();
+        const day = valid ? `${sent.getFullYear()}-${pad(sent.getMonth() + 1)}-${pad(sent.getDate())}` : "";
+        const separators = messages.querySelectorAll(".day-sep");
+        const lastDay = separators.length ? separators[separators.length - 1].dataset.day : "";
+        if (day && day !== lastDay) {
+            const separator = document.createElement("p");
+            separator.className = "day-sep";
+            separator.dataset.day = day;
+            separator.textContent = "Today";
+            messages.appendChild(separator);
         }
 
-        const sender = document.createElement("div");
-        sender.className = "message-sender";
-        sender.textContent = data.sender;
+        const wrapper = document.createElement("div");
+        wrapper.className = mine ? "msg mine" : "msg";
+        if (member.hue) wrapper.dataset.hue = member.hue;
+        if (member.color) wrapper.style.setProperty("--hue", member.color);
 
-        const bubble = document.createElement("div");
-        bubble.className = "message-bubble";
+        const dot = document.createElement("span");
+        dot.className = member.hue ? "dot" : "dot dot-quiet";
+        dot.setAttribute("aria-hidden", "true");
+        dot.textContent = member.initial;
+
+        const body = document.createElement("div");
+        body.className = "msg-body";
+        const meta = document.createElement("p");
+        meta.className = "msg-meta";
+        const name = document.createElement("b");
+        name.translate = false;
+        name.textContent = mine ? "You" : member.name;
+        meta.append(name, " ");
+        if (valid) {
+            const time = document.createElement("time");
+            time.dateTime = data.created_at;
+            time.dataset.clock = `${pad(sent.getHours())}:${pad(sent.getMinutes())}`;
+            time.textContent = time.dataset.clock;
+            meta.appendChild(time);
+        }
+        const bubble = document.createElement("p");
+        bubble.className = "bubble";
         bubble.textContent = data.content;
 
-        const time = document.createElement("div");
-        time.className = "message-time";
-
-        const parsedDate = new Date(data.created_at);
-        time.textContent = Number.isNaN(parsedDate.getTime())
-            ? ""
-            : parsedDate.toLocaleString();
-
-        wrapper.append(sender, bubble, time);
+        body.append(meta, bubble);
+        wrapper.append(dot, body);
         messages.appendChild(wrapper);
+        if (window.syncmilyClocks) window.syncmilyClocks(wrapper);
 
         scrollToBottom();
     }
 
     function connect() {
-        status.textContent = "Connecting...";
+        status.textContent = "Connecting…";
         socket = new WebSocket(socketUrl);
 
         socket.onopen = function () {
             attempts = 0;
-            status.textContent = "Connected";
+            status.textContent = "";
             error.textContent = "";
             input.disabled = false;
             sendButton.disabled = false;
@@ -95,7 +131,7 @@
                 return;
             }
 
-            status.textContent = "Disconnected. Reconnecting...";
+            status.textContent = "Reconnecting…";
 
             attempts += 1;
             const delay = Math.min(1000 * 2 ** attempts, 15000);
@@ -104,7 +140,7 @@
         };
 
         socket.onerror = function () {
-            status.textContent = "Connection error";
+            status.textContent = "Can’t connect. Trying again…";
         };
     }
 

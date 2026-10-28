@@ -233,3 +233,30 @@ class FamilyPageTests(FamilyMixin, TestCase):
         self.assertPaint(response)
         self.assertContains(response, "Start a family")
         self.assertContains(response, 'name="name"')
+
+
+class ChatPageTests(FamilyMixin, TestCase):
+    def test_bar_goes_straight_to_the_family_thread(self):
+        self.client.force_login(self.lucia)
+        thread = reverse("chat:workspace_chat", args=[self.workspace.pk])
+        self.assertContains(self.client.get(reverse("accounts:dashboard")), f'href="{thread}"')
+
+    def test_thread_draws_messages_in_each_senders_colour(self):
+        from chat.models import ChatMessage
+
+        ChatMessage.objects.create(workspace=self.workspace, sender=self.mateo, content="Pickup at 3?")
+        self.client.force_login(self.ana)
+        response = self.client.get(reverse("chat:workspace_chat", args=[self.workspace.pk]))
+        self.assertPaint(response)
+        self.assertContains(response, 'class="msg" data-hue="b"')
+        self.assertContains(response, "Pickup at 3?")
+        self.assertContains(response, 'id="chat-members"')
+        self.assertContains(response, 'role="log"')
+        self.assertContains(response, 'tabindex="0"')
+        self.assertContains(response, "Coming up")
+
+    def test_chat_home_lists_families(self):
+        self.client.force_login(self.ana)
+        response = self.client.get(reverse("chat:home"))
+        self.assertPaint(response)
+        self.assertContains(response, reverse("chat:workspace_chat", args=[self.workspace.pk]))

@@ -24,7 +24,8 @@ def _shell(user):
         "day_url": (
             reverse("events:workspace_list", args=[workspace.pk]) if workspace else reverse("events:list")
         ) + "?view=day",
-        "chat_url": reverse("chat:home"),
+        # Straight into the family's thread; the chat home lists every family the user is in.
+        "chat_url": reverse("chat:workspace_chat", args=[workspace.pk]) if workspace else reverse("chat:home"),
         # Only the primary admin has a family page today; everyone else sees the family on the week.
         "family_url": (
             reverse("accounts:workspace_detail", args=[workspace.pk])
