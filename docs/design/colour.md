@@ -34,7 +34,7 @@ No packages are needed beyond Python 3.9+.
    (`--a1` to `--h5`) for decoration or chrome. Use status colours only for state.
 2. **Depth means load, for everyone.** Every member shares the same lightness at each step
    (OKLCH L .955 .875 .775 .545 .435), so a Wednesday chip at step 3 reads equally full for every member.
-   Steps 1-3 carry `--paint-ink`, steps 4-5 carry `--on-deep` (white).
+   Steps 1-3 carry `--paint-ink`, steps 4-5 carry `--on-paint-deep` (white).
 3. **Colour is never the only cue.** Names and times are printed on every chip and card, and a dashed edge
    marks "not confirmed". The colour-blind checks are a quality bar, not the only safeguard.
 4. **One warm neutral ramp.** Every grey sits at the canvas hue (OKLCH h 83). Older cool greys
@@ -64,15 +64,17 @@ area matches the theme. Dark values apply to ported pages only (`body.paint`): f
 | `--primary`, `--on-primary` | `--n20`, `--n100` | `--n97`, `--n18` | global | The one primary action per view. |
 | `--accent` | `--n20` | `--n97` | `body.paint` | `accent-color` of native checkboxes (drivers.css). |
 | `--paint-ink` | `--n20` | `--n20` | global | Text on chip steps 1-3. The same in both themes. |
-| `--on-deep` | `--n100` | `--n100` | global | Text on chip steps 4-5. (New; paint.css still writes `#fff`.) |
+| `--on-paint-deep` | `--n100` | `--n100` | global | Text on chip steps 4-5, ticks on step-4 boxes. White in both themes: the light ink (`--n97`) drops to 4.24:1 on the greenest step 4. (New; paint.css still writes `#fff`.) |
 | `--focus` | `--n20` | `--n97` | global | Focus outlines. (New.) |
 | `--selection`, `--on-selection` | `--n80`, `--n20` | `--n31`, `--n97` | global | `::selection`. (New.) |
-| `--shade` | `--n18` | `--n18` | global | Shadow colour: `color-mix(in srgb, var(--shade) 12%, transparent)`. (New.) |
+| `--shadow` | `--n18` | `--n18` | global | Shadow colour, mixed per use: `color-mix(in srgb, var(--shadow) 12%, transparent)`. (New.) |
+| `--backdrop` | `--n18` at 40% | black at 64% | global | Dialog and sheet backdrop, ready to use as a background. (New.) |
+| `--fixed-white`, `--fixed-ink` | `--n100`, `--n20` | same | global | A panel that stays white in both themes, and text on it: QR codes, images that need paper. (New.) |
 | `--danger`, `--success`, `--warning`, `--info` | see below | see below | global | Status text, edges and fills. (Three new.) |
 | `--danger-soft`, `--success-soft`, `--warning-soft`, `--info-soft` | see below | see below | global | Status backgrounds behind `--ink` or the matching status text. (New.) |
 | `--track`, `--track-edge`, `--glass-tint`, `--glass-glow` | | | `.ui`, `body.paint` | The liquid-glass nav and switch pills. |
-| `--s1` to `--s5` | | | `[data-hue]` | One member's ramp inside an element with `data-hue="a".."h"`. |
-| `--a1` to `--h5` | | | deck | The deck itself. Components read `--s1..--s5`, not these. |
+| `--s1` to `--s5`, `--name` | | | `[data-hue]` | One member's ramp and colour name inside an element with `data-hue="a".."h"` (`content: var(--name)` prints "Harbor blue"). |
+| `--a1` to `--h5`, `--a-name` to `--h-name` | | | deck | The deck itself. Components read `--s1..--s5` and `--name`, not these. |
 | `--n100` to `--n18` | | | `:root` | The neutral ramp. Used only inside the token region. |
 
 Text on a filled status colour uses `--card`. Every status colour clears 4.5:1 against the card, and
@@ -90,7 +92,7 @@ syntax show the member's deck colour instead.
 
 | Token | Hex | OKLCH (L C h) | Used by |
 |---|---|---|---|
-| `--n100` | `#ffffff` | 1.000 0.000 0 | light `--card`, light `--on-primary`, light `--on-deep`, dark `--on-deep` |
+| `--n100` | `#ffffff` | 1.000 0.000 0 | light `--card`, light `--on-primary`, light `--on-paint-deep`, light `--fixed-white`, dark `--on-paint-deep`, dark `--fixed-white` |
 | `--n97` | `#f8f4ec` | 0.968 0.011 85 | light `--raised`, dark `--ink`, dark `--primary`, dark `--accent`, dark `--focus`, dark `--on-selection` |
 | `--n94` | `#f2ece1` | 0.945 0.016 83 | light `--counter` |
 | `--n90` | `#e6ded0` | 0.903 0.021 82 | light `--line` |
@@ -100,8 +102,8 @@ syntax show the member's deck colour instead.
 | `--n31` | `#33302b` | 0.311 0.010 81 | dark `--line`, dark `--selection` |
 | `--n27` | `#292622` | 0.270 0.009 75 | dark `--raised` |
 | `--n23` | `#1f1d19` | 0.231 0.008 85 | dark `--card` |
-| `--n20` | `#191714` | 0.206 0.007 78 | light `--ink`, light `--primary`, light `--accent`, light `--paint-ink`, light `--focus`, light `--on-selection`, dark `--paint-ink` |
-| `--n18` | `#13110f` | 0.179 0.005 67 | light `--shade`, dark `--counter`, dark `--on-primary`, dark `--shade` |
+| `--n20` | `#191714` | 0.206 0.007 78 | light `--ink`, light `--primary`, light `--accent`, light `--paint-ink`, light `--fixed-ink`, light `--focus`, light `--on-selection`, dark `--paint-ink`, dark `--fixed-ink` |
+| `--n18` | `#13110f` | 0.179 0.005 67 | light `--shadow`, dark `--counter`, dark `--on-primary`, dark `--shadow` |
 
 ### Member decks
 
@@ -206,6 +208,8 @@ APCA is APCA-W3 0.0.98G-4g; Lc is negative for light text on dark.
 | Text on filled info | `--card on --info` | light | `#ffffff` | `#3063a6` | 6.07 | -85 | 4.5:1, Lc 60 |
 | Ink on its status tints | `flash text on --*-soft` | light | `#191714` | `#fef2d5` | 16.08 | 97 | 4.5:1, Lc 75 |
 | Selection | `::selection (--selection)` | light | `#191714` | `#c2bdb5` | 9.57 | 67 | 4.5:1, Lc 60 |
+| Fixed light panel (QR code) | `--fixed-ink on --fixed-white` | light | `#191714` | `#ffffff` | 17.89 | 105 | 4.5:1, Lc 75 |
+| Fixed light panel edge on canvas | `--fixed-white vs --counter` | light | `#ffffff` | `#f2ece1` | 1.18 | -10 | 1.0:1 |
 | Clock switch label (fixed light look) | `.bar .clock-switch .lbl` | light | `#4b504d` | `#e3e7e4` | 6.59 | 74 | 4.5:1, Lc 60 |
 | Clock switch current label | `.bar .clock-switch .lbl` | light | `#181a19` | `#f6f7f6` | 16.29 | 99 | 4.5:1, Lc 60 |
 | Page text | `body.paint, h1, .empty` | dark | `#f8f4ec` | `#13110f` | 17.17 | -100 | 4.5:1, Lc 75 |
@@ -244,6 +248,8 @@ APCA is APCA-W3 0.0.98G-4g; Lc is negative for light text on dark.
 | Text on filled info | `--card on --info` | dark | `#1f1d19` | `#95c1fb` | 9.05 | 67 | 4.5:1, Lc 60 |
 | Ink on its status tints | `flash text on --*-soft` | dark | `#f8f4ec` | `#352812` | 13.08 | -97 | 4.5:1, Lc 75 |
 | Selection | `::selection (--selection)` | dark | `#f8f4ec` | `#33302b` | 11.98 | -96 | 4.5:1, Lc 60 |
+| Fixed light panel (QR code) | `--fixed-ink on --fixed-white` | dark | `#191714` | `#ffffff` | 17.89 | 105 | 4.5:1, Lc 75 |
+| Fixed light panel edge on canvas | `--fixed-white vs --counter` | dark | `#ffffff` | `#13110f` | 18.84 | -107 | 1.0:1 |
 | Clock switch label (fixed light look) | `.bar .clock-switch .lbl` | dark | `#4b504d` | `#e3e7e4` | 6.59 | 74 | 4.5:1, Lc 60 |
 | Clock switch current label | `.bar .clock-switch .lbl` | dark | `#181a19` | `#f6f7f6` | 16.29 | 99 | 4.5:1, Lc 60 |
 
@@ -258,6 +264,8 @@ The worst member across all three decks, for each chip level.
 | l2 chip, today rail event | light | bold b | `#191714` | `#ef95c2` | 8.30 | 60 | 4.5:1, Lc 60 |
 | l3 chip, avatar dot | light | bold c | `#ffffff` | `#158555` | 4.65 | -77 | 4.5:1, Lc 60 |
 | l4 chip | light | bold c | `#ffffff` | `#0d613c` | 7.52 | -91 | 4.5:1, Lc 60 |
+| --on-paint-deep on step 4 | light | bold c | `#ffffff` | `#158555` | 4.65 | -77 | 4.5:1, Lc 60 |
+| --on-paint-deep on step 5 | light | bold c | `#ffffff` | `#0d613c` | 7.52 | -91 | 4.5:1, Lc 60 |
 | Step 4 edge on card | light | bold c | `#158555` | `#ffffff` | 4.65 | 72 | 3.0:1 |
 | Selected text (paint.css) | light | bold a | `#111111` | `#c8d5f9` | 12.90 | 81 | 4.5:1, Lc 60 |
 | l0 quiet chip (dark) | dark | bold b | `#f9c4dd` | `#3a252c` | 9.45 | -76 | 4.5:1, Lc 60 |
@@ -265,6 +273,8 @@ The worst member across all three decks, for each chip level.
 | l2 chip, today rail event | dark | bold b | `#191714` | `#ef95c2` | 8.30 | 60 | 4.5:1, Lc 60 |
 | l3 chip, avatar dot | dark | bold c | `#ffffff` | `#158555` | 4.65 | -77 | 4.5:1, Lc 60 |
 | l4 chip | dark | bold c | `#ffffff` | `#0d613c` | 7.52 | -91 | 4.5:1, Lc 60 |
+| --on-paint-deep on step 4 | dark | bold c | `#ffffff` | `#158555` | 4.65 | -77 | 4.5:1, Lc 60 |
+| --on-paint-deep on step 5 | dark | bold c | `#ffffff` | `#0d613c` | 7.52 | -91 | 4.5:1, Lc 60 |
 | Step 4 edge on card | dark | bold f | `#bd3c3d` | `#1f1d19` | 3.11 | -24 | 3.0:1 |
 | Selected text (paint.css) | dark | bold a | `#111111` | `#c8d5f9` | 12.90 | 81 | 4.5:1, Lc 60 |
 
@@ -363,12 +373,16 @@ worst case for each chip:
 
 | Chip | Theme | WCAG | APCA Lc | Picked |
 |---|---|---|---|---|
+| --on-paint-deep on step 4 | dark | 4.71 | -78 | `#00f5b3` |
+| --on-paint-deep on step 5 | dark | 7.60 | -91 | `#599576` |
 | Step 4 edge on card | dark | 3.22 | -24 | `#5a0026` |
 | l0 quiet chip (dark) | dark | 9.41 | -76 | `#b30079` |
 | l1 chip | dark | 11.92 | 79 | `#b30079` |
 | l2 chip, today rail event | dark | 8.31 | 60 | `#550436` |
 | l3 chip, avatar dot | dark | 4.71 | -78 | `#00f5b3` |
 | l4 chip | dark | 7.60 | -91 | `#599576` |
+| --on-paint-deep on step 4 | light | 4.71 | -78 | `#00f5b3` |
+| --on-paint-deep on step 5 | light | 7.60 | -91 | `#599576` |
 | Step 4 edge on card | light | 4.71 | 72 | `#00f5b3` |
 | l0 quiet chip | light | 6.71 | 78 | `#62946c` |
 | l1 chip | light | 11.92 | 79 | `#b30079` |
@@ -382,7 +396,7 @@ Measured on `design/warm-canvas-background` (before) and this branch (after) wit
 
 | | Before | After |
 |---|---|---|
-| Gate (`check_colours.py`) | 275 failures (85 of them roles that did not exist yet) | 661 checks, 0 failures |
+| Gate (`check_colours.py`) | 275 failures (85 of them roles that did not exist yet) | 765 checks, 0 failures |
 | Neutral hue (ink, muted, control, all dark surfaces) | OKLCH h 155-165, green-grey, against a canvas at h 83 | h 83 throughout |
 | `--control` (input and quiet-button edges) | 1.67:1 on card, 1.42:1 on canvas; dark 2.04:1 | 4.65:1, 3.96:1; dark 3.62:1 |
 | Lightness spread inside one step (step 3) | primaries 0.099, garden 0.054, bold 0.125 (OKLCH L) | 0.002 in every deck and step |
@@ -438,14 +452,17 @@ every remaining literal with its nearest role.
 
 | Where | Today | Use |
 |---|---|---|
-| paint.css `.l3`, `.l4`; shell.css `.dot` | `color: #fff` | `var(--on-deep)` |
+| paint.css `.l3`, `.l4`; shell.css `.dot` | `color: #fff` | `var(--on-paint-deep)` |
 | shell.css `.dot` | `background: var(--s4, var(--ink))` with white text: white on near-white in dark mode when a user has no hue | always render `.me` with a `data-hue`, or style the no-hue case as `var(--primary)` on `var(--on-primary)` |
 | paint.css `::selection` | `var(--a2)` (member a's colour) and `#111` | `var(--selection)`, `var(--on-selection)` |
 | paint.css, shell.css `:focus-visible` | `var(--ink)` | `var(--focus)` |
-| shell.css shadows | `#1a1c1b0d`, `rgb(0 0 0 / .14)` | `color-mix(in srgb, var(--shade) 5%, transparent)` and so on |
+| shell.css shadows | `#1a1c1b0d`, `rgb(0 0 0 / .14)` | `color-mix(in srgb, var(--shadow) 5%, transparent)` and so on; dialog backdrops `var(--backdrop)` |
 | shell.css `.clock-switch` | cool greys `#e3e7e4`, `#d3d8d5`, `#f6f7f6`, `#4b504d`, `#181a19` | `--n90`, `--n80`, `--n97`, `--n47`, `--n20` (it is theme-invariant by design). Its 12h label is unreadable in dark mode on the base branch too. |
 | shell.js `syncTheme` | theme-color `#1b1e1c` for dark | the dark card is now `#1f1d19`; read `getComputedStyle(document.body).getPropertyValue('--card')` |
 | paint.css `[data-theme="dark"] .l0` | `color-mix(in oklab, var(--s5) 30%, var(--card))`, `color: var(--s2)` | dark `--a1..--h1` now hold exactly that mix, so `.l0 { background: var(--s1) }` works in both themes; keep `color: var(--s2)` in dark |
 | paint.css `.flash` | only `.flash-error` is styled | `.flash-success`, `.flash-warning`, `.flash-info` from the `-soft` roles, as accounts.css does |
+| paint.css on the UI branch (#127) | local `--on-deep` alias: `var(--card)` light, `var(--ink)` dark | `var(--on-paint-deep)`. With the new decks the dark alias gives 9 of 48 deep steps under 4.5:1 (worst 4.24:1, bold Emerald step 4); white passes all (4.65:1 and up). Its `.who-pick` no-hue fallback draws `--on-deep` on `--ink`, the same colour in dark mode. |
+| two-step `.qr` on the UI branch | `color-scheme: light; background: Canvas` | `background: var(--fixed-white)` |
+| family page colour pills | names left out | `content: var(--name)` inside `[data-hue]` |
 | paint.css chip text | `.l1`/`.l2` read `--paint-ink`, `.l3`/`.l4` write `#fff`, dark `.l0` reads `--s2` | one text token per level, set next to `--s1..--s5`; the token region could then give dark mode a ramp that brightens with load |
 | event_form.css, workspace.css, chat_home.html | 233 + 54 + 20 literals (terracotta, lavender, violet bubbles) | retire with the port; nearest roles in `--audit` |

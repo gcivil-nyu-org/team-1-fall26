@@ -47,6 +47,7 @@ KINDS = {
     "text": (4.5, 60),    # small or secondary text: chips, labels, captions
     "large": (3.0, 45),   # 24px+ or 19px bold
     "ui": (3.0, None),    # edges and icons that identify a control (WCAG 1.4.11)
+    "none": (1.0, None),  # measured and reported, no minimum
 }
 CVD_ADJACENT_MIN = 10.0
 FIRST_FOUR_MIN = 6.0            # members a-d, any vision: most families have four people
@@ -95,6 +96,8 @@ PAINT_PAIRS = [
     ("Text on filled info", "--card on --info", "var(--card)", "var(--info)", "text"),
     ("Ink on its status tints", "flash text on --*-soft", "var(--ink)", "var(--warning-soft)", "body"),
     ("Selection", "::selection (--selection)", "var(--on-selection)", "var(--selection)", "text"),
+    ("Fixed light panel (QR code)", "--fixed-ink on --fixed-white", "var(--fixed-ink)", "var(--fixed-white)", "body"),
+    ("Fixed light panel edge on canvas", "--fixed-white vs --counter", "var(--fixed-white)", "var(--counter)", "none"),
     ("Clock switch label (fixed light look)", ".bar .clock-switch .lbl", "#4b504d", "#e3e7e4", "text"),
     ("Clock switch current label", ".bar .clock-switch .lbl", "#181a19", "#f6f7f6", "text"),
 ]
@@ -106,6 +109,8 @@ CHIP_PAIRS = {
         ("l2 chip, today rail event", ".l2, .ev", "var(--paint-ink)", "var(--s3)", "text"),
         ("l3 chip, avatar dot", ".l3, .dot", "#ffffff", "var(--s4)", "text"),
         ("l4 chip", ".l4", "#ffffff", "var(--s5)", "text"),
+        ("--on-paint-deep on step 4", "tokenised .l3, .dot, ticks", "var(--on-paint-deep)", "var(--s4)", "text"),
+        ("--on-paint-deep on step 5", "tokenised .l4", "var(--on-paint-deep)", "var(--s5)", "text"),
         ("Step 4 edge on card", "avatar, checkbox ring", "var(--s4)", "var(--card)", "ui"),
         ("Selected text (paint.css)", "::selection", "#111111", "var(--a2)", "text"),
     ],
@@ -115,6 +120,8 @@ CHIP_PAIRS = {
         ("l2 chip, today rail event", ".l2, .ev", "var(--paint-ink)", "var(--s3)", "text"),
         ("l3 chip, avatar dot", ".l3, .dot", "#ffffff", "var(--s4)", "text"),
         ("l4 chip", ".l4", "#ffffff", "var(--s5)", "text"),
+        ("--on-paint-deep on step 4", "tokenised .l3, .dot, ticks", "var(--on-paint-deep)", "var(--s4)", "text"),
+        ("--on-paint-deep on step 5", "tokenised .l4", "var(--on-paint-deep)", "var(--s5)", "text"),
         ("Step 4 edge on card", "avatar, checkbox ring", "var(--s4)", "var(--card)", "ui"),
         ("Selected text (paint.css)", "::selection", "#111111", "var(--a2)", "text"),
     ],
@@ -499,7 +506,7 @@ def check_custom(report, blocks, css_text):
                 t = dict(tokens, **{f"--s{k}": steps[k - 1] for k in range(1, 6)})
                 if theme == "dark":
                     t["--s1"] = "color-mix(in oklab, var(--s5) 30%, var(--card))"
-                for what, where, fg, bg, kind in CHIP_PAIRS[theme][:6]:
+                for what, where, fg, bg, kind in CHIP_PAIRS[theme][:8]:
                     f, b = evaluate(fg, t), evaluate(bg, t)
                     ratio, lc = cm.wcag_ratio(f, b), cm.apca_lc(f, b)
                     need_ratio, need_lc = KINDS[kind]

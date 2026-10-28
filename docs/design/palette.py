@@ -137,6 +137,8 @@ def _deck_block(deck, members):
     lines = [f"{sel} {{"]
     for h, (name, steps) in members.items():
         lines.append("  " + " ".join(f"--{h}{k + 1}:{v};" for k, v in enumerate(steps)) + f"   /* {name} */")
+    names = " ".join(f'--{h}-name:"{name}";' for h, (name, _) in members.items())
+    lines.append(f"  {names}")
     return "\n".join(lines + ["}"])
 
 
@@ -146,8 +148,8 @@ def _dark_roles(st, n):
         "--counter:var(--n18); --card:var(--n23); --raised:var(--n27);\n"
         "--ink:var(--n97); --muted:var(--n80); --line:var(--n31); --control:var(--n56);\n"
         "--primary:var(--n97); --on-primary:var(--n18); --accent:var(--n97);\n"
-        "--paint-ink:var(--n20); --on-deep:var(--n100);\n"
-        "--focus:var(--n97); --selection:var(--n31); --on-selection:var(--n97);\n"
+        "--paint-ink:var(--n20); --on-paint-deep:var(--n100);\n"
+        "--focus:var(--n97); --selection:var(--n31); --on-selection:var(--n97); --backdrop:#000000a3;\n"
         f"--danger:{d['danger']}; --danger-soft:{d['danger-soft']}; --success:{d['success']}; --success-soft:{d['success-soft']};\n"
         f"--warning:{d['warning']}; --warning-soft:{d['warning-soft']}; --info:{d['info']}; --info-soft:{d['info-soft']};\n"
         f"--track:{n['n27']}cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;"
@@ -184,7 +186,7 @@ def css_region():
 /* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
  * The family's deck (Workspace.palette) is set as data-deck on <body>; Primaries is the default.
  * Every ramp shares the step lightness (OKLCH L {L}), so a chip's depth reads the same weight
- * whoever it belongs to. Steps 1-3 carry --paint-ink, 4-5 carry --on-deep (white), and step 5 reads on step 1.
+ * whoever it belongs to. Steps 1-3 carry --paint-ink, 4-5 carry --on-paint-deep (white), and step 5 reads on step 1.
  * Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4 for protan, deutan and tritan vision. */
 {_deck_block("primaries", decks["primaries"])}
 {_deck_block("garden", decks["garden"])}
@@ -194,8 +196,8 @@ def css_region():
 :root {{
   --card:var(--n100); --raised:var(--n97); --control:var(--n56);
   --primary:var(--n20); --on-primary:var(--n100);
-  --paint-ink:var(--n20); --on-deep:var(--n100);
-  --focus:var(--n20); --selection:var(--n80); --on-selection:var(--n20); --shade:var(--n18);
+  --paint-ink:var(--n20); --on-paint-deep:var(--n100); --fixed-white:var(--n100); --fixed-ink:var(--n20);
+  --focus:var(--n20); --selection:var(--n80); --on-selection:var(--n20); --shadow:var(--n18); --backdrop:{n['n18']}66;
   --danger:{lt['danger']}; --danger-soft:{lt['danger-soft']}; --success:{lt['success']}; --success-soft:{lt['success-soft']};
   --warning:{lt['warning']}; --warning-soft:{lt['warning-soft']}; --info:{lt['info']}; --info-soft:{lt['info-soft']};
 }}
@@ -225,8 +227,8 @@ body.paint {{ --accent:var(--n20); }} /* drivers.css checkboxes */
 :root[data-theme="dark"]:has(body.paint) {{ color-scheme: dark; --counter:var(--n18); }}
 @media (prefers-color-scheme: dark) {{ :root:not([data-theme="light"]):has(body.paint) {{ color-scheme: dark; --counter:var(--n18); }} }}
 
-/* Member hue: set data-hue on any element and use --s1..--s5 inside it. */
-""" + "\n".join(f'[data-hue="{h}"] {{ ' + " ".join(f"--s{k}:var(--{h}{k});" for k in range(1, 6)) + " }" for h in HUES) + f"""
+/* Member hue: set data-hue on any element and use --s1..--s5 (and --name, the colour's name) inside it. */
+""" + "\n".join(f'[data-hue="{h}"] {{ --name:var(--{h}-name); ' + " ".join(f"--s{k}:var(--{h}{k});" for k in range(1, 6)) + " }" for h in HUES) + f"""
 /* A colour a parent picked (style="--hue:#rrggbb") is redrawn at the decks' step lightness, chroma capped
  * at what every hue reaches in sRGB, so any pick keeps the contrast the decks pass. Browsers without
  * relative colour syntax show the member's deck hue instead. */

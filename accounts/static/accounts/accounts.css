@@ -46,10 +46,10 @@
 .kid-hero h1 { font-size: clamp(32px, 4vw, 48px); letter-spacing: -1px; margin-bottom: 8px; }
 .kid-hero p { margin: 0; font-size: 17px; }
 .kid-hello { font-size: 20px !important; font-weight: 700; margin-bottom: 6px !important; }
-.kid-today { flex-shrink: 0; width: 110px; padding: 10px 0 14px; border-radius: 22px; background: var(--card); text-align: center; text-transform: uppercase; font-weight: 700; color: var(--s5, var(--ink)); box-shadow: 0 6px 0 color-mix(in srgb, var(--shade) 15%, transparent); }
+.kid-today { flex-shrink: 0; width: 110px; padding: 10px 0 14px; border-radius: 22px; background: var(--card); text-align: center; text-transform: uppercase; font-weight: 700; color: var(--s5, var(--ink)); box-shadow: 0 6px 0 color-mix(in srgb, var(--shadow) 15%, transparent); }
 .kid-today strong { display: block; font-size: 48px; line-height: 1; color: var(--ink); }
 .kid-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
-.kid-event { padding: 22px; border-radius: 22px; box-shadow: 0 5px 0 color-mix(in srgb, var(--shade) 12%, transparent); }
+.kid-event { padding: 22px; border-radius: 22px; box-shadow: 0 5px 0 color-mix(in srgb, var(--shadow) 12%, transparent); }
 .kid-event h3 { margin: 0 0 8px; font-size: 20px; }
 .kid-event p { margin: 0; }
 .kid-event-day { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px !important; }
@@ -57,7 +57,7 @@
 .kid-empty { padding: 28px; border-radius: 22px; background: var(--s1, var(--raised)); font-size: 18px; font-weight: 700; }
 .kid-family { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 22px; }
 .kid-family li { display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
-.kid-bubble { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); border: 4px solid var(--card); box-shadow: 0 4px 0 color-mix(in srgb, var(--shade) 12%, transparent); }
+.kid-bubble { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); border: 4px solid var(--card); box-shadow: 0 4px 0 color-mix(in srgb, var(--shadow) 12%, transparent); }
 
 @media (max-width: 850px) {
     .profile-layout { grid-template-columns: 1fr; }
@@ -76,7 +76,7 @@
 
 /* Two-step sign-in: QR code to scan, and the one-time list of backup codes. The QR code sits on white
  * paper in every theme so phone cameras read it. */
-.two-step-qr { margin: 20px 0 8px; width: 200px; max-width: 100%; background: var(--n100); padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.two-step-qr { margin: 20px 0 8px; width: 200px; max-width: 100%; background: var(--fixed-white); padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
 .two-step-qr svg { display: block; width: 100%; height: auto; }
 .backup-codes { list-style: none; padding: 0; margin: 16px 0 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .backup-codes code { display: block; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; letter-spacing: .04em; text-align: center; }
