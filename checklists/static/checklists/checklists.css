@@ -86,7 +86,7 @@
     border: 1px solid var(--line);
     border-radius: 22px;
     background: var(--card);
-    box-shadow: 0 10px 32px color-mix(in srgb, var(--shade) 5%, transparent);
+    box-shadow: 0 10px 32px color-mix(in srgb, var(--shadow) 5%, transparent);
 }
 
 .checklist-page .cl-card h2 {
