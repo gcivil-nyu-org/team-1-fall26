@@ -462,3 +462,32 @@ body.paint .btn-small:hover { background: var(--raised); color: var(--ink); }
 .paint .inline-add input { flex: 1; min-width: 0; }
 @media (max-width: 900px) { body.paint .page .btn-small { min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { .box span { transition: none; } }
+
+/* ===== Account: profile, two-step sign-in ===== */
+.settings { padding-top: 8px; padding-bottom: 8px; }
+.setting { border-top: 1px solid var(--line); }
+.setting:first-of-type { border-top: 0; }
+.setting > summary { list-style: none; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 0; cursor: pointer; }
+.setting > summary::-webkit-details-marker { display: none; }
+.setting > summary .grow { flex: 1; min-width: 0; }
+.setting > summary b { display: block; font-weight: 600; }
+.setting > summary small { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.setting-btn { display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border: 1px solid var(--control); border-radius: var(--radius-control); font-weight: 600; }
+.setting > summary:hover .setting-btn, .setting[open] .setting-btn { background: var(--raised); }
+.setting > summary:focus-visible { outline: none; }
+.setting > summary:focus-visible .setting-btn { outline: 2px solid var(--ink); outline-offset: 2px; }
+.setting-form { padding: 4px 0 20px; max-width: 420px; }
+.settings > .row { border-top: 1px solid var(--line); }
+.setting-row form { margin: 0; flex: none; }
+.state-on { font-weight: 600; color: var(--ink); }
+.two-step-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.paint .steps { counter-reset: step; margin: 0 0 20px; padding: 0; list-style: none; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 28px 1fr; column-gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.steps li:first-child { border-top: 0; }
+.steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--raised); color: var(--muted); font-size: 12px; font-weight: 600; }
+.steps small { color: var(--muted); font-size: 12px; }
+.qr { width: fit-content; margin: 0 0 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; color-scheme: light; background: Canvas; }
+.qr svg { display: block; width: 176px; height: 176px; }
+.setup-form { margin-top: 16px; }
+.paint .codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
+.codes li { padding: 10px 12px; border-radius: var(--radius); background: var(--raised); font-size: 15px; text-align: center; }

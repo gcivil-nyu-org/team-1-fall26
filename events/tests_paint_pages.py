@@ -314,3 +314,29 @@ class ChecklistPageTests(FamilyMixin, TestCase):
                 self.assertPaint(response)
                 self.assertContains(response, 'class="btn" type="submit"')
         self.assertContains(self.client.get(reverse("checklists:create", args=[self.workspace.pk])), "Halloween party, Sat 31 Oct 2026")
+
+
+class AccountPageTests(FamilyMixin, TestCase):
+    def test_profile_settings_open_in_place(self):
+        self.client.force_login(self.ana)
+        response = self.client.get(reverse("accounts:profile"))
+        self.assertPaint(response)
+        self.assertContains(response, "Your account")
+        self.assertContains(response, 'name="action" value="username"')
+        self.assertContains(response, 'name="action" value="password"')
+        self.assertContains(response, "Turn on two-step sign-in")
+        self.assertContains(response, "parent and admin of Reyes family")
+
+    def test_profile_reopens_the_setting_with_errors(self):
+        self.client.force_login(self.mateo)
+        response = self.client.post(reverse("accounts:profile"), {"action": "username", "username": "ANA"})
+        self.assertContains(response, '<details class="setting" open>')
+        self.assertContains(response, "already taken")
+
+    def test_two_step_setup_shows_the_steps_and_code(self):
+        self.client.force_login(self.ana)
+        response = self.client.get(reverse("accounts:two_step_setup"))
+        self.assertPaint(response)
+        self.assertContains(response, 'class="steps"')
+        self.assertContains(response, 'class="qr"')
+        self.assertContains(response, 'autocomplete="one-time-code"')

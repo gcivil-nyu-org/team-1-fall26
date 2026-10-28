@@ -1,27 +1,31 @@
-{% extends 'events/base.html' %}
+{% extends 'events/_paint_page.html' %}
 {% block title %}Turn on two-step sign-in | Syncmily{% endblock %}
 {% block content %}
-    <div class="breadcrumbs"><a href="{% url 'accounts:profile' %}">Profile</a><span>/</span><span>Two-step sign-in</span></div>
-    {% include 'accounts/_messages.html' %}
-    <div class="setup-layout">
-        <section class="panel" aria-labelledby="setup-heading">
-            <div class="panel-heading"><h2 id="setup-heading">Turn on two-step sign-in</h2></div>
-            <ol class="steps-list">
-                <li><strong>Open an authenticator app</strong><span>Google Authenticator, Microsoft Authenticator, 1Password or any app that shows 6-digit codes.</span></li>
-                <li><strong>Scan this code</strong><span>Or type the setup key below if you can’t scan.</span></li>
-                <li><strong>Enter the 6-digit code it shows</strong><span>That confirms your app is set up.</span></li>
-            </ol>
-            <figure class="two-step-qr" aria-label="QR code for your authenticator app">{{ qr_svg|safe }}</figure>
-            <p class="helptext">Setup key: <code translate="no">{{ secret }}</code></p>
-            <form method="post">
-                {% csrf_token %}
-                <div class="form-field">
-                    <label for="code">6-digit code from your app</label>
-                    <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required{% if error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
-                    {% if error %}<p class="errorlist" id="code-error" role="alert">{{ error }}</p>{% endif %}
-                </div>
-                <div class="form-actions form-footer"><button type="submit">Turn on</button><a href="{% url 'accounts:profile' %}">Cancel</a></div>
-            </form>
-        </section>
+    <p class="crumbs"><a href="{% url 'accounts:profile' %}">Your account</a> / Two-step sign-in</p>
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>Turn on two-step sign-in</h1>
     </div>
+    <section class="panel narrow" aria-labelledby="setup-steps">
+        <h2 class="sr-only" id="setup-steps">Three steps</h2>
+        <ol class="steps">
+            <li><b>Open an authenticator app</b><small>Google Authenticator, Microsoft Authenticator, 1Password or any app that shows 6-digit codes.</small></li>
+            <li><b>Scan this code</b><small>Or type the setup key below if you can’t scan.</small></li>
+            <li><b>Type the 6-digit code it shows</b><small>That confirms your app is set up.</small></li>
+        </ol>
+        <figure class="qr" aria-label="QR code for your authenticator app">{{ qr_svg|safe }}</figure>
+        <p class="span">Setup key: <code class="code" translate="no">{{ secret }}</code></p>
+        <form class="setup-form" method="post">
+            {% csrf_token %}
+            <div class="field">
+                <label for="code">6-digit code from your app</label>
+                <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required{% if error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
+                {% if error %}<p class="err" id="code-error" role="alert">{{ error }}</p>{% endif %}
+            </div>
+            <div class="actions">
+                <a class="btn btn-quiet" href="{% url 'accounts:profile' %}">Cancel</a>
+                <button class="btn" type="submit">Turn on</button>
+            </div>
+        </form>
+    </section>
 {% endblock %}

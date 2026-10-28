@@ -1,93 +1,88 @@
-{% extends 'events/base.html' %}
-{% block title %}My profile | Syncmily{% endblock %}
+{% extends 'events/_paint_page.html' %}
+{% load paint %}
+{% block title %}Your account | Syncmily{% endblock %}
 {% block content %}
-    <div class="breadcrumbs"><a href="{% url 'accounts:dashboard' %}">Dashboard</a><span>/</span><span>Profile</span></div>
-    {% include 'accounts/_messages.html' %}
-    <header class="page-heading">
-        <p class="eyebrow">MY PROFILE</p>
-        <h1>{{ request.user.username }}</h1>
-        <p>{% if family %}{% if family.is_primary_admin %}Primary admin{% elif family.role == 'kid' %}Kid{% else %}Parent{% endif %} in {{ family.workspace.name }}{% else %}Not part of a family workspace yet{% endif %}{% if request.user.email %} · {{ request.user.email }}{% endif %}</p>
-    </header>
-    <div class="profile-layout">
-        <section class="panel" aria-labelledby="username-heading">
-            <div class="panel-heading"><span class="step-number">01</span><h2 id="username-heading">Change username</h2></div>
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="username">
-                {{ username_form.non_field_errors }}
-                <div class="form-field">
-                    <label for="{{ username_form.username.id_for_label }}">New username</label>
-                    {{ username_form.username }}
-                    {{ username_form.username.errors }}
-                    <p class="helptext">You'll use this to sign in from now on.</p>
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>Your account</h1>
+        <span class="span"><span translate="no">{{ request.user|person }}</span>, {% if family %}{% if family.is_primary_admin or family.workspace.primary_admin_id == request.user.pk %}parent and admin of {{ family.workspace.name }}{% elif family.role == 'kid' %}kid in {{ family.workspace.name }}{% else %}parent in {{ family.workspace.name }}{% endif %}{% else %}not in a family yet{% endif %}</span>
+    </div>
+    <div class="split">
+        <section class="panel settings" aria-labelledby="sign-in-heading">
+            <h2 id="sign-in-heading" class="sr-only">How you sign in</h2>
+            <details class="setting"{% if username_form.errors %} open{% endif %}>
+                <summary><span class="grow"><b>Username</b><small translate="no">{{ request.user.username }}</small></span><span class="setting-btn">Change</span></summary>
+                <form class="setting-form" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="username">
+                    {% if username_form.non_field_errors %}<div class="form-error" role="alert">{{ username_form.non_field_errors }}</div>{% endif %}
+                    <div class="field">
+                        <label for="{{ username_form.username.id_for_label }}">New username</label>
+                        {{ username_form.username }}
+                        {{ username_form.username.errors }}
+                        <small>You’ll use this to sign in from now on.</small>
+                    </div>
+                    <button class="btn" type="submit">Save username</button>
+                </form>
+            </details>
+            <details class="setting"{% if password_form.errors %} open{% endif %}>
+                <summary><span class="grow"><b>Password</b><small>{% if request.user.has_usable_password %}Set{% else %}Not set yet. You sign in with Google.{% endif %}</small></span><span class="setting-btn">{% if request.user.has_usable_password %}Change{% else %}Set one{% endif %}</span></summary>
+                <form class="setting-form" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="password">
+                    {% if password_form.non_field_errors %}<div class="form-error" role="alert">{{ password_form.non_field_errors }}</div>{% endif %}
+                    {% for field in password_form %}
+                        <div class="field">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {{ field.errors }}
+                        </div>
+                    {% endfor %}
+                    <p class="span">At least 8 characters, and not just numbers.</p>
+                    <button class="btn" type="submit">Save password</button>
+                </form>
+            </details>
+            {% if request.user.email %}
+                <div class="row"><div class="grow"><b>Email</b><small translate="no">{{ request.user.email }}</small></div></div>
+            {% endif %}
+            {% if google_sign_in or google_identity %}
+                <div class="row setting-row">
+                    <div class="grow"><b>Sign in with Google</b>{% if google_identity %}<small>Connected to <span translate="no">{{ google_identity.email }}</span>. Use Continue with Google on the sign-in page.</small>{% else %}<small>Not connected. Connect it to sign in to <span translate="no">{{ request.user.username }}</span> with Continue with Google.</small>{% endif %}</div>
+                    {% if google_identity %}
+                        {% if request.user.has_usable_password %}
+                            <form method="post" action="{% url 'accounts:google_disconnect' %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Turn off Google sign-in</button></form>
+                        {% endif %}
+                    {% else %}
+                        <form method="post" action="{% url 'accounts:google_connect' %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Connect Google</button></form>
+                    {% endif %}
                 </div>
-                <div class="form-actions form-footer"><button type="submit">Save username</button></div>
-            </form>
-        </section>
-        <section class="panel" aria-labelledby="password-heading">
-            <div class="panel-heading"><span class="step-number">02</span><h2 id="password-heading">{% if request.user.has_usable_password %}Change password{% else %}Set a password{% endif %}</h2></div>
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="password">
-                {{ password_form.non_field_errors }}
-                {% if not request.user.has_usable_password %}<p class="helptext">You signed up with Google. Set a password to sign in with your username too.</p>{% endif %}
-                {% for field in password_form %}
-                    <div class="form-field">
-                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                        {{ field }}
-                        {{ field.errors }}
-                    </div>
-                {% endfor %}
-                <p class="helptext">At least 8 characters, and not just numbers.</p>
-                <div class="form-actions form-footer"><button type="submit">Save password</button></div>
-            </form>
-        </section>
-        {% if google_sign_in or google_identity %}
-        <section class="panel" aria-labelledby="google-heading">
-            <div class="panel-heading"><span class="step-number">03</span><h2 id="google-heading">Sign in with Google</h2></div>
-            {% if google_identity %}
-                <p>Connected to <strong translate="no">{{ google_identity.email }}</strong>. You can use Continue with Google on the sign-in page.</p>
-                {% if request.user.has_usable_password %}
-                    <form method="post" action="{% url 'accounts:google_disconnect' %}">
-                        {% csrf_token %}
-                        <div class="form-actions form-footer"><button class="button-secondary" type="submit">Turn off Google sign-in</button></div>
-                    </form>
-                {% else %}
-                    <p class="helptext">Set a password above before turning off Google sign-in, so you can still get in.</p>
-                {% endif %}
-            {% else %}
-                <p>Connect your Google account to sign in to <strong translate="no">{{ request.user.username }}</strong> with Continue with Google.</p>
-                <form class="google-sign-in" method="post" action="{% url 'accounts:google_connect' %}" data-full-page>
-                    {% csrf_token %}
-                    <button class="button-secondary" type="submit">Connect Google</button>
-                </form>
+                {% if google_identity and not request.user.has_usable_password %}<p class="note">Set a password above before turning off Google sign-in, so you can still get in.</p>{% endif %}
             {% endif %}
         </section>
-        {% endif %}
-        <section class="panel" aria-labelledby="two-step-heading">
-            <div class="panel-heading"><span class="step-number">{% if google_sign_in or google_identity %}04{% else %}03{% endif %}</span><h2 id="two-step-heading">Two-step sign-in</h2></div>
+        <aside class="panel" aria-labelledby="two-step-heading">
+            <h2 id="two-step-heading">Two-step sign-in</h2>
             {% if two_step_on %}
-                <p><strong>On.</strong> Signing in asks for a code from your authenticator app, after your password or Google. You have {{ backup_codes_left }} backup code{{ backup_codes_left|pluralize }} left.</p>
-                <form method="post" action="{% url 'accounts:two_step_backup_codes' %}" data-full-page>
+                <p class="span"><b class="state-on">On.</b> Signing in asks for a code from your authenticator app, after your password or Google. You have {{ backup_codes_left }} backup code{{ backup_codes_left|pluralize }} left.</p>
+                <form class="two-step-form" method="post" action="{% url 'accounts:two_step_backup_codes' %}">
                     {% csrf_token %}
-                    <div class="form-field">
+                    <div class="field">
                         <label for="two-step-code-new">Code from your app (or a backup code)</label>
-                        <input id="two-step-code-new" name="code" type="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required>
+                        <input class="code" id="two-step-code-new" name="code" type="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required>
                     </div>
-                    <div class="form-actions form-footer"><button class="button-secondary" type="submit">Get new backup codes</button></div>
+                    <button class="btn btn-quiet" type="submit">Get new backup codes</button>
                 </form>
-                <form method="post" action="{% url 'accounts:two_step_disable' %}">
+                <form class="two-step-form" method="post" action="{% url 'accounts:two_step_disable' %}">
                     {% csrf_token %}
-                    <div class="form-field">
+                    <div class="field">
                         <label for="two-step-code-off">Code to turn it off</label>
-                        <input id="two-step-code-off" name="code" type="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required>
+                        <input class="code" id="two-step-code-off" name="code" type="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required>
                     </div>
-                    <div class="form-actions form-footer"><button class="button-secondary" type="submit">Turn off two-step sign-in</button></div>
+                    <button class="btn btn-quiet btn-danger" type="submit">Turn off two-step sign-in</button>
                 </form>
             {% else %}
-                <p>Add a code from an authenticator app to every sign-in, so a stolen password alone can’t get into your family’s calendar.</p>
-                <div class="form-actions form-footer"><a class="button" href="{% url 'accounts:two_step_setup' %}" data-full-page>Turn on two-step sign-in</a></div>
+                <p class="span">A code from your phone at every sign-in, so a stolen password alone can’t get into your family’s calendar.</p>
+                <div class="actions start"><a class="btn" href="{% url 'accounts:two_step_setup' %}">Turn on two-step sign-in</a></div>
             {% endif %}
-        </section>
+        </aside>
     </div>
 {% endblock %}
