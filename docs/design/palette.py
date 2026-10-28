@@ -31,17 +31,17 @@ STEP_L = (0.955, 0.875, 0.775, 0.545, 0.435)
 # protanopia, deuteranopia and tritanopia, while a-d stay inside their approved colour family.
 DECKS = {
     "primaries": ((0.032, 0.075, 0.130, 0.155, 0.130), (
-        ("Harbor blue", 264.2, 0.91), ("Fern", 155.1, 1.00), ("Marigold", 96.2, 1.35),
-        ("Coral", 18.7, 0.84), ("Violet", 304.8, 0.87), ("Teal", 189.7, 0.89),
-        ("Leaf", 122.1, 0.91), ("Magenta", 349.5, 0.93))),
+        ("Harbor blue", 262.4, 1.00), ("Jade", 166.5, 0.93), ("Marigold", 93.4, 1.39),
+        ("Coral", 17.1, 0.93), ("Teal", 196.6, 0.80), ("Violet", 299.8, 0.95),
+        ("Magenta", 347.2, 0.90), ("Leaf", 125.3, 0.86))),
     "garden": ((0.026, 0.058, 0.095, 0.105, 0.088), (
-        ("Sage", 152.3, 0.74), ("Plum", 318.6, 0.84), ("Ochre", 78.2, 1.00),
-        ("Teal", 194.0, 0.92), ("Lavender", 279.3, 1.00), ("Terracotta", 44.6, 0.95),
-        ("Dusty blue", 243.8, 1.00), ("Moss", 110.0, 1.00))),
+        ("Sage", 151.2, 0.70), ("Plum", 322.6, 1.00), ("Ochre", 79.6, 1.20),
+        ("Teal", 193.9, 0.81), ("Lavender", 283.4, 1.00), ("Terracotta", 44.3, 0.98),
+        ("Dusty blue", 244.6, 0.97), ("Moss", 109.3, 1.00))),
     "bold": ((0.040, 0.100, 0.160, 0.190, 0.155), (
-        ("Cobalt", 267.4, 1.00), ("Magenta", 352.1, 1.00), ("Emerald", 161.0, 0.92),
-        ("Tangerine", 53.6, 1.00), ("Violet", 300.9, 0.90), ("Red", 26.4, 0.95),
-        ("Sky", 237.2, 1.00), ("Gold", 92.6, 0.90))),
+        ("Cobalt", 269.6, 1.00), ("Magenta", 348.7, 0.75), ("Emerald", 158.3, 0.91),
+        ("Tangerine", 56.3, 0.97), ("Violet", 301.8, 0.89), ("Red", 24.1, 0.87),
+        ("Cyan", 206.7, 0.94), ("Gold", 99.7, 1.18))),
 }
 # Chroma never goes past this share of the sRGB limit at each step: colours stop short of the
 # gamut edge, where cyans and greens turn neon.
