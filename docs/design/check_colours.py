@@ -9,8 +9,8 @@ role for light and dark and for each deck, then checks:
   2. that every member ramp shares the step lightness, steps 1-5 get darker in order, and dark step 1
      matches the dark quiet chip paint.css draws;
   3. that neighbouring members (a-b ... h-a) stay >= 10 CIEDE2000 apart at steps 3 and 4 for normal vision
-     and full protanopia, deuteranopia and tritanopia (Machado 2009), and all members >= 12 apart for
-     normal vision;
+     and full protanopia, deuteranopia and tritanopia (Machado 2009), the first four members >= 6 apart
+     in every one of those, and all members >= 12 apart for normal vision;
   4. that the dark theme's two blocks (theme switch and OS setting) hold the same values;
   5. that a colour a parent picks, any hue at any chroma, keeps the chip pairs passing.
 
@@ -49,6 +49,7 @@ KINDS = {
     "ui": (3.0, None),    # edges and icons that identify a control (WCAG 1.4.11)
 }
 CVD_ADJACENT_MIN = 10.0
+FIRST_FOUR_MIN = 6.0            # members a-d, any vision: most families have four people
 NORMAL_ALL_MIN = 12.0
 STEP_L_TOLERANCE = 0.006       # OKLCH L; 8-bit hex rounding alone moves L by up to ~0.003
 NEUTRAL_HUE = 83                # the canvas hue
@@ -457,6 +458,9 @@ def check_cvd(report, blocks):
                         d, pair = stats[sim]["adjacent"]
                         report.check(f"[{theme}] {deck} step {step + 1} {sim}: neighbours apart", d >= CVD_ADJACENT_MIN,
                                      f"(min {d:.1f} at {pair[0]}-{pair[1]}, needs {CVD_ADJACENT_MIN})")
+                    d4, pair4 = min((stats[sim]["first4"] for sim in SIMS))
+                    report.check(f"[{theme}] {deck} step {step + 1}: first four members apart in every vision", d4 >= FIRST_FOUR_MIN,
+                                 f"(min {d4:.1f} at {pair4[0]}-{pair4[1]}, needs {FIRST_FOUR_MIN})")
                     d, pair = stats["normal"]["all"]
                     report.check(f"[{theme}] {deck} step {step + 1} normal vision: all members apart", d >= NORMAL_ALL_MIN,
                                  f"(min {d:.1f} at {pair[0]}-{pair[1]}, needs {NORMAL_ALL_MIN})")

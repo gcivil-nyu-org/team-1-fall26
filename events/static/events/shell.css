@@ -25,34 +25,34 @@
  * whoever it belongs to. Steps 1-3 carry --paint-ink, 4-5 carry --on-deep (white), and step 5 reads on step 1.
  * Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4 for protan, deutan and tritan vision. */
 :root, [data-deck="primaries"] {
-  --a1:#eaf0fe; --a2:#c5d6f9; --a3:#95b5f8; --a4:#456cc2; --a5:#2f4d92;   /* Harbor blue */
-  --b1:#e0f7e7; --b2:#afe5c1; --b3:#6ace91; --b4:#15854e; --b5:#0d6137;   /* Fern */
-  --c1:#f8f1d0; --c2:#e9d687; --c3:#d1b534; --c4:#8f6911; --c5:#694c0a;   /* Marigold */
-  --d1:#feebeb; --d2:#f9c8c7; --d3:#f4999a; --d4:#af4c52; --d5:#833339;   /* Coral */
-  --e1:#f4ecfe; --e2:#dfccf9; --e3:#c6a3f0; --e4:#8259ae; --e5:#603e82;   /* Violet */
-  --f1:#dcf7f4; --f2:#a3e5df; --f3:#45cdc6; --f4:#15817b; --f5:#0d5e5a;   /* Teal */
-  --g1:#ecf4de; --g2:#cedeac; --g3:#a9c269; --g4:#647b12; --g5:#48590a;   /* Leaf */
-  --h1:#feeaf2; --h2:#f9c4dc; --h3:#ef95c1; --h4:#ab477d; --h5:#7f305b;   /* Magenta */
+  --a1:#e9f0fe; --a2:#c4d7f9; --a3:#92b6f8; --a4:#3c6bc9; --a5:#274d98;   /* Harbor blue */
+  --b1:#def7ec; --b2:#aae5cc; --b3:#5dcea5; --b4:#158362; --b5:#0d6047;   /* Jade */
+  --c1:#faf0cf; --c2:#edd584; --c3:#d5b334; --c4:#906811; --c5:#694b0a;   /* Marigold */
+  --d1:#feebeb; --d2:#f9c8c8; --d3:#f9959a; --d4:#b44551; --d5:#872e38;   /* Coral */
+  --e1:#ddf6f6; --e2:#a8e3e3; --e3:#56cacc; --e4:#158081; --e5:#0d5d5e;   /* Teal */
+  --f1:#f2edfe; --f2:#dbcef9; --f3:#c1a4f8; --f4:#7e58b8; --f5:#5c3e8a;   /* Violet */
+  --g1:#feeaf3; --g2:#f8c5de; --g3:#ec97c4; --g4:#a8497f; --g5:#7d325d;   /* Magenta */
+  --h1:#ecf4e0; --h2:#ccdeb0; --h3:#a5c372; --h4:#5e7d12; --h5:#445a0a;   /* Leaf */
 }
 [data-deck="garden"] {
-  --a1:#e7f4ea; --a2:#c2dfc8; --a3:#94c3a0; --a4:#4b7d5a; --a5:#345c3f;   /* Sage */
-  --b1:#f7ecfa; --b2:#e4cceb; --b3:#cca6d7; --b4:#865f91; --b5:#62446b;   /* Plum */
-  --c1:#faeedd; --c2:#ebd2ac; --c3:#d7af6e; --c4:#94661a; --c5:#6d490a;   /* Ochre */
-  --d1:#dff6f5; --d2:#aee2e0; --d3:#6dc8c6; --d4:#15807f; --d5:#0d5d5c;   /* Teal */
-  --e1:#edeffe; --e2:#ced3f9; --e3:#a9b0f2; --e4:#6468ac; --e5:#474b81;   /* Lavender */
-  --f1:#feece5; --f2:#f6cbb9; --f3:#e7a486; --f4:#a05c3d; --f5:#774128;   /* Terracotta */
-  --g1:#e5f2fe; --g2:#b7dbf9; --g3:#80bdee; --g4:#3176a8; --g5:#1d567e;   /* Dusty blue */
-  --h1:#f1f2de; --h2:#d8daae; --h3:#b9bb73; --h4:#747520; --h5:#54550e;   /* Moss */
+  --a1:#e8f4ea; --a2:#c3dec9; --a3:#97c2a1; --a4:#4f7d5a; --a5:#365b40;   /* Sage */
+  --b1:#f9ebfb; --b2:#e9caed; --b3:#d3a2da; --b4:#8d5a94; --b5:#683f6d;   /* Plum */
+  --c1:#fceed9; --c2:#efd1a2; --c3:#dcad5b; --c4:#956511; --c5:#6d490a;   /* Ochre */
+  --d1:#e1f5f4; --d2:#b3e0df; --d3:#78c6c4; --d4:#1e7f7e; --d5:#0d5d5c;   /* Teal */
+  --e1:#eeeffe; --e2:#d0d2f9; --e3:#adaef1; --e4:#6867ab; --e5:#4b4a80;   /* Lavender */
+  --f1:#feece5; --f2:#f7cbb8; --f3:#e8a385; --f4:#a15b3b; --f5:#784027;   /* Terracotta */
+  --g1:#e5f2fe; --g2:#b8dbf9; --g3:#82bced; --g4:#3576a7; --g5:#21557d;   /* Dusty blue */
+  --h1:#f1f2de; --h2:#d8daae; --h3:#babb72; --h4:#75751f; --h5:#55550d;   /* Moss */
 }
 [data-deck="bold"] {
-  --a1:#eaf0fe; --a2:#c7d6f9; --a3:#99b4f8; --a4:#4063dd; --a5:#2c47a5;   /* Cobalt */
-  --b1:#feeaf2; --b2:#f9c5da; --b3:#f98fbf; --b4:#bc2e7b; --b5:#8b1d5a;   /* Magenta */
-  --c1:#dcf8e8; --c2:#9fe9c2; --c3:#48d297; --c4:#15845a; --c5:#0d6040;   /* Emerald */
-  --d1:#feece2; --d2:#f9cbae; --d3:#f89c5d; --d4:#a95711; --d5:#7c3e09;   /* Tangerine */
-  --e1:#f2edfe; --e2:#dccdf9; --e3:#c3a3f8; --e4:#8251c2; --e5:#5f3990;   /* Violet */
-  --f1:#feebe9; --f2:#f9c8c2; --f3:#f9978d; --f4:#c33431; --f5:#912220;   /* Red */
-  --g1:#e3f3fe; --g2:#b1ddf9; --g3:#64c1f8; --g4:#1478aa; --g5:#0c577c;   /* Sky */
-  --h1:#f8f0d6; --h2:#ead591; --h3:#d6b234; --h4:#906811; --h5:#694b0a;   /* Gold */
+  --a1:#ebf0fe; --a2:#c8d5f9; --a3:#9cb3f8; --a4:#4662dd; --a5:#3146a5;   /* Cobalt */
+  --b1:#feeaf3; --b2:#f9c4dd; --b3:#ef95c2; --b4:#aa487e; --b5:#7d325b;   /* Magenta */
+  --c1:#ddf8e7; --c2:#a2e9c0; --c3:#53d192; --c4:#158555; --c5:#0d613c;   /* Emerald */
+  --d1:#feece1; --d2:#f9cbac; --d3:#f89d56; --d4:#a65911; --d5:#7a400a;   /* Tangerine */
+  --e1:#f3edfe; --e2:#ddcdf9; --e3:#c4a2f8; --e4:#8351c0; --e5:#60398f;   /* Violet */
+  --f1:#feebea; --f2:#f9c8c4; --f3:#f99790; --f4:#bd3c3d; --f5:#8c292a;   /* Red */
+  --g1:#d4f8fd; --g2:#86e8f5; --g3:#3bcbdc; --g4:#157e8a; --g5:#0c5c65;   /* Cyan */
+  --h1:#f7f2ce; --h2:#e8d878; --h3:#ccb734; --h4:#8e6911; --h5:#684c0a;   /* Gold */
 }
 
 /* Colour roles. Global, so accounts.css and checklists.css can use them on pages not yet ported. */
@@ -85,9 +85,9 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
   --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
   --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
 }
-[data-theme="dark"] body.paint[data-deck="primaries"] { --a1:#242c3b; --b1:#213022; --c1:#342b1a; --d1:#3c2522; --e1:#312837; --f1:#21302b; --g1:#2b2e1a; --h1:#3b242c; }
-[data-theme="dark"] body.paint[data-deck="garden"] { --a1:#272f24; --b1:#322930; --c1:#352a1a; --d1:#212f2c; --e1:#2a2b36; --f1:#38281e; --g1:#222e36; --h1:#2e2d1a; }
-[data-theme="dark"] body.paint[data-deck="bold"] { --a1:#232b41; --b1:#3f222b; --c1:#213024; --d1:#3a2719; --e1:#30273b; --f1:#40231d; --g1:#212e35; --h1:#342a1a; }
+[data-theme="dark"] body.paint[data-deck="primaries"] { --a1:#232c3d; --b1:#213026; --c1:#342a1a; --d1:#3d2422; --e1:#212f2c; --f1:#302839; --g1:#3a252c; --h1:#2a2e1a; }
+[data-theme="dark"] body.paint[data-deck="garden"] { --a1:#272f24; --b1:#342731; --c1:#352a1a; --d1:#212f2c; --e1:#2b2b36; --f1:#39281e; --g1:#232d35; --h1:#2e2d1a; }
+[data-theme="dark"] body.paint[data-deck="bold"] { --a1:#242b41; --b1:#3a252c; --c1:#213023; --d1:#39281a; --e1:#31273a; --f1:#3f231f; --g1:#212f2e; --h1:#342b1a; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) body.paint, :root:not([data-theme="light"]) body.paint .ui {
     --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
@@ -99,9 +99,9 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
     --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
     --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
   }
-  :root:not([data-theme="light"]) body.paint[data-deck="primaries"] { --a1:#242c3b; --b1:#213022; --c1:#342b1a; --d1:#3c2522; --e1:#312837; --f1:#21302b; --g1:#2b2e1a; --h1:#3b242c; }
-  :root:not([data-theme="light"]) body.paint[data-deck="garden"] { --a1:#272f24; --b1:#322930; --c1:#352a1a; --d1:#212f2c; --e1:#2a2b36; --f1:#38281e; --g1:#222e36; --h1:#2e2d1a; }
-  :root:not([data-theme="light"]) body.paint[data-deck="bold"] { --a1:#232b41; --b1:#3f222b; --c1:#213024; --d1:#3a2719; --e1:#30273b; --f1:#40231d; --g1:#212e35; --h1:#342a1a; }
+  :root:not([data-theme="light"]) body.paint[data-deck="primaries"] { --a1:#232c3d; --b1:#213026; --c1:#342a1a; --d1:#3d2422; --e1:#212f2c; --f1:#302839; --g1:#3a252c; --h1:#2a2e1a; }
+  :root:not([data-theme="light"]) body.paint[data-deck="garden"] { --a1:#272f24; --b1:#342731; --c1:#352a1a; --d1:#212f2c; --e1:#2b2b36; --f1:#39281e; --g1:#232d35; --h1:#2e2d1a; }
+  :root:not([data-theme="light"]) body.paint[data-deck="bold"] { --a1:#242b41; --b1:#3a252c; --c1:#213023; --d1:#39281a; --e1:#31273a; --f1:#3f231f; --g1:#212f2e; --h1:#342b1a; }
 }
 /* On the root so scrollbars, form controls and the overscroll area follow the theme too. */
 :root:has(body.paint) { color-scheme: light; --counter:var(--n94); }
