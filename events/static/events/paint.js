@@ -240,7 +240,7 @@
         var canvas = document.createElement("canvas").getContext("2d");
         function hex(colour) {
             if (!canvas || !colour) return "";
-            canvas.fillStyle = "#000000";
+            canvas.fillStyle = "transparent";
             canvas.fillStyle = colour;
             return /^#[0-9a-f]{6}$/i.test(canvas.fillStyle) ? canvas.fillStyle : "";
         }
