@@ -1,5 +1,5 @@
 {% load paint %}
-{% comment %}Family members as paint rows (dot in their colour), then pending invites. Needs family, pending, workspace.{% endcomment %}
+{% comment %}Family members as paint rows (dot in their colour), then pending invites. Needs family, pending, workspace. With removable, each person but the admin gets a Remove button.{% endcomment %}
 {% for member in family %}
     <div class="row" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
         <span class="dot" aria-hidden="true">{{ member.user|initial }}</span>
@@ -7,6 +7,12 @@
             <b translate="no">{{ member.user|person }}{% if member.user == request.user %} <span class="you">(you)</span>{% endif %}</b>
             <small>{% if member.user.pk == workspace.primary_admin_id %}Parent, admin{% elif member.is_kid %}Kid{% else %}Parent{% endif %}{% if member.user.first_name %}, signs in as <span translate="no">{{ member.user.username }}</span>{% endif %}{% if show_emails and member.user.email %} · <span translate="no">{{ member.user.email }}</span>{% endif %}</small>
         </div>
+        {% if removable and member.membership_id %}
+            <form method="post" action="{% url 'accounts:remove_member' workspace.pk member.membership_id %}" data-confirm-title="Remove {{ member.user|person }}?" data-confirm="{{ member.user|person }} loses their sign-in and their chat messages and colour are deleted. Plans and checklists they made stay, under your name. Their email can be used again.">
+                {% csrf_token %}
+                <button class="btn btn-quiet btn-danger btn-small" type="submit">Remove</button>
+            </form>
+        {% endif %}
     </div>
 {% endfor %}
 {% for invite in pending %}
@@ -17,5 +23,11 @@
             <small>Invited as a {{ invite.get_role_display|lower }}, not joined yet. Their username is <span translate="no">{{ invite.user.username }}</span>.</small>
         </div>
         <span class="pill">Invited</span>
+        {% if removable %}
+            <form method="post" action="{% url 'accounts:remove_member' workspace.pk invite.pk %}" data-confirm-title="Cancel this invite?" data-confirm="The invite to {{ invite.user.email|default:invite.user.username }} stops working, and the email can be invited again.">
+                {% csrf_token %}
+                <button class="btn btn-quiet btn-danger btn-small" type="submit">Remove</button>
+            </form>
+        {% endif %}
     </div>
 {% endfor %}

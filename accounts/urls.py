@@ -27,6 +27,11 @@ urlpatterns = [
         name="resend_invite",
     ),
     path(
+        "workspaces/<uuid:workspace_id>/members/<int:membership_id>/remove/",
+        views.remove_member,
+        name="remove_member",
+    ),
+    path(
         "dashboard/",
         views.dashboard,
         name="dashboard",
