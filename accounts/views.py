@@ -38,6 +38,7 @@ from .services import (
     invite_url,
     invites_left,
     reissue_invite,
+    remove_member as remove_member_from,
     send_invitation_email,
     user_for_google_account,
 )
@@ -277,6 +278,11 @@ def manage_members(request, workspace_id):
         if member.is_pending:
             member.invite_url = invite_url(request, member)
 
+    family = family_members([workspace])
+    membership_ids = {member.user_id: member.pk for member in members}
+    for member in family:
+        member["membership_id"] = membership_ids.get(member["user"].pk)
+
     return render(
         request,
         "accounts/manage_members.html",
@@ -284,7 +290,7 @@ def manage_members(request, workspace_id):
             "workspace": workspace,
             "form": form,
             "members": members,
-            "family": family_members([workspace]),
+            "family": family,
             "pending": [member for member in members if member.is_pending],
         },
     )
@@ -339,6 +345,33 @@ def resend_invite(request, workspace_id, membership_id):
         )
     else:
         report_invite(request, reissue_invite(membership))
+    return redirect("accounts:manage_members", workspace_id=workspace.id)
+
+
+@login_required
+@require_POST
+def remove_member(request, workspace_id, membership_id):
+    """Take someone out of the family so their email can be used again."""
+    workspace = get_object_or_404(Workspace, id=workspace_id)
+    if workspace.primary_admin_id != request.user.pk:
+        raise PermissionDenied("Only the primary admin can manage members.")
+    try:
+        name = remove_member_from(
+            workspace=workspace,
+            removed_by=request.user,
+            membership_id=membership_id,
+        )
+    except PermissionError as error:
+        messages.error(request, str(error))
+    else:
+        if name is None:
+            messages.info(request, "That person is no longer in this family.")
+        else:
+            messages.success(
+                request,
+                f"{name} is no longer in {workspace.name}. "
+                "Their email can be used for a new invite or account.",
+            )
     return redirect("accounts:manage_members", workspace_id=workspace.id)
 
 

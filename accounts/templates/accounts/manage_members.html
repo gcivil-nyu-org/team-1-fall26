@@ -16,7 +16,7 @@
         </section>
         <aside class="panel" aria-labelledby="family-heading">
             <h2 id="family-heading">In the family ({{ family|length }})</h2>
-            {% include 'accounts/_family_rows.html' with show_emails=True %}
+            {% include 'accounts/_family_rows.html' with show_emails=True removable=True %}
             {% for member in pending %}
                 <div class="invite-link">
                     <label for="invite-link-{{ member.pk }}">Invite link for <span translate="no">{{ member.user.username }}</span></label>

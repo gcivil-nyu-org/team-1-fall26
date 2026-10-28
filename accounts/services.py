@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import timedelta
 
@@ -10,7 +11,13 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
+from calendars import google
+from checklists.models import Checklist
+from events.models import Event
+
 from .models import GoogleIdentity, Membership, Workspace
+
+logger = logging.getLogger(__name__)
 
 
 # Temporary until members can pick their own password at sign-up.
@@ -76,6 +83,59 @@ def invite_member(*, workspace, invited_by, email, role, attempts=3):
             # Another invite took the same username first; pick the next one.
             if attempt == attempts - 1:
                 raise
+
+
+def remove_member(*, workspace, removed_by, membership_id):
+    """
+    Take someone out of the family for good, so their email is free for a new
+    account or invite. Returns the removed user's display name, or None when
+    there was nobody to remove (already gone, or not in this workspace).
+
+    Plans and checklists they made stay with the family, handed to the primary
+    admin. Events copied in from their own Google Calendar, their chat messages,
+    colours and calendar connections are deleted with the account.
+    """
+    if workspace.primary_admin_id != removed_by.pk:
+        raise PermissionError("Only the primary admin can remove members.")
+
+    with transaction.atomic():
+        membership = (
+            Membership.objects
+            .select_for_update()
+            .select_related("user")
+            .filter(workspace=workspace, pk=membership_id)
+            .first()
+        )
+        if membership is None:
+            return None
+        user = membership.user
+        if user.pk in (workspace.primary_admin_id, removed_by.pk):
+            raise PermissionError("The primary admin can't be removed.")
+        if Workspace.objects.filter(primary_admin=user).exists():
+            raise PermissionError("This person runs another family.")
+
+        admin_id = workspace.primary_admin_id
+        tokens = [
+            connection.refresh_token or connection.access_token
+            for connection in user.calendar_connections.all()
+        ]
+        Event.objects.filter(created_by=user, source=Event.Source.GOOGLE).delete()
+        Event.objects.filter(created_by=user).update(created_by_id=admin_id)
+        Checklist.objects.filter(created_by=user).update(created_by_id=admin_id)
+        Membership.objects.filter(invited_by=user).update(invited_by_id=admin_id)
+        name = (user.first_name or "").strip() or user.get_username()
+        removed_id = user.pk
+        user.delete()
+
+        # Revoke at Google only once the account is really gone.
+        for token in filter(None, tokens):
+            transaction.on_commit(lambda token=token: google.revoke(token))
+
+    logger.info(
+        "Member %s removed from workspace %s by %s",
+        removed_id, workspace.pk, removed_by.pk,
+    )
+    return name
 
 
 def make_invite_token(membership):
