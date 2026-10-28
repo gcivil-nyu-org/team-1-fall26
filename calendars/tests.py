@@ -284,14 +284,14 @@ class GoogleConnectionViewTests(TestCase):
         self.start_connection()
         response, exchange_code = self.callback({"state": "forged", "code": "auth-code"})
 
-        self.assertRedirects(response, reverse("events:choose_workspace"))
+        self.assertRedirects(response, reverse("events:choose_workspace"), fetch_redirect_response=False)
         exchange_code.assert_not_called()
         self.assertFalse(CalendarConnection.objects.exists())
 
     def test_callback_without_a_started_connection_is_rejected(self):
         response, exchange_code = self.callback({"state": "state-123", "code": "auth-code"})
 
-        self.assertRedirects(response, reverse("events:choose_workspace"))
+        self.assertRedirects(response, reverse("events:choose_workspace"), fetch_redirect_response=False)
         exchange_code.assert_not_called()
 
     def test_failures_are_explained_and_nothing_is_saved(self):

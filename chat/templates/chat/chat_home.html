@@ -1,254 +1,79 @@
-{% extends "events/base.html" %}
-{% load static %}
+{% extends "events/_paint_page.html" %}
+{% load static paint %}
+{% block title %}{% if workspace %}Chat, {{ workspace.name }}{% else %}Household chat{% endif %} | Syncmily{% endblock %}
+{% block main_class %}page page-chat{% endblock %}
+{% block scripts %}{% if workspace %}<script src="{% static 'chat/chat_home.js' %}?v=2" defer></script>{% endif %}{% endblock %}
 {% block content %}
-<style>
-    .chat-layout {
-        max-width: 1100px;
-        margin: 30px auto;
-        padding: 0 20px;
-        display: grid;
-        grid-template-columns: 260px minmax(0, 1fr);
-        gap: 20px;
-        font-family: inherit;
-    }
-
-    .chat-sidebar,
-    .chat-panel {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .chat-sidebar {
-        padding: 20px;
-    }
-
-    .chat-sidebar h2 {
-        margin: 0 0 18px;
-        font-size: 20px;
-    }
-
-    .workspace-link {
-        display: block;
-        padding: 13px;
-        margin-bottom: 8px;
-        color: #374151;
-        text-decoration: none;
-        border-radius: 10px;
-        background: #f9fafb;
-    }
-
-    .workspace-link:hover,
-    .workspace-link.active {
-        background: #ede9fe;
-        color: #5b21b6;
-    }
-
-    .chat-panel {
-        display: flex;
-        flex-direction: column;
-        height: 650px;
-    }
-
-    .chat-header {
-        padding: 20px;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .chat-header h2 {
-        margin: 0;
-        font-size: 20px;
-    }
-
-    .chat-status {
-        font-size: 12px;
-        color: #6b7280;
-        margin-top: 5px;
-    }
-
-    .chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-        background: #fafafa;
-    }
-
-    .message {
-        max-width: 75%;
-        margin-bottom: 16px;
-    }
-
-    .message.own {
-        margin-left: auto;
-    }
-
-    .message-sender {
-        font-size: 12px;
-        color: #6b7280;
-        margin-bottom: 4px;
-    }
-
-    .message-bubble {
-        background: #e5e7eb;
-        padding: 12px 15px;
-        border-radius: 14px;
-        overflow-wrap: anywhere;
-        white-space: pre-wrap;
-    }
-
-    .message.own .message-bubble {
-        background: #6d28d9;
-        color: white;
-    }
-
-    .message-time {
-        font-size: 11px;
-        color: #9ca3af;
-        margin-top: 4px;
-    }
-
-    .chat-form {
-        display: flex;
-        gap: 10px;
-        padding: 18px;
-        border-top: 1px solid #e5e7eb;
-    }
-
-    .chat-input {
-        flex: 1;
-        min-width: 0;
-        padding: 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 10px;
-        font: inherit;
-    }
-
-    .chat-send {
-        padding: 12px 20px;
-        background: #6d28d9;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-    }
-
-    .chat-send:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .chat-empty {
-        text-align: center;
-        color: #6b7280;
-        margin: auto;
-        padding: 30px;
-    }
-
-    .chat-error {
-        color: #b91c1c;
-        padding: 0 18px;
-        font-size: 13px;
-    }
-
-    @media (max-width: 700px) {
-        .chat-layout {
-            grid-template-columns: 1fr;
-        }
-
-        .chat-panel {
-            height: 70vh;
-            min-height: 400px;
-        }
-
-        .message {
-            max-width: 90%;
-        }
-    }
-</style>
-
-<div class="chat-layout">
-    <aside class="chat-sidebar">
-        <h2>Household Chat</h2>
-
-        {% for item in workspaces %}
-            <a
-                href="{% url 'chat:workspace_chat' item.id %}"
-                class="workspace-link {% if workspace.id == item.id %}active{% endif %}"
-            >
-                {{ item.name }}
-            </a>
-        {% empty %}
-            <p>You are not part of an active workspace yet.</p>
-        {% endfor %}
-    </aside>
-
-    <section class="chat-panel">
-        {% if workspace %}
-            <header class="chat-header">
-                <h2>{{ workspace.name }}</h2>
-                <div id="chat-status" class="chat-status">
-                    Connecting...
-                </div>
-            </header>
-
-            <div
-                id="chat-messages"
-                class="chat-messages"
-                role="log"
-                aria-live="polite"
-                aria-label="Household messages"
-            >
-                {% for message in messages %}
-                    <div class="message {% if message.sender_id == request.user.id %}own{% endif %}">
-                        <div class="message-sender">
-                            {{ message.sender.get_username }}
-                        </div>
-                        <div class="message-bubble">{{ message.content }}</div>
-                        <div class="message-time">
-                            {{ message.created_at|date:"M d, Y h:i A" }}
+{% if workspace %}
+    <div class="chat">
+        <section class="thread" aria-labelledby="chat-title">
+            <div class="thread-head">
+                <h1 id="chat-title">Household chat</h1>
+                <span class="span">{{ workspace.name }}, {{ members|length }} member{{ members|length|pluralize }}</span>
+                <span class="chat-status" id="chat-status" role="status">Connecting…</span>
+            </div>
+            <div class="msgs" id="chat-messages" role="log" aria-live="polite" aria-label="Messages in {{ workspace.name }}" tabindex="0">
+                {% for message in chat_messages %}
+                    {% ifchanged message.created_at|date:"Y-m-d" %}<p class="day-sep" data-day="{{ message.created_at|date:'Y-m-d' }}">{{ message.created_at|day_label }}</p>{% endifchanged %}
+                    {% with sender=message.sender_id|member:members %}
+                    <div class="msg{% if message.sender_id == request.user.id %} mine{% endif %}"{% if sender.hue %} data-hue="{{ sender.hue }}"{% if sender.custom_color %} style="--hue: {{ sender.custom_color }}"{% endif %}{% endif %}>
+                        <span class="dot{% if not sender.hue %} dot-quiet{% endif %}" aria-hidden="true">{{ message.sender|initial }}</span>
+                        <div class="msg-body">
+                            <p class="msg-meta"><b translate="no">{% if message.sender_id == request.user.id %}You{% else %}{{ message.sender|person }}{% endif %}</b> {{ message.created_at|clock }}</p>
+                            <p class="bubble">{{ message.content }}</p>
                         </div>
                     </div>
+                    {% endwith %}
+                {% empty %}
+                    <p class="chat-empty" id="chat-empty">No messages yet. Say hello to the family.</p>
                 {% endfor %}
             </div>
-
-            <p id="chat-error" class="chat-error" role="alert"></p>
-
-            <form id="chat-form" class="chat-form">
-                <input
-                    id="chat-input"
-                    class="chat-input"
-                    type="text"
-                    placeholder="Write a message..."
-                    maxlength="2000"
-                    autocomplete="off"
-                    aria-label="Message"
-                    disabled
-                >
-
-                <button
-                    id="chat-send"
-                    class="chat-send"
-                    type="submit"
-                    disabled
-                >
-                    Send
-                </button>
+            <p class="chat-error" id="chat-error" role="alert"></p>
+            <form class="compose" id="chat-form">
+                <label class="sr-only" for="chat-input">Message</label>
+                <input id="chat-input" type="text" placeholder="Message {{ workspace.name }}…" maxlength="2000" autocomplete="off" disabled>
+                <button class="btn" id="chat-send" type="submit" disabled>Send</button>
             </form>
-
             {{ workspace.id|json_script:"chat-workspace-id" }}
             {{ request.user.id|json_script:"chat-user-id" }}
-
-        {% else %}
-            <div class="chat-empty">
-                <h2>Welcome to Household Chat</h2>
-                <p>Select a workspace to start messaging.</p>
-            </div>
-        {% endif %}
+            {{ member_json|json_script:"chat-members" }}
+        </section>
+        <aside class="stack chat-side">
+            <section class="panel" aria-labelledby="coming-heading">
+                <h2 id="coming-heading">Coming up</h2>
+                {% for event in coming_up %}
+                    {% with first=event.people.0 %}
+                    <a class="row{% if event.is_tentative %} tent{% endif %}" href="{% url 'events:detail' event.pk %}" data-dialog{% if first.hue %} data-hue="{{ first.hue }}"{% if first.custom_color %} style="--hue: {{ first.custom_color }}"{% endif %}{% endif %}>
+                        <span class="dot{% if not first.hue %} dot-quiet{% endif %}" aria-hidden="true">{% if first %}{{ first.user|initial }}{% endif %}</span>
+                        <span class="grow">{{ event.title }}<small>{{ event.starts_at|day_label }}, {{ event.starts_at|clock }}</small></span>
+                    </a>
+                    {% endwith %}
+                {% empty %}
+                    <p class="span">Nothing on the calendar yet.</p>
+                {% endfor %}
+            </section>
+            {% if workspaces|length > 1 %}
+                <nav class="panel" aria-labelledby="families-heading">
+                    <h2 id="families-heading">Your families</h2>
+                    {% for item in workspaces %}
+                        <a class="row" href="{% url 'chat:workspace_chat' item.id %}"{% if item.id == workspace.id %} aria-current="true"{% endif %}><span class="grow"><b>{{ item.name }}</b></span></a>
+                    {% endfor %}
+                </nav>
+            {% endif %}
+        </aside>
+    </div>
+{% else %}
+    <div class="head">
+        <h1>Household chat</h1>
+    </div>
+    <section class="{% if workspaces %}cards{% else %}panel{% endif %}" aria-label="Families">
+        {% for item in workspaces %}
+            <a class="card-link" href="{% url 'chat:workspace_chat' item.id %}"><b>{{ item.name }}</b><small>Open the family’s chat</small></a>
+        {% empty %}
+            <h2>No family chat yet</h2>
+            <p class="span">Chats belong to a family. Start one, or open the invite a parent sent you.</p>
+            <div class="actions start"><a class="btn" href="{% url 'accounts:create_workspace' %}">Start a family</a></div>
+        {% endfor %}
     </section>
-</div>
-
-{% if workspace %}
-<script src="{% static 'chat/chat_home.js' %}?v=1"></script>
 {% endif %}
 {% endblock %}

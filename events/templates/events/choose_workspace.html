@@ -1,23 +1,46 @@
-{% extends 'events/base.html' %}
-{% block title %}Choose a workspace | Syncmily{% endblock %}
+{% extends 'events/_paint_page.html' %}
+{% block title %}Choose a family | Syncmily{% endblock %}
 {% block content %}
-    <div class="breadcrumbs"><a href="{% url 'events:list' %}?view=upcoming">Schedule</a><span>/</span><span>Choose a workspace</span></div>
-    <header class="page-heading"><p class="eyebrow">LET’S MAKE A PLAN</p><h1>Where does this event belong?</h1><p>Choose a workspace where you’re a parent or primary admin, then add the details.</p></header>
-    <div class="setup-layout">
-        <section class="panel" aria-labelledby="workspace-heading">
-            <div class="panel-heading"><span class="step-number">01</span><h2 id="workspace-heading">Choose your workspace</h2></div>
-            {% if form.workspace.field.queryset %}
-                <form method="get" action="{% url 'events:choose_workspace' %}">
-                    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
-                    {{ form.date.errors }}
-                    <div class="form-field">{{ form.workspace.as_field_group }}</div>
-                    <div class="form-field">{{ form.timezone.as_field_group }}<p class="helptext">Your event and schedule will use this timezone.</p></div>
-                    <div class="form-actions form-footer"><button type="submit">Continue to event details <span aria-hidden="true">→</span></button></div>
-                </form>
-            {% else %}
-                <div class="empty-state"><h3>A home for your family’s plans.</h3><p>You need to be a primary admin or an accepted parent in a workspace to create family events.</p><a data-dialog class="button" href="{% url 'accounts:create_workspace' %}">Create a workspace</a></div>
-            {% endif %}
-        </section>
-        <aside class="setup-note"><p class="eyebrow">START SOMETHING NEW</p><h2>Keep each household’s plans separate.</h2><p>Keep different households’ plans separate, with a schedule for each.</p><a data-dialog class="text-link" href="{% url 'accounts:create_workspace' %}">Create a workspace <span aria-hidden="true">→</span></a><a class="text-link" href="{% url 'events:list' %}?view=upcoming">View my upcoming events</a></aside>
+    <div class="head" data-sheet-hide>
+        <h1>Which family is this for?</h1>
+    </div>
+    <div class="layout-form">
+    <section class="panel">
+        {% if form.workspace.field.queryset %}
+            <form method="get" action="{% url 'events:choose_workspace' %}">
+                {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+                {{ form.date.errors }}
+                <div class="field">
+                    <label for="{{ form.workspace.id_for_label }}">Family</label>
+                    {{ form.workspace }}
+                    {{ form.workspace.errors }}
+                    <small>You can add events to families where you’re a parent.</small>
+                </div>
+                <div class="field">
+                    <label for="{{ form.timezone.id_for_label }}">Time zone</label>
+                    {{ form.timezone }}
+                    {{ form.timezone.errors }}
+                    <small>The event and its schedule use this time zone.</small>
+                </div>
+                <div class="actions">
+                    <a class="btn btn-quiet" href="{% url 'events:list' %}?view=upcoming">Cancel</a>
+                    <button class="btn" type="submit">Continue</button>
+                </div>
+            </form>
+        {% else %}
+            <h2>No family to add events to yet</h2>
+            <p class="lede">You need to be a primary admin or an accepted parent in a family to add events. Start your own, or ask a parent to invite you.</p>
+            <div class="actions start"><a class="btn" href="{% url 'accounts:create_workspace' %}">Start a family</a></div>
+        {% endif %}
+    </section>
+    {% if form.workspace.field.queryset %}
+    <aside class="panel helper" aria-labelledby="why-heading">
+        <h2 id="why-heading">Why we ask</h2>
+        <ol class="tips">
+            <li><span><b>You’re in more than one family</b>The event goes on that family’s week, and its members can see it.</span></li>
+            <li><span><b>Time zone</b>The event and its schedule use this time zone.</span></li>
+        </ol>
+    </aside>
+    {% endif %}
     </div>
 {% endblock %}

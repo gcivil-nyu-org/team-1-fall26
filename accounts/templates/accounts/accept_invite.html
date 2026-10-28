@@ -1,34 +1,28 @@
-{% extends 'events/base.html' %}
+{% extends 'accounts/_auth_page.html' %}
+{% load paint %}
 {% block title %}Join {{ membership.workspace.name }} | Syncmily{% endblock %}
-{% block content %}
-    <header class="page-heading">
-        <p class="eyebrow">YOU'RE INVITED</p>
-        <h1>Join {{ membership.workspace.name }}</h1>
-        <p>{{ membership.invited_by.username }} invited you to the family workspace as a {{ membership.get_role_display|lower }}.</p>
-    </header>
-    <section class="panel invite-panel" aria-labelledby="invite-heading">
-        <h2 id="invite-heading">Choose your password to join</h2>
-        <dl>
-            <dt>Your username</dt><dd><strong>{{ membership.user.username }}</strong></dd>
-            <dt>Email</dt><dd>{{ membership.user.email }}</dd>
-            <dt>Role</dt><dd>{{ membership.get_role_display }}</dd>
-        </dl>
-        <form method="post" novalidate>
-            {% csrf_token %}
-            {{ form.non_field_errors }}
-            <input type="text" name="username" value="{{ membership.user.username }}" autocomplete="username" hidden>
-            <div class="form-field">
-                <label for="{{ form.new_password1.id_for_label }}">Choose a password</label>
-                {{ form.new_password1 }}
-                {{ form.new_password1.errors }}
-                <p class="helptext">At least 8 characters, not all numbers, and not a common password.</p>
+{% block auth_body %}
+            <h1>Join {{ membership.workspace.name }}</h1>
+            <p class="lede"><span translate="no">{{ membership.invited_by|person }}</span> invited you as a {{ membership.get_role_display|lower }}. Choose a password to finish.</p>
+            <div class="facts invite-facts">
+                <div class="row"><div class="grow"><b>Your username</b><small translate="no">{{ membership.user.username }}</small></div></div>
+                <div class="row"><div class="grow"><b>Email</b><small translate="no">{{ membership.user.email }}</small></div></div>
             </div>
-            <div class="form-field">
-                <label for="{{ form.new_password2.id_for_label }}">Confirm password</label>
-                {{ form.new_password2 }}
-                {{ form.new_password2.errors }}
-            </div>
-            <div class="form-actions"><button type="submit">Confirm and join <span aria-hidden="true">→</span></button></div>
-        </form>
-    </section>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+                <input type="text" name="username" value="{{ membership.user.username }}" autocomplete="username" hidden>
+                <div class="field">
+                    <label for="{{ form.new_password1.id_for_label }}">Choose a password</label>
+                    {{ form.new_password1 }}
+                    {{ form.new_password1.errors }}
+                    <small>At least 8 characters, not all numbers, and not a common password.</small>
+                </div>
+                <div class="field">
+                    <label for="{{ form.new_password2.id_for_label }}">Type it again</label>
+                    {{ form.new_password2 }}
+                    {{ form.new_password2.errors }}
+                </div>
+                <button class="btn btn-wide" type="submit">Join the family</button>
+            </form>
 {% endblock %}

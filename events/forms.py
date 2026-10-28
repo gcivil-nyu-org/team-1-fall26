@@ -160,6 +160,7 @@ class EventForm(EventTimezoneForm):
 
     title = forms.CharField(
         max_length=200,
+        widget=forms.TextInput(attrs={"placeholder": "Swim lesson, dentist, carpool…", "autocomplete": "off", "data-autofocus": ""}),
     )
 
     date = forms.DateField(

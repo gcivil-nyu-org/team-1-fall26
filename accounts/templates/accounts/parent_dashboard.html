@@ -1,5 +1,5 @@
 {% extends 'events/_paint_page.html' %}
-{% load tz %}
+{% load tz paint %}
 {% block title %}Week | Syncmily{% endblock %}
 {% block content %}
     {% if messages %}
@@ -20,13 +20,13 @@
             <div class="days" aria-hidden="true"><span></span>{% for day in week.days %}<span{% if day.is_today %} class="is-today"{% endif %}>{{ day.date|date:"D j" }}</span>{% endfor %}</div>
             <div class="week-cards">
             {% for row in week.rows %}
-                <section class="card" data-hue="{{ row.hue }}"{% if row.custom_color %} style="--hue:{{ row.custom_color }}"{% endif %} aria-label="{{ row.user.username }}’s week">
-                    <div class="id"><div><b>{{ row.user.username }}</b><small>{% if row.is_kid %}Kid{% elif row.user.pk == workspace.primary_admin_id %}Parent, admin{% else %}Parent{% endif %}</small></div></div>
+                <section class="card" data-hue="{{ row.hue }}"{% if row.custom_color %} style="--hue:{{ row.custom_color }}"{% endif %} aria-label="{{ row.user|person }}’s week">
+                    <div class="id"><div><b translate="no">{{ row.user|person }}</b><small>{% if row.is_kid %}Kid{% elif row.user.pk == workspace.primary_admin_id %}Parent, admin{% else %}Parent{% endif %}</small></div></div>
                     {% for chip in row.chips %}
                         <a class="chip l{{ chip.level }}{% if chip.tentative %} tent{% endif %}" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">
                             <span class="chip-day">{{ chip.date|date:"D j" }}</span>
                             {% for item in chip.items %}
-                                <p>{{ item.event.title }} {% if item.event.requires_transport %}<small>{% include "events/_driver_summary.html" with event=item.event %}</small>{% endif %}{% if item.tentative %}<span class="maybe">Not confirmed</span>{% endif %}{% if item.all_day %}<time>All day</time>{% elif item.starts_earlier %}<time>Continues</time>{% else %}<time datetime="{{ item.event.starts_at|date:'c' }}" data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time>{% endif %}</p>
+                                <p>{{ item.event.title }}{% if item.event.requires_transport %}{% include "events/_driver_summary.html" with event=item.event %}{% endif %}{% if item.tentative %}<span class="maybe">Not confirmed</span>{% endif %}{% if item.all_day %}<time>All day</time>{% elif item.starts_earlier %}<time>Continues</time>{% else %}<time datetime="{{ item.event.starts_at|date:'c' }}" data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time>{% endif %}</p>
                             {% empty %}
                                 Free
                             {% endfor %}
@@ -47,14 +47,14 @@
             <div class="tl-rail">
                 {% for hour in rail.hours %}<i style="top:{{ hour.top }}%"><span data-clock="{{ hour.hour|stringformat:'02d' }}:00" data-axis>{{ hour.hour|stringformat:"02d" }}:00</span></i>{% endfor %}
                 {% for item in rail.items %}
-                    <a class="ev{% if item.event.is_tentative %} tent{% endif %}" data-hue="{% if item.member %}{{ item.member.hue }}{% else %}a{% endif %}" style="{% if item.member.custom_color %}--hue:{{ item.member.custom_color }};{% endif %}top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}" href="{% url 'events:detail' item.event.pk %}">{{ item.event.title }} {% include "events/_driver_summary.html" with event=item.event %}{% if item.event.is_tentative %} (not confirmed){% endif %}{% if item.people %}, {% for person in item.people %}{{ person.user.username }}{% if not forloop.last %} and {% endif %}{% endfor %}{% endif %}, <time data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time></a>
+                    <a class="ev{% if item.event.is_tentative %} tent{% endif %}" data-hue="{% if item.member %}{{ item.member.hue }}{% else %}a{% endif %}" style="{% if item.member.custom_color %}--hue:{{ item.member.custom_color }};{% endif %}top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}" href="{% url 'events:detail' item.event.pk %}" data-dialog>{{ item.event.title }}{% if item.event.is_tentative %} (not confirmed){% endif %}{% if item.people %}, {% for member in item.people %}{{ member.user|person }}{% if not forloop.last %} and {% endif %}{% endfor %}{% endif %}, <time data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time></a>
                 {% endfor %}
                 {% if rail.now_top is not None %}<div class="now" style="top:{{ rail.now_top }}%"><span class="sr-only">Now</span></div>{% endif %}
             </div>
         {% endif %}
             <h2 id="coming-heading"{% if rail %} class="rail-next"{% endif %}>Coming up</h2>
             {% for event in upcoming_events %}
-                <a class="row" href="{% url 'events:detail' event.pk %}"><div class="grow">{{ event.title }}{% if event.requires_transport %}<small>{% include "events/_driver_summary.html" %}</small>{% endif %}<small>{{ event.starts_at|date:"D j M" }}, <time data-clock="{{ event.starts_at|date:'H:i' }}">{{ event.starts_at|date:"H:i" }}</time>{% if event.location %} · {{ event.location }}{% endif %}</small></div></a>
+                <a class="row" href="{% url 'events:detail' event.pk %}" data-dialog><div class="grow">{{ event.title }}<small>{{ event.starts_at|date:"D j M" }}, <time data-clock="{{ event.starts_at|date:'H:i' }}">{{ event.starts_at|date:"H:i" }}</time>{% if event.location %} · {{ event.location }}{% endif %}</small></div></a>
             {% empty %}
                 <p class="sub">Nothing on the calendar yet.</p>
             {% endfor %}

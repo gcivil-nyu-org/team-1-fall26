@@ -1,34 +1,77 @@
-{% extends 'events/base.html' %}
-{% load tz %}
+{% extends 'events/_paint_page.html' %}
+{% load tz paint %}
 {% block title %}{{ event.title }} | Syncmily{% endblock %}
 {% block content %}
-    {% for message in messages %}<p class="event-saved-notice" role="status"><span aria-hidden="true">✓</span>{{ message }}</p>{% endfor %}
-    <section class="panel event-detail" aria-labelledby="event-heading">
-        {% timezone timezone_name %}
-        <header class="event-receipt-heading"><div class="receipt-date"><span>{{ event.starts_at|date:'M' }}</span><strong>{{ event.starts_at|date:'j' }}</strong><span>{{ event.starts_at|date:'D' }}</span></div><div><p class="eyebrow">FAMILY EVENT</p><h1 id="event-heading">{{ event.title }}</h1>{% if event.workspace %}<a class="receipt-workspace" href="{{ workspace_url }}">{{ event.workspace.name }} <span aria-hidden="true">↗</span></a>{% endif %}</div></header>
-        <div class="event-time-grid"><div><span>STARTS</span><strong>{{ event.starts_at|date:'l, F j' }}</strong><p>{{ event.starts_at|time:'g:i A' }}</p></div><div><span>ENDS</span><strong>{{ event.ends_at|date:'l, F j' }}</strong><p>{{ event.ends_at|time:'g:i A' }}</p></div></div>
-        {% if event.is_tentative %}<div class="receipt-section"><span class="receipt-label">STATUS</span><p>Not confirmed yet</p></div>{% endif %}
-        <div class="receipt-section"><span class="receipt-label">LOCATION</span><p>{{ event.location|default:'No location provided' }}</p></div>
-        {% if event.source == 'google' %}<div class="receipt-section"><span class="receipt-label">SOURCE</span><p>Imported from Google Calendar</p></div>{% endif %}
-        <div class="receipt-section"><span class="receipt-label">FAMILY MEMBERS</span><div class="receipt-people">{% for participant in event.participants.all %}<span class="person-chip"><span class="chip-avatar" aria-hidden="true">{{ participant.username|first|upper }}</span>{{ participant.username }}</span>{% empty %}<p>No family members selected</p>{% endfor %}</div></div>
-        <section class="receipt-section" aria-labelledby="transport-heading">
-            <h2 id="transport-heading" class="receipt-label">TRANSPORTATION</h2>
-            {% if event.requires_transport %}<p>{% include "events/_driver_summary.html" %}</p>{% else %}<p>No transportation requested</p>{% endif %}
+{% timezone timezone_name %}
+    <p class="crumbs" data-sheet-hide><a href="{% url 'accounts:dashboard' %}?week={{ local_day|date:'Y-m-d' }}">Week</a> / <a href="{{ list_url }}?{{ schedule_query }}">{{ event.starts_at|date:"l j F" }}</a></p>
+    {% include 'events/_flashes.html' %}
+    <div class="split">
+        <section class="panel event-card" aria-labelledby="event-heading">
+            <h1 id="event-heading" data-sheet-hide>{{ event.title }}</h1>
+            <p class="span when-line">
+                {% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}
+            </p>
+            <div class="pills" aria-label="Who’s going">
+                {% for member in people %}
+                    <span class="pill" translate="no"{% if member.hue %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>{{ member.user|person }}</span>
+                {% empty %}
+                    <span class="pill">Whole family</span>
+                {% endfor %}
+                {% if event.is_tentative %}<span class="pill tent">Not confirmed yet</span>{% endif %}
+            </div>
+            <div class="facts">
+                {% if event.location %}
+                    <div class="row">
+                        <div class="grow"><b>Where</b><small>{{ event.location }}</small></div>
+                        <a class="map-link" href="https://www.google.com/maps/search/?api=1&amp;query={% if event.latitude is not None and event.longitude is not None %}{{ event.latitude|stringformat:'s' }},{{ event.longitude|stringformat:'s' }}{% else %}{{ event.location|urlencode }}{% endif %}" target="_blank" rel="noopener">Open in Maps<span class="sr-only"> (opens a new tab)</span></a>
+                    </div>
+                    <div class="row"><div class="grow"><b>Getting there</b><small>{{ event.get_transport_mode_display }}</small></div></div>
+                {% endif %}
+                {% if event.workspace_id %}<div class="row"><div class="grow"><b>Drivers</b><small>{% if event.requires_transport %}{% include "events/_driver_summary.html" %}{% else %}No transportation requested{% endif %}</small></div></div>{% endif %}
+                <div class="row"><div class="grow"><b>Who can see it</b><small>{% if event.workspace %}Everyone in {{ event.workspace.name }}{% else %}Only you{% endif %}</small></div></div>
+                {% if event.source == 'google' %}<div class="row"><div class="grow"><b>From Google Calendar</b><small>Imported from Google Calendar. Change it there.</small></div></div>{% endif %}
+            </div>
             {% if driver_form %}
-                <details{% if driver_form.errors %} open{% endif %}>
-                    <summary>Manage drivers</summary>
+                <details class="disclose driver-edit"{% if driver_form.errors %} open{% endif %}>
+                    <summary>Change drivers</summary>
                     <form class="driver-form" method="post" action="{% url 'events:detail' event.pk %}?timezone={{ timezone_name|urlencode }}">
                         {% csrf_token %}
                         {{ driver_form.non_field_errors }}
-                        {% for field in driver_form %}<div>{{ field.as_field_group }}</div>{% endfor %}
-                        <p>Only active adult family members can drive. Leave either driver unassigned if plans are still being arranged. Clear both drivers before turning off transportation.</p>
-                        <button type="submit">Save driver assignments</button>
+                        {% for field in driver_form %}<div class="field{% if field.name == 'requires_transport' %} field-requires_transport{% endif %}">{{ field.as_field_group }}</div>{% endfor %}
+                        <p>Only adults in the family can drive. Leave a driver unassigned while plans are still being made. Clear both drivers before turning off the ride.</p>
+                        <button class="btn" type="submit">Save drivers</button>
                     </form>
                 </details>
             {% endif %}
+            <div class="actions start">
+                <a class="btn btn-quiet" href="{{ list_url }}?{{ schedule_query }}">See the whole day</a>
+                {% if can_create %}<a class="btn btn-quiet" href="{% url 'events:workspace_create' event.workspace_id %}?{{ schedule_query }}" data-dialog>Add another event that day</a>{% endif %}
+            </div>
         </section>
-        {% endtimezone %}
-        <details class="receipt-timezone" {% if timezone_form.errors %}open{% endif %}><summary>Times shown in {{ timezone_name }} <span>Change timezone ⌄</span></summary><form method="get" class="schedule-filters">{{ timezone_form.timezone.as_field_group }}<button type="submit">Show times</button></form></details>
-        <div class="form-actions receipt-actions"><a class="button button-secondary" href="{{ list_url }}?{{ schedule_query }}">View this day <span aria-hidden="true">↗</span></a>{% if can_create %}<a data-dialog class="text-link" href="{% url 'events:workspace_create' event.workspace_id %}?{{ schedule_query }}">Create another event <span aria-hidden="true">＋</span></a>{% endif %}</div>
-    </section>
+        <aside class="panel"{% if event.workspace %} aria-labelledby="same-day-heading"{% endif %}>
+            {% if event.workspace %}
+                <h2 id="same-day-heading">Same day</h2>
+                {% for other in same_day %}
+                    {% with first=other.people.0 %}
+                    <a class="row{% if other.is_tentative %} tent{% endif %}" href="{% url 'events:detail' other.pk %}?timezone={{ timezone_name|urlencode }}" data-dialog{% if first.hue %} data-hue="{{ first.hue }}"{% if first.custom_color %} style="--hue: {{ first.custom_color }}"{% endif %}{% endif %}>
+                        <span class="dot{% if not first.hue %} dot-quiet{% endif %}" aria-hidden="true">{% if first %}{{ first.user|initial }}{% endif %}</span>
+                        <span class="grow">{{ other.title }}<small>{{ other.starts_at|clock }}, <span translate="no">{% for member in other.people %}{{ member.user|person }}{% if not forloop.last %}, {% endif %}{% empty %}whole family{% endfor %}</span></small></span>
+                    </a>
+                    {% endwith %}
+                {% empty %}
+                    <p class="span">Nothing else planned that day.</p>
+                {% endfor %}
+            {% endif %}
+            <details class="tz-note"{% if timezone_form.errors %} open{% endif %}>
+                <summary>Times are in {{ timezone_name }}</summary>
+                <form class="tz-form" method="get">
+                    <label for="{{ timezone_form.timezone.id_for_label }}">Show times in</label>
+                    {{ timezone_form.timezone }}
+                    {{ timezone_form.timezone.errors }}
+                    <button class="btn btn-quiet" type="submit">Show times</button>
+                </form>
+            </details>
+        </aside>
+    </div>
+{% endtimezone %}
 {% endblock %}

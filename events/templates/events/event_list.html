@@ -1,104 +1,102 @@
-{% extends 'events/base.html' %}
-{% load static tz %}
-{% block title %}My events | Syncmily{% endblock %}
+{% extends 'events/_paint_page.html' %}
+{% load tz paint %}
+{% block title %}{% with view=form.cleaned_data.view %}{% if form.errors %}Schedule{% elif view == 'day' %}{{ start_date|date:"l j F" }}{% elif view == 'week' %}Week of {{ start_date|date:"j F" }}{% else %}Coming up{% endif %}{% endwith %} | Syncmily{% endblock %}
+{% block add_event_query %}{% if create_query %}?{{ create_query }}{% endif %}{% endblock %}
 {% block content %}
-
-        <div class="breadcrumbs">
-            {% if workspace %}<a href="{{ workspace_url }}">{{ workspace.name }}</a><span>/</span>{% endif %}<span>Schedule</span>
-        </div>
-        <header class="page-heading heading-with-action">
-            <div><p class="eyebrow">THE FAMILY SCHEDULE</p>
-                {% if workspace %}<h1>{{ workspace.name }} events</h1>{% else %}<h1>My events</h1>{% endif %}
-                <p>{% if workspace %}A clear view of what’s coming up for your household.{% else %}Your family’s shared events and your earlier personal events.{% endif %}</p>
-            </div>
-            <div class="heading-actions">
-            {% if calendar_workspace %}
-                <form class="calendar-account" method="post" action="{% url 'calendars:google_connect' calendar_workspace.pk %}" data-full-page>
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    {% if calendar_connection %}
-                        <p>Google Calendar{% if calendar_connection.account_email %}<br><strong translate="no">{{ calendar_connection.account_email }}</strong>{% else %} connected{% endif %}</p>
-                        <button class="button-secondary" type="submit">Change Google Account</button>
-                    {% else %}
-                        <button class="button-secondary" type="submit">Connect Google Calendar <span aria-hidden="true">→</span></button>
-                    {% endif %}
-                </form>
-            {% endif %}
-            {% if can_create %}
-            {% if workspace %}
-                <a data-dialog class="button" href="{% url 'events:workspace_create' workspace.pk %}?{{ create_query }}">Create an event <span aria-hidden="true">＋</span></a>
-            {% else %}
-                <a data-dialog class="button" href="{% url 'events:choose_workspace' %}?{{ create_query }}">Create an event <span aria-hidden="true">＋</span></a>
-            {% endif %}
-            {% endif %}
-            </div>
-        </header>
-        <div class="planner-layout">
-        <aside class="planner-rail">
-            <div class="rail-calendar"><span>{% now 'F Y' %}</span><strong>{% now 'j' %}</strong><p>{% now 'l' %}</p></div>
-            <div class="rail-note"><span class="context-dot" aria-hidden="true"></span><p>Times are shown in<br><strong>{{ timezone_name }}</strong></p></div>
-            <a class="rail-dashboard" href="{% url 'accounts:dashboard' %}">← Family dashboard</a>
-        </aside>
-        <div class="planner-events">
-        {% include "accounts/_messages.html" %}
-        <div class="schedule-toolbar"><nav class="schedule-tabs" aria-label="Schedule period"><a data-planner-page href="?view=upcoming&amp;{{ create_query }}" {% if form.cleaned_data.view == 'upcoming' %}aria-current="page"{% endif %}>Upcoming</a><a data-planner-page href="?view=day&amp;{{ create_query }}" {% if form.cleaned_data.view == 'day' %}aria-current="page"{% endif %}>Day</a><a data-planner-page href="?view=week&amp;{{ create_query }}" {% if form.cleaned_data.view == 'week' %}aria-current="page"{% endif %}>Week</a></nav><details class="schedule-options" {% if form.errors %}open{% endif %}><summary>Adjust dates &amp; timezone <span aria-hidden="true">⌄</span></summary><div class="schedule-options-body">
-        <form data-planner-form method="get" class="schedule-filters">
-            {% for field in form %}
-                <div>{{ field.as_field_group }}</div>
-            {% endfor %}
-            <button type="submit">Show events</button>
-            <a href="?{{ timezone_query }}">Today</a>
-        </form></div></details></div>
-        <div class="schedule-search-row"><div class="event-search"><label for="event-search">Find an event on this page</label><div><span aria-hidden="true">⌕</span><input id="event-search" type="search" data-event-search placeholder="Search by event, family, or place…" autocomplete="off"></div></div>{% if not timeline %}<div class="display-switch" role="group" aria-label="Event layout"><span class="glass-thumb" aria-hidden="true"></span><button type="button" data-event-layout="list" aria-pressed="true">☰ List</button><button type="button" data-event-layout="cards" aria-pressed="false">▦ Cards</button></div>{% endif %}</div>
-        {% if not form.errors and form.cleaned_data.view == 'upcoming' %}
-            <div class="schedule-heading"><h2>Upcoming and ongoing events</h2><span>{{ page.paginator.count }} event{{ page.paginator.count|pluralize }}</span></div>
-        {% elif not form.errors %}
-            <nav class="form-actions schedule-navigation" aria-label="Schedule dates">
-                <a data-planner-page href="?{{ previous_query }}">Previous {{ form.cleaned_data.view }}</a>
-                <strong>{{ start_date|date:"M j, Y" }}{% if start_date != last_date %} – {{ last_date|date:"M j, Y" }}{% endif %}</strong>
-                <a data-planner-page href="?{{ next_query }}">Next {{ form.cleaned_data.view }}</a>
-            </nav>
-        {% endif %}
-        {% if timeline %}
-            {% include "events/_day_timeline.html" %}
+{% with view=form.cleaned_data.view %}
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        {% if form.errors %}
+            <h1>Schedule</h1>
+        {% elif view == 'day' %}
+            <h1>{{ start_date|date:"l j F" }}</h1>
+            <span class="span">{% if is_current %}Today. {% endif %}{{ day.summary }}</span>
+        {% elif view == 'week' %}
+            <h1>Week of {{ start_date|date:"j F" }}</h1>
+            <span class="span">{{ start_date|date:"D j M" }} to {{ last_date|date:"D j M" }}, {{ page.paginator.count }} plan{{ page.paginator.count|pluralize }}</span>
         {% else %}
-        <div class="event-collection" data-event-collection data-layout="list">
-        {% timezone timezone_name %}
-        {% for event in page %}
-            <article class="panel event-card" data-event-card>
-                <div class="event-date">{{ event.starts_at|date:'M' }}<strong>{{ event.starts_at|date:'d' }}</strong>{{ event.starts_at|date:'D' }}</div>
-                <div class="event-summary"><h2><a data-dialog href="{% url 'events:detail' event.pk %}?{{ timezone_query }}">{{ event.title }}</a></h2>
-                <p>{{ event.starts_at|date:"M j, Y" }} at {{ event.starts_at|time:"g:i A" }} – {{ event.ends_at|date:"M j, Y" }} at {{ event.ends_at|time:"g:i A" }}</p>
-                {% if event.requires_transport %}<p>{% include "events/_driver_summary.html" %}</p>{% endif %}
-                {% if event.source == 'google' %}<p class="event-source">From Google Calendar</p>{% endif %}
-                {% if not workspace and event.workspace %}
-                    <p><a href="{% url 'events:workspace_list' event.workspace_id %}?view=upcoming&amp;{{ timezone_query }}">{{ event.workspace.name }}</a></p>
-                {% endif %}
-                </div><div class="event-location"><span>Location</span><p>{{ event.location|default:"No location provided" }}</p></div>
-            </article>
-        {% empty %}
-            {% if not form.errors %}
-                {% if form.cleaned_data.view == 'upcoming' %}
-                    <p>You have no upcoming events.</p>
-                {% else %}
-                    <p>You have no events scheduled for this period.</p>
-                {% endif %}
-            {% endif %}
-        {% endfor %}
-        {% endtimezone %}
-        </div>
+            <h1>Coming up</h1>
+            <span class="span">{% if workspace %}{{ workspace.name }}, {% endif %}{{ page.paginator.count }} plan{{ page.paginator.count|pluralize }} from today</span>
         {% endif %}
-        <div id="search-empty" class="empty-search" hidden><h3>No matching events</h3><p>Try another name or place.</p></div>
-        {% if page.has_other_pages and not timeline %}
-            <nav class="form-actions" aria-label="Event pages">
-                {% if page.has_previous %}
-                    <a data-planner-page href="?{{ period_query }}&amp;page={{ page.previous_page_number }}">Previous page</a>
-                {% endif %}
-                <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-                {% if page.has_next %}
-                    <a data-planner-page href="?{{ period_query }}&amp;page={{ page.next_page_number }}">Next page</a>
-                {% endif %}
+        <div class="head-tools">
+            {% if not form.errors and view != 'upcoming' %}
+                <nav class="seg" aria-label="Change {{ view }}">
+                    <a href="?{{ previous_query }}">Previous</a>
+                    <a href="?view={{ view }}&amp;{{ timezone_query }}"{% if is_current %} aria-current="true"{% endif %}>{% if view == 'day' %}Today{% else %}This week{% endif %}</a>
+                    <a href="?{{ next_query }}">Next</a>
+                </nav>
+            {% endif %}
+            <nav class="seg" aria-label="Schedule period">
+                <a href="?view=day{% if create_query %}&amp;{{ create_query }}{% endif %}"{% if view == 'day' and not form.errors %} aria-current="true"{% endif %}>Day</a>
+                <a href="{% url 'accounts:dashboard' %}{% if form.cleaned_data.date %}?week={{ form.cleaned_data.date|date:'Y-m-d' }}{% endif %}"{% if view == 'week' and not form.errors %} aria-current="true"{% endif %}>Week</a>
+                <a href="?view=upcoming{% if timezone_query %}&amp;{{ timezone_query }}{% endif %}"{% if view == 'upcoming' and not form.errors %} aria-current="true"{% endif %}>List</a>
+            </nav>
+        </div>
+    </div>
+
+    {% if form.errors %}
+        <section class="panel narrow">
+            <h2>That date or time zone can’t be shown</h2>
+            <p class="span">Pick another one below, or go back to today.</p>
+            <p class="actions start"><a class="btn btn-quiet" href="?">Back to today</a></p>
+        </section>
+    {% elif day %}
+        {% include "events/_day_timeline.html" %}
+    {% else %}
+        <div class="split">
+        <div class="stack">
+        <section class="panel agenda" aria-labelledby="agenda-title">
+            <h2 class="sr-only" id="agenda-title">{% if view == 'upcoming' %}Upcoming and ongoing events{% else %}Plans for the week of {{ start_date|date:"j F" }}{% endif %}</h2>
+            {% if view == 'upcoming' and page.paginator.count > 3 %}
+                <div class="find">
+                    <label class="sr-only" for="find-plan">Find a plan on this page</label>
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.25" stroke="currentColor" stroke-width="1.5"/><path d="M10.25 10.25 13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <input id="find-plan" type="search" placeholder="Find a plan, a person or a place…" autocomplete="off" data-find-input>
+                </div>
+            {% endif %}
+            {% timezone timezone_name %}
+            {% for event in page %}
+                {% ifchanged event.starts_at|date:"Y-m-d" %}{% with label=event.starts_at|day_label:"l j F" %}<h3 class="day-sep" data-find-group>{{ label }}{% if label == "Today" or label == "Tomorrow" or label == "Yesterday" %}<span>{{ event.starts_at|date:"l j F" }}</span>{% endif %}</h3>{% endwith %}{% endifchanged %}
+                {% with first=event.people.0 %}
+                <a class="row{% if event.is_tentative %} tent{% endif %}" href="{% url 'events:detail' event.pk %}?{{ timezone_query }}" data-dialog data-find-item{% if first.hue %} data-hue="{{ first.hue }}"{% if first.custom_color %} style="--hue: {{ first.custom_color }}"{% endif %}{% endif %}>
+                    <span class="dot{% if not first.hue %} dot-quiet{% endif %}" aria-hidden="true">{% if first %}{{ first.user|initial }}{% endif %}</span>
+                    <span class="grow">
+                        <b>{{ event.title }}</b>
+                        <small><span translate="no">{% for member in event.people %}{{ member.user|person }}{% if not forloop.last %}, {% endif %}{% empty %}Whole family{% endfor %}</span>{% if event.is_tentative %}, not confirmed yet{% endif %}{% if event.location %} · {{ event.location }}{% endif %}{% if not workspace and event.workspace %} · {{ event.workspace.name }}{% endif %}{% if event.source == 'google' %} · From Google Calendar{% endif %}</small>
+                        {% if event.requires_transport %}<small>{% include "events/_driver_summary.html" %}</small>{% endif %}
+                    </span>
+                    <span class="when">{{ event.starts_at|clock }}{% if event.starts_at|date:"Y-m-d" != event.ends_at|date:"Y-m-d" %}<small>to {{ event.ends_at|date:"D j" }}</small>{% endif %}</span>
+                </a>
+                {% endwith %}
+            {% empty %}
+                <div class="empty-row">
+                    <h3>{% if view == 'upcoming' %}Nothing coming up{% else %}Nothing planned this week{% endif %}</h3>
+                    <p>{% if can_create %}Plans you add show here for the whole family.{% else %}Plans your family adds show here.{% endif %}</p>
+                </div>
+            {% endfor %}
+            {% endtimezone %}
+            <p class="empty-row" id="find-empty" hidden>No plan matches that. Try a name or a place.</p>
+        </section>
+        {% if page.has_other_pages %}
+            <nav class="pager" aria-label="Event pages">
+                {% if page.has_previous %}<a class="btn btn-quiet" href="?{{ period_query }}&amp;page={{ page.previous_page_number }}">Previous page</a>{% endif %}
+                <span class="span">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+                {% if page.has_next %}<a class="btn btn-quiet" href="?{{ period_query }}&amp;page={{ page.next_page_number }}">Next page</a>{% endif %}
             </nav>
         {% endif %}
-        </div></div>
+        </div>
+        <aside class="stack schedule-side" aria-label="Schedule settings">
+            <section class="panel page-foot">
+                {% include "events/_schedule_tools.html" %}
+            </section>
+        </aside>
+        </div>
+    {% endif %}
+
+    {% if day or form.errors %}
+    <footer class="page-foot">
+        {% include "events/_schedule_tools.html" %}
+    </footer>
+    {% endif %}
+{% endwith %}
 {% endblock %}

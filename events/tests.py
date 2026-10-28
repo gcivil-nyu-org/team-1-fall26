@@ -256,8 +256,14 @@ class WorkspaceEventTests(TestCase):
         self.assertIn("date=2026-10-20", response.url)
 
     def test_picker_only_offers_managed_workspaces(self):
-        response = self.client.get(reverse("events:choose_workspace"))
-        self.assertEqual(list(response.context["form"].fields["workspace"].queryset), [self.workspace])
+        # The only family this parent manages is chosen for them, keeping the date and time zone.
+        response = self.client.get(reverse("events:choose_workspace"), {
+            "date": "2026-10-20", "timezone": "America/New_York",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse("events:workspace_create", args=[self.workspace.pk])))
+        self.assertIn("date=2026-10-20", response.url)
+        self.assertIn("timezone=America%2FNew_York", response.url)
         response = self.client.get(reverse("events:choose_workspace"), {
             "workspace": self.other_workspace.pk,
         })

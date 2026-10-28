@@ -120,8 +120,9 @@ class InviteDeliveryTests(TestCase):
     def test_primary_admin_is_listed_once(self):
         response = self.client.get(self.members_url)
 
-        self.assertContains(response, "Members (1)")
-        self.assertContains(response, '<span class="member-name">Parent1', count=1)
+        # The redesigned Members page lists the family once, the admin included.
+        self.assertContains(response, "In the family (1)")
+        self.assertContains(response, "Parent, admin", count=1)
 
 
 class EmailDeployCheckTests(TestCase):

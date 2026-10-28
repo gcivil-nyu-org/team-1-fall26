@@ -20,10 +20,12 @@ from accounts.models import MemberColor, Workspace
 from calendars.models import CalendarConnection
 
 from .access import family_events, family_workspaces
+from .day import vertical_day
 from .forms import EventDriverForm, EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
 from .models import Event
 from .travel_conflicts import find_travel_checks
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
+from .week import local_day_bounds
 
 
 @require_http_methods(["GET", "POST"])
@@ -134,6 +136,7 @@ def create_event(request, workspace_id=None):
                 if workspace else reverse("events:create")
             ),
             "travel_checks": travel_checks,
+            "members": {member["user"].pk: member for member in family_members([workspace])} if workspace else {},
         },
     )
 
@@ -149,6 +152,14 @@ def choose_workspace(request):
             "timezone": request.GET.get("timezone") or timezone.get_current_timezone_name(),
         },
     )
+    if not form.is_bound:
+        # One family to add to: nothing to choose, so go straight to the event form.
+        choices = list(form.fields["workspace"].queryset[:2])
+        if len(choices) == 1:
+            form = EventWorkspaceForm(
+                {**form.initial, "workspace": choices[0].pk, "date": form.initial["date"] or ""},
+                user=request.user,
+            )
     if form.is_bound and form.is_valid():
         workspace = form.cleaned_data["workspace"]
         query = {"timezone": form.cleaned_data["timezone"]}
@@ -202,16 +213,33 @@ def event_detail(request, pk):
                         f"{reverse('events:detail', args=[event.pk])}?{urlencode({'timezone': timezone_name})}"
                     )
             event.refresh_from_db()
+    local_day = timezone.localtime(event.starts_at, ZoneInfo(timezone_name)).date()
     schedule_query = urlencode({
-        "date": timezone.localtime(event.starts_at, ZoneInfo(timezone_name)).date(),
+        "date": local_day,
         "view": "day",
         "timezone": timezone_name,
     })
+    members = {member["user"].pk: member for member in family_members([event.workspace])} if event.workspace_id else {}
+    same_day = []
+    if event.workspace_id:
+        day_start, day_end = local_day_bounds(local_day, ZoneInfo(timezone_name))
+        same_day = list(
+            family_events(request.user)
+            .filter(workspace_id=event.workspace_id, starts_at__lt=day_end, ends_at__gt=day_start)
+            .exclude(pk=event.pk)
+            .prefetch_related("participants")
+            .order_by("starts_at", "pk")[:6]
+        )
+        for other in same_day:
+            other.people = [members.get(person.pk, {"user": person}) for person in other.participants.all()]
     return render(
         request,
         "events/event_detail.html",
         {
             "event": event,
+            "people": [members.get(person.pk, {"user": person}) for person in event.participants.all()],
+            "same_day": same_day,
+            "local_day": local_day,
             "schedule_query": schedule_query,
             "list_url": list_url,
             "timezone_form": timezone_form,
@@ -266,7 +294,9 @@ def event_list(request, workspace_id=None):
             period_query=urlencode({"date": period["date"], "view": period["view"], **timezone_query}),
         )
         if period["view"] != "upcoming":
+            today = timezone.localdate(timezone=ZoneInfo(period["timezone"]))
             context.update(
+                is_current=period["start_date"] <= today <= period["last_date"],
                 start_date=period["start_date"],
                 last_date=period["last_date"],
                 previous_query=urlencode({"date": period["previous_date"], "view": period["view"], **timezone_query}),
@@ -274,7 +304,9 @@ def event_list(request, workspace_id=None):
             )
     if form.is_valid() and form.cleaned_data["view"] == "day":
         context.update(_day_timeline_context(request, workspace, events.prefetch_related("participants"), period))
-    page = Paginator(events, 20).get_page(request.GET.get("page"))
+    page = Paginator(events.prefetch_related("participants"), 20).get_page(request.GET.get("page"))
+    if not context.get("timeline"):
+        _add_people(page, workspace, request.user)
     context["page"] = page
     context.update(_google_calendar_context(request.user, workspace))
     return render(request, "events/event_list.html", context)
@@ -283,16 +315,24 @@ def event_list(request, workspace_id=None):
 def _day_timeline_context(request, workspace, events, period):
     workspaces = [workspace] if workspace else list(family_workspaces(request.user))
     members = family_members(workspaces)
-    timeline = build_day_timeline(
-        events, members, period["starts_at"], period["ends_at"], ZoneInfo(period["timezone"]), timezone.now()
-    )
+    tz = ZoneInfo(period["timezone"])
+    timeline = build_day_timeline(events, members, period["starts_at"], period["ends_at"], tz, timezone.now())
     # Colours are chosen per family, so the editor needs a single family on screen.
     color_workspace = workspaces[0] if len(workspaces) == 1 else None
     return {
         "timeline": timeline,
+        "day": vertical_day(timeline, tz),
         "color_workspace": color_workspace,
         "color_members": editable_members(request.user, color_workspace, members) if color_workspace else [],
     }
+
+
+def _add_people(page, workspace, user):
+    """Give each listed event its family members (hue, picked colour) so rows print in their colours."""
+    workspaces = [workspace] if workspace else list(family_workspaces(user))
+    members = {member["user"].pk: member for member in family_members(workspaces)}
+    for event in page:
+        event.people = [members.get(participant.pk, {"user": participant}) for participant in event.participants.all()]
 
 
 @login_required(login_url="accounts:login")

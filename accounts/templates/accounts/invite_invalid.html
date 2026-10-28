@@ -1,10 +1,7 @@
-{% extends 'events/base.html' %}
+{% extends 'accounts/_auth_page.html' %}
 {% block title %}Invitation not valid | Syncmily{% endblock %}
-{% block content %}
-    <section class="panel invite-panel">
-        <p class="eyebrow">INVITATION</p>
-        <h1>This link doesn't work</h1>
-        <p>The invitation link is invalid or has expired. Ask the person who invited you to send a new one.</p>
-        <a class="text-link" href="{% url 'accounts:login' %}">Go to sign in</a>
-    </section>
+{% block auth_body %}
+            <h1>This invite link doesn’t work</h1>
+            <p class="lede">It may have expired (invites last 7 days) or been used already. Ask the person who invited you to send a new one, and it will bring you straight to the family.</p>
+            <a class="btn btn-quiet btn-wide" href="{% url 'accounts:login' %}">Go to sign in</a>
 {% endblock %}

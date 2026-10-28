@@ -1,0 +1,19 @@
+{% extends 'events/_paint_page.html' %}
+{% comment %}
+    The sign-in layout (white form beside the family's paint deck), shared by sign-in, sign-up,
+    invites and the sign-in status pages. Pages fill auth_body.
+{% endcomment %}
+{% block shell %}{% endblock %}
+{% block switches %}{% endblock %}
+{% block main_class %}auth{% endblock %}
+{% block content %}
+    <section class="auth-form">
+        <a class="mark" href="{% url 'accounts:login' %}" translate="no"><svg width="26" height="26" viewBox="0 0 30 30" fill="none" aria-hidden="true"><rect x="3" y="5" width="24" height="22" rx="4" stroke="currentColor" stroke-width="2"/><path d="M3 12H27M10 3V8M20 3V8M10 18H14M17 18H20M10 22H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Syncmily</a>
+        <div class="auth-body">
+            {% block auth_body %}{% endblock %}
+        </div>
+    </section>
+    <div class="auth-deck" aria-hidden="true">
+        {% for hue in "abcd" %}<div data-hue="{{ hue }}"><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i></div>{% endfor %}
+    </div>
+{% endblock %}

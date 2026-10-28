@@ -1,209 +1,80 @@
-
-{% extends 'events/base.html' %}
-{% load tz %}
-
-{% block title %}My dashboard | Syncmily{% endblock %}
-
+{% extends 'events/_paint_page.html' %}
+{% load paint %}
+{% block title %}{{ request.user|person }}’s week | Syncmily{% endblock %}
 {% block content %}
-<div class="kid-dashboard">
+    {% include 'events/_flashes.html' %}
+    <div class="kid"{% if me_row %} data-hue="{{ me_row.hue }}"{% if me_row.custom_color %} style="--hue: {{ me_row.custom_color }}"{% endif %}{% endif %}>
+        <section class="kid-hero" aria-labelledby="kid-hello">
+            <div>
+                <h1 id="kid-hello">Hi <span translate="no">{{ request.user|person }}</span></h1>
+                <p>
+                    {% with first=today_chip.items.0 %}{% if first %}Today: {{ first.event.title }}{% if first.all_day %}, all day{% elif not first.starts_earlier %} at {{ first.event.starts_at|clock }}{% endif %}{% if today_chip.count > 1 %}, and {{ today_chip.count|add:"-1" }} more{% endif %}.{% else %}Today is a free day.{% endif %}{% endwith %}
+                    {% with next=tomorrow_chip.items.0 %}{% if tomorrow_chip %}{% if next %}Tomorrow: {{ next.event.title }}{% if next.all_day %}, all day{% elif not next.starts_earlier %} at {{ next.event.starts_at|clock }}{% endif %}.{% else %}Tomorrow is free too.{% endif %}{% endif %}{% endwith %}
+                </p>
+            </div>
+            <p class="kid-date">{{ today|date:"l" }}<strong>{{ today|date:"j" }}</strong>{{ today|date:"F" }}</p>
+        </section>
 
-    {% include 'accounts/_messages.html' %}
-
-    <!-- Welcome Section -->
-    <header class="kid-hero">
-        <div>
-            <p class="kid-hello">
-                Hi {{ request.user.username }}!
-                <span aria-hidden="true">👋</span>
-            </p>
-
-            <h1>Today is {% now 'l' %}</h1>
-            <p>Here's what's happening with {{ workspace.name }}.</p>
-        </div>
-
-        <div class="kid-today" aria-hidden="true">
-            {% now 'M' %}
-            <strong>{% now 'j' %}</strong>
-        </div>
-    </header>
-
-    <!-- My Week -->
-    {% if my_week %}
-    <section class="kid-week-section" aria-labelledby="kid-week-heading">
-        <div class="kid-week-head">
-            <h2 id="kid-week-heading">
-                <span aria-hidden="true">📅</span>
-                My week
-                <small>{{ week_start|date:"M j" }} – {{ week_last|date:"M j" }}</small>
-            </h2>
-            <nav class="kid-week-nav" aria-label="Change week">
-                <a href="?week={{ previous_week }}">Previous</a>
-                <a href="{% url 'accounts:dashboard' %}" {% if is_this_week %}aria-current="true"{% endif %}>This week</a>
-                <a href="?week={{ next_week }}">Next</a>
-            </nav>
-        </div>
-
-        <ol class="kid-week">
-            {% for chip in my_week.chips %}
-                <li class="kid-day kid-day-{{ forloop.counter }}{% if chip.is_today %} is-today{% endif %}{% if not chip.items %} is-free{% endif %}">
-                    <a class="kid-day-link" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">
-                        <span class="kid-day-name">{{ chip.date|date:"D" }}</span>
-                        <span class="kid-day-date">{{ chip.date|date:"j" }}</span>
-                        {% if chip.is_today %}<span class="kid-day-badge">Today</span>{% endif %}
-                    </a>
-                    {% for item in chip.items %}
-                        <a class="kid-plan{% if item.tentative %} is-maybe{% endif %}" href="{% url 'events:detail' item.event.pk %}">
-                            <time>{% if item.all_day %}All day{% elif item.starts_earlier %}Continues{% else %}{{ item.event.starts_at|time:"g:i A" }}{% endif %}</time>
-                            <span>{{ item.event.title }}</span>
-                            {% if not item.event.participants.all %}<small>Whole family</small>{% endif %}
-                            {% if item.tentative %}<small>Maybe</small>{% endif %}
-                        </a>
-                    {% empty %}
-                        <p class="kid-free">Free day</p>
-                    {% endfor %}
-                    {% if chip.more %}<a class="kid-more" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">+{{ chip.more }} more</a>{% endif %}
-                </li>
+        <h2>Coming up</h2>
+        <div class="kid-today">
+            {% for event in kid_upcoming %}
+                <a class="kid-plan l{% if forloop.first %}3{% else %}2{% endif %}{% if event.is_tentative %} tent{% endif %}" href="{% url 'events:detail' event.pk %}" data-dialog>
+                    <span class="kid-when">{{ event.starts_at|day_label:"l" }}, {{ event.starts_at|clock }}</span>
+                    <b>{{ event.title }}</b>
+                    {% if event.is_tentative %}Not sure yet{% elif event.location %}{{ event.location }}{% else %}&nbsp;{% endif %}
+                    {% if event.requires_transport %}<small class="kid-ride">{% include "events/_driver_summary.html" %}</small>{% endif %}
+                </a>
+            {% empty %}
+                <p class="kid-free">Nothing planned yet. Free time.</p>
             {% endfor %}
-        </ol>
-    </section>
-    {% endif %}
+        </div>
+        {% if can_view_events %}<p class="kid-more"><a href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">See everything coming up</a></p>{% endif %}
 
-    <!-- Today's Timeline (only while looking at this week) -->
-    {% if rail %}
-    <section class="kid-timeline-section" aria-labelledby="kid-timeline-heading">
-        <h2 id="kid-timeline-heading">
-            <span aria-hidden="true">⏰</span>
-            My day
-            <small>{{ today|date:"l, M j" }} · {% if rail.items %}{{ rail.items|length }} plan{{ rail.items|length|pluralize }}{% else %}nothing planned{% endif %}</small>
-        </h2>
-        <div class="kid-timeline">
-            <div class="kid-rail">
-                {% for hour in rail.hours %}
-                    <i style="top:{{ hour.top }}%"><span>{% if hour.hour == 0 %}12 AM{% elif hour.hour < 12 %}{{ hour.hour }} AM{% elif hour.hour == 12 %}12 PM{% else %}{{ hour.hour|add:"-12" }} PM{% endif %}</span></i>
+        {% if me_row %}
+            <div class="kid-week-head">
+                <h2>My week <span class="span">{{ week_start|date:"M j" }} to {{ week_last|date:"M j" }}</span></h2>
+                <nav class="seg" aria-label="Change week">
+                    <a href="?week={{ previous_week }}">Previous</a>
+                    <a href="{% url 'accounts:dashboard' %}"{% if is_this_week %} aria-current="true"{% endif %}>This week</a>
+                    <a href="?week={{ next_week }}">Next</a>
+                </nav>
+            </div>
+            <div class="kid-week">
+                {% for chip in me_row.chips %}
+                    <a class="chip l{{ chip.level }}{% if chip.tentative %} tent{% endif %}{% if chip.is_today %} is-today{% endif %}" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">
+                        <strong>{% if chip.is_today %}Today{% else %}{{ chip.date|date:"D j" }}{% endif %}</strong>
+                        {% for item in chip.items %}
+                            <span>{{ item.event.title }}{% if item.tentative %}<span class="sr-only"> (not sure yet)</span>{% endif %}{% if item.all_day %}, all day{% elif not item.starts_earlier %} at {{ item.event.starts_at|clock }}{% endif %}</span>
+                        {% empty %}
+                            <span>Free day</span>
+                        {% endfor %}
+                        {% if chip.more %}<span class="more">and {{ chip.more }} more</span>{% endif %}
+                    </a>
                 {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if rail %}
+            <h2>My day <span class="span">{{ today|date:"l j F" }} · {% if rail.items %}{{ rail.items|length }} plan{{ rail.items|length|pluralize }}{% else %}nothing planned{% endif %}</span></h2>
+            <div class="kid-rail" aria-label="Today from 7 AM to midnight">
+                {% for hour in rail.hours %}<i class="kid-hour" style="top:{{ hour.top }}%"><span>{% if hour.hour == 0 %}12 AM{% elif hour.hour < 12 %}{{ hour.hour }} AM{% elif hour.hour == 12 %}12 PM{% else %}{{ hour.hour|add:"-12" }} PM{% endif %}</span></i>{% endfor %}
                 {% for item in rail.items %}
-                    <a class="kid-slot kid-slot-{{ forloop.counter|divisibleby:2|yesno:'b,a' }}{% if item.event.is_tentative %} is-maybe{% endif %}"
-                       style="top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"
-                       href="{% url 'events:detail' item.event.pk %}">
-                        <time>{{ item.event.starts_at|time:"g:i A" }}</time>
-                        <span>{{ item.event.title }}</span>
+                    <a class="kid-slot{% if item.event.is_tentative %} tent{% endif %}" data-hue="{% if item.member %}{{ item.member.hue }}{% else %}{{ me.hue }}{% endif %}"{% if item.member.custom_color %} style="--hue:{{ item.member.custom_color }};top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"{% else %} style="top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"{% endif %} href="{% url 'events:detail' item.event.pk %}" data-dialog>
+                        <time>{{ item.event.starts_at|clock }}</time> <b>{{ item.event.title }}</b>
                     </a>
                 {% endfor %}
                 {% if rail.now_top is not None %}<div class="kid-now" style="top:{{ rail.now_top }}%"><span>Now</span></div>{% endif %}
             </div>
-        </div>
-    </section>
-    {% endif %}
-
-    <!-- Upcoming Events -->
-    <section aria-labelledby="kid-events-heading">
-        <h2 id="kid-events-heading">
-            <span aria-hidden="true">🗓️</span>
-            Coming up next
-        </h2>
-
-        <div class="kid-events">
-            {% for event in upcoming_events %}
-                {% timezone event.timezone_name %}
-                    <article class="kid-event kid-color-{{ forloop.counter }}">
-                        <p class="kid-event-day">
-                            {{ event.starts_at|date:'l, M j' }}
-                        </p>
-
-                        <h3>
-                            <a data-dialog
-                               href="{% url 'events:detail' event.pk %}">
-                                {{ event.title }}
-                            </a>
-                        </h3>
-
-                        <p>
-                            {{ event.starts_at|time:"g:i A" }}
-                            {% if event.location %}
-                                · {{ event.location }}
-                            {% endif %}
-                        </p>
-                        {% if event.requires_transport %}<p>{% include "events/_driver_summary.html" %}</p>{% endif %}
-                    </article>
-                {% endtimezone %}
-            {% empty %}
-                <p class="kid-empty">
-                    <span aria-hidden="true">🎉</span>
-                    Nothing planned yet. Free time!
-                </p>
-            {% endfor %}
-        </div>
-
-        {% if can_view_events %}
-            <a class="text-link"
-               href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">
-                Open the full schedule
-                <span aria-hidden="true">→</span>
-            </a>
         {% endif %}
-    </section>
 
-    <!-- Family Checklists -->
-    <section aria-labelledby="kid-checklists-heading">
-
-        <h2 id="kid-checklists-heading">
-            <span aria-hidden="true">✅</span>
-            Family Checklists
-        </h2>
-
-        <div class="kid-events">
-            <article class="kid-event kid-color-2">
-
-                <p class="kid-event-day">
-                    LITTLE TASKS, BIG TEAMWORK
-                </p>
-
-                <h3>Ready, set, check!</h3>
-
-                <p>
-                    Packing your school bag? Getting ready
-                    for a family trip? See what needs to
-                    be done and check off your tasks.
-                </p>
-
-                <a class="text-link"
-                   href="{% url 'checklists:list' workspace.pk %}">
-                    Open Family Checklists
-                    <span aria-hidden="true">→</span>
-                </a>
-
-            </article>
-        </div>
-
-    </section>
-
-    <!-- Family Members -->
-    <section aria-labelledby="kid-family-heading">
-        <h2 id="kid-family-heading">
-            <span aria-hidden="true">🏠</span>
-            My family
-        </h2>
-
-        <ul class="kid-family">
-            <li>
-                <span class="kid-bubble">
-                    {{ workspace.primary_admin.username|first|upper }}
-                </span>
-                {{ workspace.primary_admin.username }}
-            </li>
-
-            {% for member in members %}
-                {% if not member.is_pending %}
-                    <li>
-                        <span class="kid-bubble {% if member.role == 'kid' %}kid-bubble-kid{% endif %}">
-                            {{ member.user.username|first|upper }}
-                        </span>
-                        {{ member.user.username }}
-                    </li>
-                {% endif %}
+        <h2>Your family <span class="span">{{ workspace.name }}</span></h2>
+        <ul class="family-dots">
+            {% for member in family %}
+                <li data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}><span class="dot" aria-hidden="true">{{ member.user|initial }}</span><span translate="no">{% if member.user == request.user %}You{% else %}{{ member.user|person }}{% endif %}</span></li>
             {% endfor %}
         </ul>
-    </section>
 
-</div>
+        <h2>Checklists</h2>
+        <p class="kid-more"><a href="{% url 'checklists:list' workspace.pk %}">Open the family checklists</a> to see what needs doing and tick things off.</p>
+    </div>
 {% endblock %}
