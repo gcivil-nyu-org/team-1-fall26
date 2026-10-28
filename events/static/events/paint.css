@@ -74,8 +74,9 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .paint .l0 { color: var(--s5); }
 .l1 { background: var(--s2); }
 .l2 { background: var(--s3); }
-.paint .l3 { background: var(--s4); color: #fff; }
-.paint .l4 { background: var(--s5); color: #fff; }
+.paint .l2 { color: var(--s3t, var(--paint-ink)); }
+.paint .l3 { background: var(--s4); color: var(--s4t, #fff); }
+.paint .l4 { background: var(--s5); color: var(--s5t, #fff); }
 [data-theme="dark"] .paint .l0 { background: color-mix(in oklab, var(--s5) 30%, var(--card)); color: var(--s2); }
 /* Not confirmed yet: a dashed edge inset in the chip, in the chip's own ink. */
 .tent { outline: 1.5px dashed currentColor; outline-offset: -5px; }
@@ -96,7 +97,7 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .tl-rail > i { position: absolute; left: -50px; font-style: normal; font-size: 12px; color: var(--muted); transform: translateY(-8px); }
 /* Plans that would collide share the width: --col of --cols columns, 4px apart. */
 .ev { position: absolute; left: calc(12px + (100% - 12px) * var(--col, 0) / var(--cols, 1)); width: calc((100% - 12px) / var(--cols, 1) - 4px); min-height: 24px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 3px; padding: 4px 10px; font-size: 12px; line-height: 16px; text-decoration: none; background: var(--s3); color: var(--paint-ink); }
-.paint .ev { color: var(--paint-ink); }
+.paint .ev { color: var(--s3t, var(--paint-ink)); }
 .ev:hover { filter: brightness(.96); }
 .now { position: absolute; left: -4px; right: 0; height: 2px; background: var(--ink); z-index: 1; }
 .now::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
@@ -177,12 +178,15 @@ a.row:hover b, a.row:hover .grow { text-decoration: underline; text-decoration-t
 .row .when small { font-weight: 400; }
 body.paint .dot.dot-quiet { background: var(--raised); color: var(--muted); }
 .paint .row.tent { outline: 0; }
-.row.tent .dot { outline: 1.5px dashed var(--s4, var(--ink)); outline-offset: 2px; background: transparent; color: var(--s5, var(--ink)); }
+.row.tent .dot { outline: 1.5px dashed var(--s5, var(--ink)); outline-offset: 2px; background: transparent; color: var(--s5, var(--ink)); }
 .day-sep { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; padding: 16px 0 6px; font-size: 13px; line-height: 20px; font-weight: 600; }
 .day-sep span { color: var(--muted); font-size: 12px; font-weight: 400; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; }
 .pill.tent { background: transparent; color: var(--ink); outline: 1.5px dashed currentColor; outline-offset: -1.5px; }
-[data-theme="dark"] .paint .pill[data-hue], [data-theme="dark"] .paint [data-hue] > .pill { background: color-mix(in oklab, var(--s5) 40%, var(--card)); color: var(--s1); }
+[data-theme="dark"] .paint .pill[data-hue], [data-theme="dark"] .paint [data-hue] > .pill { background: color-mix(in oklab, var(--s5) 40%, var(--card)); color: var(--s2); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .paint .pill[data-hue], :root:not([data-theme="light"]) .paint [data-hue] > .pill { background: color-mix(in oklab, var(--s5) 40%, var(--card)); color: var(--s2); }
+}
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .paint a.pill { text-decoration: none; }
 .paint a.pill:hover { text-decoration: underline; }
@@ -330,6 +334,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
   .plans { display: block; }
   .plans li { position: absolute; z-index: 1; top: var(--top); height: var(--h); min-height: 26px; left: calc(4px + (100% - 8px) * var(--col) / var(--cols)); width: calc((100% - 8px) / var(--cols) - 4px); }
   .plan { position: absolute; inset: 0; display: block; overflow: hidden; padding: 5px 8px; background: var(--s3); font-size: 12px; line-height: 16px; }
+  .paint .plan { color: var(--s3t, var(--paint-ink)); }
   .plan b, .plan time, .plan .maybe { display: block; }
   /* Short plans keep the title and time on one line; "Not confirmed" stays for screen readers (the dashed edge shows it). */
   .plans li { container: plan / size; }
@@ -379,7 +384,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .paint .who-pick label { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; padding: 6px 16px 6px 6px; border-radius: 999px; background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color .15s, color .15s; }
 .paint .who-pick input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
 .who-pick .sw { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--s3, var(--control)); }
-.paint .who-pick label:has(input:checked) { background: var(--s4, var(--ink)); color: var(--on-deep); }
+.paint .who-pick label:has(input:checked) { background: var(--s4, var(--ink)); color: var(--s4t, var(--on-deep)); }
 .who-pick label:has(input:checked) .sw::after { content: ""; width: 11px; height: 6px; margin-top: -3px; border: solid var(--paint-ink); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
 .who-pick label:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .who-pick label:hover { filter: brightness(.97); }
@@ -461,9 +466,9 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .check-row small { display: block; color: var(--muted); font-size: 12px; }
 .check-row.done b { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .box { display: grid; place-items: center; width: 44px; height: 44px; margin-left: -10px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
-.box span { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--s4, var(--ink)); border-radius: 50%; transition: background-color .15s; }
+.box span { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--s5, var(--ink)); border-radius: 50%; transition: background-color .15s; }
 .box[aria-checked="true"] span { background: var(--s4, var(--ink)); }
-.box[aria-checked="true"] span::after { content: ""; width: 10px; height: 5px; margin-top: -2px; border: solid var(--on-deep); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+.box[aria-checked="true"] span::after { content: ""; width: 10px; height: 5px; margin-top: -2px; border: solid var(--s4t, var(--on-deep)); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
 .box:hover span { background: color-mix(in oklab, var(--s4, var(--ink)) 14%, transparent); }
 .box[aria-checked="true"]:hover span { background: var(--s4, var(--ink)); }
 .row-tools { display: flex; gap: 2px; }
@@ -509,18 +514,19 @@ body.paint .btn-small:hover { background: var(--raised); color: var(--ink); }
 .auth-body .form-error { margin-bottom: 16px; }
 .auth-body h1:first-child { margin-top: 40px; }
 
-/* ===== Kid view: one big card in the kid's own colour (kid mockup) ===== */
+/* ===== Kid view: white cards with the kid's colour as the accent (kid mockup) ===== */
 .kid { max-width: 1080px; margin: 0 auto; }
-.kid-hero { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; padding: 32px; border-radius: 8px; background: var(--s3, var(--raised)); color: var(--paint-ink); }
+.kid-hero { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; padding: 32px; border-radius: 8px; border-top: 8px solid var(--s3, var(--line)); background: var(--card); color: var(--ink); }
 .paint .kid-hero h1 { font-size: 40px; line-height: 44px; letter-spacing: -0.02em; }
 .paint .kid-hero p { margin-top: 8px; font-size: 18px; line-height: 26px; }
-.paint .kid-date { margin: 0; padding: 12px 20px; border-radius: 8px; background: var(--s1, var(--card)); color: var(--s5, var(--ink)); font-size: 15px; font-weight: 600; text-align: center; }
+.paint .kid-date { margin: 0; padding: 12px 20px; border-radius: 8px; background: var(--s3, var(--raised)); color: var(--s3t, var(--ink)); font-size: 15px; font-weight: 600; text-align: center; }
 .kid-date strong { display: block; font-size: 48px; line-height: 52px; }
 .paint .kid h2 { margin: 32px 0 12px; font-size: 22px; line-height: 28px; }
 .kid-today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .kid-plan { display: block; padding: 20px; border-radius: 8px; color: var(--paint-ink); font-size: 18px; line-height: 26px; text-decoration: none; }
 .paint .kid-plan { color: var(--paint-ink); }
-.paint .kid-plan.l3 { color: var(--on-deep); }
+.paint .kid-plan.l2 { border-left: 8px solid var(--s3, var(--line)); background: var(--card); color: var(--ink); }
+.paint .kid-plan.l3 { color: var(--s4t, var(--on-deep)); }
 .kid-plan .kid-when { display: block; font-size: 15px; font-weight: 600; }
 .kid-plan b { display: block; margin: 4px 0; font-size: 22px; line-height: 28px; }
 .kid-plan:hover b { text-decoration: underline; }
@@ -588,3 +594,15 @@ body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
 .schedule-side .foot-tools .btn, .schedule-side .disclose summary { justify-self: start; }
 .schedule-side .inline-form { display: grid; gap: 12px; }
 .checklist h2.sr-only + .check-row { border-top: 0; }
+
+/* Member outlines (checkbox rings, unconfirmed dots): the deepest step on light cards, step 3 on dark ones. */
+[data-theme="dark"] .paint .box span, [data-theme="dark"] .paint .row.tent .dot { border-color: var(--s3, var(--ink)); outline-color: var(--s3, var(--ink)); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .paint .box span, :root:not([data-theme="light"]) .paint .row.tent .dot { border-color: var(--s3, var(--ink)); outline-color: var(--s3, var(--ink)); }
+}
+
+/* Dark: a member's quiet tint is dark, so its text is the pale step 2 (as on the .l0 chip). */
+[data-theme="dark"] .paint .who-pick label:not(:has(input:checked)) { color: var(--s2, var(--ink)); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .paint .who-pick label:not(:has(input:checked)) { color: var(--s2, var(--ink)); }
+}

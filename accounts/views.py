@@ -542,7 +542,7 @@ def set_palette(request, workspace_id):
     workspace = get_object_or_404(family_workspaces(request.user, caregivers_only=True), pk=workspace_id)
     palette = request.POST.get("palette", "")
     if palette not in Workspace.Palette.values:
-        return HttpResponseBadRequest("Choose Primaries, Garden or Bold.")
+        return HttpResponseBadRequest("Choose Saturday market, Morning garden or Crayon box.")
     if workspace.palette != palette:
         workspace.palette = palette
         workspace.save(update_fields=["palette"])

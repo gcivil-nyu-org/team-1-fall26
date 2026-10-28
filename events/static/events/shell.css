@@ -2,84 +2,166 @@
  * Colour is data (who); chrome is ink and white.
  *
  * Loaded on every page. Pages already moved to the new design add `paint` to <body> and load paint.css.
- * The older pages still define --ink, --line and --track on :root, so the tokens here live on `.ui`
- * (the bar and ported page bodies) instead of :root, and dark mode only applies to
- * ported pages. Selectors in the chrome are prefixed with .bar so they beat the older
+ * The older pages still define --ink, --muted, --line and --track on :root, so those names (and the
+ * canvas, --counter) live on `.ui` (the bar and ported page bodies) instead of :root, and dark mode only
+ * applies to ported pages. Selectors in the chrome are prefixed with .bar so they beat the older
  * global button and link rules. */
 /* Schibsted Grotesk is linked in base.html (a <link> loads in parallel; @import would chain). */
 
-/* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
- * The family's deck (Workspace.palette) is set as data-deck on <body>; Primaries is the default.
- * e..h were derived in OKLCH from each deck's own a-ramp lightness steps. Every ramp keeps 4.5:1 for
- * dark ink on step 3, white on steps 4-5, and step 5 text on step 1. */
-:root, [data-deck="primaries"] {
-  --a1:#e3eefb; --a2:#bcd6f5; --a3:#86b3ea; --a4:#2c68b8; --a5:#1d4f91;   /* Harbor blue */
-  --b1:#e4f3e1; --b2:#bfe2b8; --b3:#8ccb80; --b4:#2e7a2b; --b5:#21602a;   /* Fern */
-  --c1:#fdf3d2; --c2:#fbe39a; --c3:#f6c84a; --c4:#94640a; --c5:#6b4500;   /* Marigold */
-  --d1:#fde6e1; --d2:#fac2b6; --d3:#f48f7a; --d4:#bf3f28; --d5:#93301f;   /* Coral */
-  --e1:#edeafa; --e2:#d5cdf2; --e3:#b4a4e5; --e4:#7055b0; --e5:#563f8b;   /* Violet */
-  --f1:#ddf1f1; --f2:#addede; --f3:#5fc2c2; --f4:#017979; --f5:#015c5d;   /* Teal */
-  --g1:#f8e7f0; --g2:#edc6db; --g3:#db98bd; --g4:#9f427b; --g5:#7c2f5f;   /* Magenta */
-  --h1:#e9edf2; --h2:#cbd4df; --h3:#a1b2c4; --h4:#546c85; --h5:#3e5267;   /* Slate */
-}
-[data-deck="garden"] {
-  --a1:#e8efe9; --a2:#c6d8ca; --a3:#97b89e; --a4:#4a6e52; --a5:#2f4a35;   /* Sage */
-  --b1:#f1e8f0; --b2:#dcc4d9; --b3:#bd96b8; --b4:#7a4a74; --b5:#55304f;   /* Plum */
-  --c1:#f6eedd; --c2:#e8d2a3; --c3:#d4b066; --c4:#8a6420; --c5:#5e4313;   /* Ochre */
-  --d1:#e2f0f0; --d2:#b8dbdb; --d3:#7fbcbc; --d4:#2f6f72; --d5:#1d4a4c;   /* Teal */
-  --e1:#ececf5; --e2:#d2cfe7; --e3:#ada8d3; --e4:#635d8b; --e5:#423d60;   /* Lavender */
-  --f1:#f6eae5; --f2:#e9cbbe; --f3:#d6a089; --f4:#8c533a; --f5:#603622;   /* Terracotta */
-  --g1:#e6eef5; --g2:#c1d5e7; --g3:#8eb3d3; --g4:#3e688b; --g5:#264660;   /* Dusty blue */
-  --h1:#edeee4; --h2:#d3d5bd; --h3:#b0b285; --h4:#666834; --h5:#44451e;   /* Moss */
-}
-[data-deck="bold"] {
-  --a1:#e4e9ff; --a2:#bac6ff; --a3:#7f95ff; --a4:#2f4fe0; --a5:#1c2f99;   /* Cobalt */
-  --b1:#ffe3f1; --b2:#ffb8da; --b3:#ff7fbb; --b4:#c21f6e; --b5:#8a124c;   /* Magenta */
-  --c1:#eef6d6; --c2:#d6eb9a; --c3:#b4d64f; --c4:#5b7a10; --c5:#3d530a;   /* Lime */
-  --d1:#ffead9; --d2:#ffcaa0; --d3:#ff9a52; --d4:#c4510c; --d5:#8a3706;   /* Tangerine */
-  --e1:#ede6fb; --e2:#d1bff5; --e3:#ad87ed; --e4:#7a36c7; --e5:#501d87;   /* Violet */
-  --f1:#d8eff2; --f2:#97d6de; --f3:#01b3c2; --f4:#01727b; --f5:#034950;   /* Cyan */
-  --g1:#fbe4e2; --g2:#f4b9b3; --g3:#e67b74; --g4:#b81b25; --g5:#7b0512;   /* Red */
-  --h1:#f0ead8; --h2:#dac89a; --h3:#bd9a31; --h4:#7b6103; --h5:#4f3e03;   /* Gold */
+/* Colour tokens. Values come from docs/design/palette.py (OKLCH in, hex out; --write regenerates this region);
+ * docs/design/check_colours.py measures every pair the pages use (WCAG 2.x and APCA) and colour-blind separation,
+ * and fails on a miss. Roles, values and how to add a colour: docs/design/colour.md. Components use the roles,
+ * not the --nNN ramp. */
+
+/* Neutrals: one warm ramp at the canvas hue (OKLCH h 83). The number is the OKLCH lightness. */
+:root {
+  --n100:#ffffff; --n98:#fbf7f0; --n96:#f6f1e9; --n92:#ece3d4; --n80:#c2bdb5; --n56:#78746c;
+  --n47:#5e5a53; --n31:#33302b; --n27:#292622; --n23:#1f1d19; --n20:#191714; --n18:#13110f;
 }
 
+/* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
+ * The family's deck (Workspace.palette) is set as data-deck on <body> on every page; Saturday market
+ * ("primaries") is the default, Morning garden ("garden") and Crayon box ("bold") are the options.
+ * Each colour keeps its natural lightness, and --x1t..--x5t give the text each step carries
+ * (--paint-ink or --on-paint-deep). Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4
+ * for protan, deutan and tritan vision. */
+:root, [data-deck="primaries"] {
+  --a1:#eff4fe; --a2:#d2e0fd; --a3:#91b3fd; --a4:#436ed8; --a5:#3253a7;   /* Harbor blue */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#e3faed; --b2:#b1f1ce; --b3:#55f1ac; --b4:#2b845c; --b5:#1e6445;   /* Jade */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fef3d3; --c2:#fcdd7e; --c3:#facc1f; --c4:#f89d19; --c5:#a7490d;   /* Sunflower */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#fef0ed; --d2:#fdd5ce; --d3:#fd9886; --d4:#c94634; --d5:#9a3325;   /* Tomato */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#ddfafa; --e2:#9ef1f1; --e3:#55eaec; --e4:#2a8081; --e5:#1e6061;   /* Lagoon */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--on-paint-deep); --e5t:var(--on-paint-deep);
+  --f1:#f7f0fe; --f2:#e9d7fd; --f3:#d09efd; --f4:#9457c5; --f5:#704096;   /* Grape */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#feeff2; --g2:#fdd3dc; --g3:#fd91af; --g4:#c5426f; --g5:#963053;   /* Berry */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#edf8e3; --h2:#cfebb2; --h3:#ade660; --h4:#7acc5b; --h5:#267d30;   /* Lime */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--paint-ink); --h5t:var(--on-paint-deep);
+  --a-name:"Harbor blue"; --b-name:"Jade"; --c-name:"Sunflower"; --d-name:"Tomato"; --e-name:"Lagoon"; --f-name:"Grape"; --g-name:"Berry"; --h-name:"Lime";
+}
+[data-deck="garden"] {
+  --a1:#f0f3fe; --a2:#d5dffc; --a3:#9bb0fa; --a4:#586ecf; --a5:#4253a0;   /* Bluebell */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#e4faed; --b2:#b4f0d0; --b3:#65efb1; --b4:#2b845e; --b5:#1e6446;   /* Fern */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fef3d5; --c2:#fcdd86; --c3:#f6cc4b; --c4:#f2a036; --c5:#a14e20;   /* Buttercup */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#fef0ee; --d2:#fcd5d2; --d3:#fb9892; --d4:#c24d4c; --d5:#943837;   /* Poppy */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#f1f6e2; --e2:#dbe7af; --e3:#c8de64; --e4:#82ca68; --e5:#327b38;   /* Pear */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--paint-ink); --e5t:var(--on-paint-deep);
+  --f1:#feeff4; --f2:#fcd3e1; --f3:#fb91bb; --f4:#ba4c7d; --f5:#8e375e;   /* Peony */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#f6f0fe; --g2:#e8d7fc; --g3:#cca1fa; --g4:#8f5ebe; --g5:#6c4592;   /* Iris */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#fef1e6; --h2:#fcd8ba; --h3:#f99d43; --h4:#ab6313; --h5:#834b0c;   /* Apricot */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--on-paint-deep); --h5t:var(--on-paint-deep);
+  --a-name:"Bluebell"; --b-name:"Fern"; --c-name:"Buttercup"; --d-name:"Poppy"; --e-name:"Pear"; --f-name:"Peony"; --g-name:"Iris"; --h-name:"Apricot";
+}
+[data-deck="bold"] {
+  --a1:#eaf3fe; --a2:#c7dffd; --a3:#7cb6fe; --a4:#0474dd; --a5:#0258ab;   /* Cobalt */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#defaea; --b2:#a2f1c9; --b3:#54edad; --b4:#2b845e; --b5:#1e6446;   /* Grass */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fcf3c6; --c2:#f9dd4a; --c3:#eccd0e; --c4:#fa9d0b; --c5:#a94703;   /* Lemon */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#feeeea; --d2:#fdd0c7; --d3:#fe9782; --d4:#d53617; --d5:#a12912;   /* Red */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#dbf8fd; --e2:#98ecfa; --e3:#51e0f5; --e4:#2a7e8a; --e5:#1e5f69;   /* Sky */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--on-paint-deep); --e5t:var(--on-paint-deep);
+  --f1:#feedf0; --f2:#fdced6; --f3:#fe92a9; --f4:#d22e65; --f5:#9f234c;   /* Raspberry */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#f9edfe; --g2:#efcffd; --g3:#e097fe; --g4:#a448c7; --g5:#7c3696;   /* Purple */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#ecf6dd; --h2:#cee8a3; --h3:#b3e14b; --h4:#69cd40; --h5:#267d30;   /* Lime */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--paint-ink); --h5t:var(--on-paint-deep);
+  --a-name:"Cobalt"; --b-name:"Grass"; --c-name:"Lemon"; --d-name:"Red"; --e-name:"Sky"; --f-name:"Raspberry"; --g-name:"Purple"; --h-name:"Lime";
+}
+
+/* Colour roles. Global, so accounts.css and checklists.css can use them on pages not yet ported. */
+:root {
+  --card:var(--n100); --raised:var(--n96); --control:var(--n56);
+  --primary:var(--n20); --on-primary:var(--n100);
+  --paint-ink:var(--n20); --on-paint-deep:var(--n100); --fixed-white:var(--n100); --fixed-ink:var(--n20);
+  --focus:var(--n20); --selection:var(--n80); --on-selection:var(--n20); --shadow:var(--n18); --backdrop:#13110f66;
+  --danger:#b3261e; --danger-soft:#ffeeeb; --success:#297243; --success-soft:#e9f7ec;
+  --warning:#8d5b11; --warning-soft:#fef2d5; --info:#3063a6; --info-soft:#ebf3ff;
+}
 .ui, body.paint {
-  --counter:#e9ecea; --card:#ffffff; --raised:#f4f6f5;
-  --ink:#181a19; --muted:#585d5a; --line:#dfe3e0; --control:#c4cac6;
-  --primary:#181a19; --on-primary:#ffffff;
-  --paint-ink:#181a19;
-  --danger:#b3261e;
-  --track:#e3e7e4cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
+  --counter:var(--n98); --ink:var(--n20); --muted:var(--n47); --line:var(--n92);
+  --track:#ece3d4cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
   --radius:4px; --radius-control:6px;
   --font:"Schibsted Grotesk", system-ui, sans-serif;
 }
-[data-theme="dark"] body.paint, [data-theme="dark"] body.paint .ui {
-  --counter:#111312; --card:#1b1e1c; --raised:#232724;
-  --ink:#f1f3f2; --muted:#b0b6b2; --line:#2e3330; --control:#4a504c;
-  --primary:#f1f3f2; --on-primary:#111312;
-  --danger:#ff8a80;
-  --track:#262a28cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
-}
-/* On the root so scrollbars and form controls follow the theme too. */
-:root:has(body.paint) { color-scheme: light; }
-:root[data-theme="dark"]:has(body.paint) { color-scheme: dark; }
+body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 
-/* Member hue: set data-hue on any element and use --s1..--s5 inside it. */
-[data-hue="a"] { --s1:var(--a1); --s2:var(--a2); --s3:var(--a3); --s4:var(--a4); --s5:var(--a5); }
-[data-hue="b"] { --s1:var(--b1); --s2:var(--b2); --s3:var(--b3); --s4:var(--b4); --s5:var(--b5); }
-[data-hue="c"] { --s1:var(--c1); --s2:var(--c2); --s3:var(--c3); --s4:var(--c4); --s5:var(--c5); }
-[data-hue="d"] { --s1:var(--d1); --s2:var(--d2); --s3:var(--d3); --s4:var(--d4); --s5:var(--d5); }
-[data-hue="e"] { --s1:var(--e1); --s2:var(--e2); --s3:var(--e3); --s4:var(--e4); --s5:var(--e5); }
-[data-hue="f"] { --s1:var(--f1); --s2:var(--f2); --s3:var(--f3); --s4:var(--f4); --s5:var(--f5); }
-[data-hue="g"] { --s1:var(--g1); --s2:var(--g2); --s3:var(--g3); --s4:var(--g4); --s5:var(--g5); }
-[data-hue="h"] { --s1:var(--h1); --s2:var(--h2); --s3:var(--h3); --s4:var(--h4); --s5:var(--h5); }
-/* A colour a parent picked (style="--hue:#rrggbb") replaces the deck: the ramp is mixed from it.
- * Steps 4-5 carry white text, so they are darkened well past the picked colour. */
-[data-hue][style*="--hue"] {
-  --s1:color-mix(in oklab, var(--hue) 14%, #fff); --s2:color-mix(in oklab, var(--hue) 34%, #fff);
-  --s3:color-mix(in oklab, var(--hue) 62%, #fff); --s4:color-mix(in oklab, var(--hue) 62%, #000);
-  --s5:color-mix(in oklab, var(--hue) 42%, #000);
+/* Dark: ported pages only. The theme switch sets data-theme (theme_boot.js, before first paint); with
+ * scripts off the OS setting applies. Both blocks hold the same values (check_colours.py compares them).
+ * Chips keep their paint, so a member's colour is the same at night; quiet chips (step 1) dim into the card. */
+[data-theme="dark"] body.paint, [data-theme="dark"] body.paint .ui {
+  --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
+  --ink:var(--n98); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+  --primary:var(--n98); --on-primary:var(--n18); --accent:var(--n98);
+  --paint-ink:var(--n20); --on-paint-deep:var(--n100);
+  --focus:var(--n98); --selection:var(--n31); --on-selection:var(--n98); --backdrop:#000000a3;
+  --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
+  --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
+  --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
 }
+[data-theme="dark"] body.paint[data-deck="primaries"] { --a1:#252e41; --b1:#233126; --c1:#452b1c; --d1:#42261e; --e1:#23302d; --f1:#35293c; --g1:#412529; --h1:#273821; }
+[data-theme="dark"] body.paint[data-deck="garden"] { --a1:#292e3f; --b1:#233126; --c1:#442c1e; --d1:#412722; --e1:#283723; --f1:#3f262c; --g1:#342a3b; --h1:#3b2b1b; }
+[data-theme="dark"] body.paint[data-deck="bold"] { --a1:#202f42; --b1:#233126; --c1:#462b1b; --d1:#45251b; --e1:#23302f; --f1:#442427; --g1:#39273c; --h1:#273821; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.paint, :root:not([data-theme="light"]) body.paint .ui {
+    --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
+    --ink:var(--n98); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+    --primary:var(--n98); --on-primary:var(--n18); --accent:var(--n98);
+    --paint-ink:var(--n20); --on-paint-deep:var(--n100);
+    --focus:var(--n98); --selection:var(--n31); --on-selection:var(--n98); --backdrop:#000000a3;
+    --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
+    --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
+    --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
+  }
+  :root:not([data-theme="light"]) body.paint[data-deck="primaries"] { --a1:#252e41; --b1:#233126; --c1:#452b1c; --d1:#42261e; --e1:#23302d; --f1:#35293c; --g1:#412529; --h1:#273821; }
+  :root:not([data-theme="light"]) body.paint[data-deck="garden"] { --a1:#292e3f; --b1:#233126; --c1:#442c1e; --d1:#412722; --e1:#283723; --f1:#3f262c; --g1:#342a3b; --h1:#3b2b1b; }
+  :root:not([data-theme="light"]) body.paint[data-deck="bold"] { --a1:#202f42; --b1:#233126; --c1:#462b1b; --d1:#45251b; --e1:#23302f; --f1:#442427; --g1:#39273c; --h1:#273821; }
+}
+/* On the root so scrollbars, form controls and the overscroll area follow the theme too. */
+:root:has(body.paint) { color-scheme: light; --counter:var(--n98); }
+:root[data-theme="dark"]:has(body.paint) { color-scheme: dark; --counter:var(--n18); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):has(body.paint) { color-scheme: dark; --counter:var(--n18); } }
+
+/* Member hue: set data-hue on any element and use --s1..--s5 (and --name, the colour's name) inside it. */
+[data-hue="a"] { --name:var(--a-name); --s1:var(--a1); --s1t:var(--a1t); --s2:var(--a2); --s2t:var(--a2t); --s3:var(--a3); --s3t:var(--a3t); --s4:var(--a4); --s4t:var(--a4t); --s5:var(--a5); --s5t:var(--a5t); }
+[data-hue="b"] { --name:var(--b-name); --s1:var(--b1); --s1t:var(--b1t); --s2:var(--b2); --s2t:var(--b2t); --s3:var(--b3); --s3t:var(--b3t); --s4:var(--b4); --s4t:var(--b4t); --s5:var(--b5); --s5t:var(--b5t); }
+[data-hue="c"] { --name:var(--c-name); --s1:var(--c1); --s1t:var(--c1t); --s2:var(--c2); --s2t:var(--c2t); --s3:var(--c3); --s3t:var(--c3t); --s4:var(--c4); --s4t:var(--c4t); --s5:var(--c5); --s5t:var(--c5t); }
+[data-hue="d"] { --name:var(--d-name); --s1:var(--d1); --s1t:var(--d1t); --s2:var(--d2); --s2t:var(--d2t); --s3:var(--d3); --s3t:var(--d3t); --s4:var(--d4); --s4t:var(--d4t); --s5:var(--d5); --s5t:var(--d5t); }
+[data-hue="e"] { --name:var(--e-name); --s1:var(--e1); --s1t:var(--e1t); --s2:var(--e2); --s2t:var(--e2t); --s3:var(--e3); --s3t:var(--e3t); --s4:var(--e4); --s4t:var(--e4t); --s5:var(--e5); --s5t:var(--e5t); }
+[data-hue="f"] { --name:var(--f-name); --s1:var(--f1); --s1t:var(--f1t); --s2:var(--f2); --s2t:var(--f2t); --s3:var(--f3); --s3t:var(--f3t); --s4:var(--f4); --s4t:var(--f4t); --s5:var(--f5); --s5t:var(--f5t); }
+[data-hue="g"] { --name:var(--g-name); --s1:var(--g1); --s1t:var(--g1t); --s2:var(--g2); --s2t:var(--g2t); --s3:var(--g3); --s3t:var(--g3t); --s4:var(--g4); --s4t:var(--g4t); --s5:var(--g5); --s5t:var(--g5t); }
+[data-hue="h"] { --name:var(--h-name); --s1:var(--h1); --s1t:var(--h1t); --s2:var(--h2); --s2t:var(--h2t); --s3:var(--h3); --s3t:var(--h3t); --s4:var(--h4); --s4t:var(--h4t); --s5:var(--h5); --s5t:var(--h5t); }
+/* A colour a parent picked (style="--hue:#rrggbb") is redrawn at the decks' step lightness, chroma capped
+ * at what every hue reaches in sRGB, so any pick keeps the contrast the decks pass. Browsers without
+ * relative colour syntax show the member's deck hue instead. */
+@supports (color: oklch(from red l c h)) {
+  [data-hue][style*="--hue"] {
+    --s1:oklch(from var(--hue) .955 min(c, .021) h); --s2:oklch(from var(--hue) .875 min(c, .06) h);
+    --s3:oklch(from var(--hue) .775 min(c, .113) h); --s4:oklch(from var(--hue) .545 min(c, .091) h);
+    --s5:oklch(from var(--hue) .435 min(c, .074) h);
+    --s1t:var(--paint-ink); --s2t:var(--paint-ink); --s3t:var(--paint-ink);
+    --s4t:var(--on-paint-deep); --s5t:var(--on-paint-deep);
+  }
+  [data-theme="dark"] body.paint [data-hue][style*="--hue"] { --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) body.paint [data-hue][style*="--hue"] { --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }
+  }
+}
+/* End of colour tokens. */
 
 .sr-only { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip { position: absolute; left: 16px; top: -48px; z-index: 20; background: var(--primary); color: var(--on-primary); padding: 8px 12px; border-radius: var(--radius-control); font: 600 14px/20px var(--font); }
@@ -98,7 +180,7 @@
 .bar .bar-end { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .bar .me { display: flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; }
 .bar .me-name { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ui .dot, body.paint .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; background: var(--s4, var(--ink)); color: #fff; flex-shrink: 0; }
+.ui .dot, body.paint .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; background: var(--s4, var(--ink)); color: var(--s4t, #fff); flex-shrink: 0; }
 .bar .sign-out { margin: 0; }
 
 /* Buttons (shared with ported pages) */
