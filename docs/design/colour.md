@@ -5,9 +5,14 @@ graded from a pale quiet-day chip to a deep full-day chip. Everything else (canv
 buttons) is warm neutral ink and white, so member colour never has to compete with chrome. Status
 colours (danger, success, warning, info) say **what state** and appear only in messages and forms.
 
-Every value is generated from OKLCH, except the three warm canvas colours chosen on 2026-10-27
-(`#f2ece1`, `#f8f4ec`, `#e6ded0`), which are kept as chosen. All of them are measured. Nothing ships
-unless `docs/design/check_colours.py` passes.
+Every value is generated from OKLCH, except the canvas and line colours of the Saturday market
+palette chosen on 2026-10-28 (`#fbf7f0`, `#ece3d4`), which are kept as chosen. All of them are
+measured. Nothing ships unless `docs/design/check_colours.py` passes.
+
+A parent picks one of three decks for the family's colours from the Colors menu in the top bar:
+**Saturday market** (the default, stored as `primaries`), **Morning garden** (`garden`) and
+**Crayon box** (`bold`). The choice is saved on the family and set as `data-deck` on `<body>` on
+every page, so everyone in the family sees it everywhere.
 
 ## Where it lives
 
@@ -32,9 +37,12 @@ No packages are needed beyond Python 3.9+.
 
 1. **Colour is data.** A member hue means that person and nothing else. Do not use deck colours
    (`--a1` to `--h5`) for decoration or chrome. Use status colours only for state.
-2. **Depth means load, for everyone.** Every member shares the same lightness at each step
-   (OKLCH L .955 .875 .775 .545 .435), so a Wednesday chip at step 3 reads equally full for every member.
-   Steps 1-3 carry `--paint-ink`, steps 4-5 carry `--on-paint-deep` (white).
+2. **Bright, not muddy.** Each colour keeps its own natural lightness. Step 3, the member's main chip,
+   sits where its hue is most vivid and rises only as far as dark text needs, so yellow, green and teal
+   stay bright. Deeper steps carry white, except a yellow's or lime's step 4, which stays bright with dark
+   text: at the depth white needs, yellow turns brown and lime turns olive, and the gate fails either.
+   `--x1t` to `--x5t` (and `--s1t` to `--s5t` inside `[data-hue]`) name each step's text colour.
+   Member outlines (checkbox rings, unconfirmed dots) use step 5 on light cards and step 3 on dark ones.
 3. **Colour is never the only cue.** Names and times are printed on every chip and card, and a dashed edge
    marks "not confirmed". The colour-blind checks are a quality bar, not the only safeguard.
 4. **One warm neutral ramp.** Every grey sits at the canvas hue (OKLCH h 83). Older cool greys
@@ -90,63 +98,66 @@ syntax show the member's deck colour instead.
 
 ### Neutral ramp
 
-| Token | Hex | OKLCH (L C h) | Used by |
-|---|---|---|---|
-| `--n100` | `#ffffff` | 1.000 0.000 0 | light `--card`, light `--on-primary`, light `--on-paint-deep`, light `--fixed-white`, dark `--on-paint-deep`, dark `--fixed-white` |
-| `--n97` | `#f8f4ec` | 0.968 0.011 85 | light `--raised`, dark `--ink`, dark `--primary`, dark `--accent`, dark `--focus`, dark `--on-selection` |
-| `--n94` | `#f2ece1` | 0.945 0.016 83 | light `--counter` |
-| `--n90` | `#e6ded0` | 0.903 0.021 82 | light `--line` |
-| `--n80` | `#c2bdb5` | 0.800 0.012 80 | light `--selection`, dark `--muted` |
-| `--n56` | `#78746c` | 0.560 0.013 85 | light `--control`, dark `--control` |
-| `--n47` | `#5e5a53` | 0.469 0.012 82 | light `--muted` |
-| `--n31` | `#33302b` | 0.311 0.010 81 | dark `--line`, dark `--selection` |
-| `--n27` | `#292622` | 0.270 0.009 75 | dark `--raised` |
-| `--n23` | `#1f1d19` | 0.231 0.008 85 | dark `--card` |
-| `--n20` | `#191714` | 0.206 0.007 78 | light `--ink`, light `--primary`, light `--accent`, light `--paint-ink`, light `--fixed-ink`, light `--focus`, light `--on-selection`, dark `--paint-ink`, dark `--fixed-ink` |
-| `--n18` | `#13110f` | 0.179 0.005 67 | light `--shadow`, dark `--counter`, dark `--on-primary`, dark `--shadow` |
+| Token | Hex | OKLCH (L C h) |
+|---|---|---|
+| `--n100` | `#ffffff` | 1.000 0.000 0 |
+| `--n98` | `#fbf7f0` | 0.977 0.010 82 |
+| `--n96` | `#f6f1e9` | 0.960 0.012 80 |
+| `--n92` | `#ece3d4` | 0.919 0.022 81 |
+| `--n80` | `#c2bdb5` | 0.800 0.012 80 |
+| `--n56` | `#78746c` | 0.560 0.013 85 |
+| `--n47` | `#5e5a53` | 0.469 0.012 82 |
+| `--n31` | `#33302b` | 0.311 0.010 81 |
+| `--n27` | `#292622` | 0.270 0.009 75 |
+| `--n23` | `#1f1d19` | 0.231 0.008 85 |
+| `--n20` | `#191714` | 0.206 0.007 78 |
+| `--n18` | `#13110f` | 0.179 0.005 67 |
+
+Light roles: `--counter` n98, `--card` n100, `--raised` n96, `--line` n92, `--muted` n47, `--ink` n20.
+Dark roles: `--counter` n18, `--card` n23, `--raised` n27, `--line` n31, `--muted` n80, `--ink` n98.
 
 ### Member decks
 
-Step lightness (OKLCH L): 1 = .955, 2 = .875, 3 = .775, 4 = .545, 5 = .435. "Dark 1" is step 1 in dark mode.
+Text on each step: **i** = `--paint-ink`, **w** = `--on-paint-deep` (white). "Dark 1" is step 1 in dark mode.
 
-**Primaries** (chroma per step 0.032 0.075 0.13 0.155 0.13)
+**Saturday market** (`primaries`, the default)
 
-| Member | Name | Hue | Chroma x | 1 | 2 | 3 | 4 | 5 | Dark 1 |
-|---|---|---|---|---|---|---|---|---|---|
-| a | Harbor blue | 262 | 1.00 | `#e9f0fe` | `#c4d7f9` | `#92b6f8` | `#3c6bc9` | `#274d98` | `#232c3d` |
-| b | Jade | 166 | 0.93 | `#def7ec` | `#aae5cc` | `#5dcea5` | `#158362` | `#0d6047` | `#213026` |
-| c | Marigold | 93 | 1.39 | `#faf0cf` | `#edd584` | `#d5b334` | `#906811` | `#694b0a` | `#342a1a` |
-| d | Coral | 17 | 0.93 | `#feebeb` | `#f9c8c8` | `#f9959a` | `#b44551` | `#872e38` | `#3d2422` |
-| e | Teal | 197 | 0.80 | `#ddf6f6` | `#a8e3e3` | `#56cacc` | `#158081` | `#0d5d5e` | `#212f2c` |
-| f | Violet | 300 | 0.95 | `#f2edfe` | `#dbcef9` | `#c1a4f8` | `#7e58b8` | `#5c3e8a` | `#302839` |
-| g | Magenta | 347 | 0.90 | `#feeaf3` | `#f8c5de` | `#ec97c4` | `#a8497f` | `#7d325d` | `#3a252c` |
-| h | Leaf | 125 | 0.86 | `#ecf4e0` | `#ccdeb0` | `#a5c372` | `#5e7d12` | `#445a0a` | `#2a2e1a` |
+| Member | Name | Hue | 1 | 2 | 3 | 4 | 5 | Dark 1 |
+|---|---|---|---|---|---|---|---|---|
+| a | Harbor blue | 265 | `#eff4fe` i | `#d2e0fd` i | `#91b3fd` i | `#436ed8` w | `#3253a7` w | `#252e41` |
+| b | Jade | 160 | `#e3faed` i | `#b1f1ce` i | `#55f1ac` i | `#2b845c` w | `#1e6445` w | `#233126` |
+| c | Sunflower | 92 | `#fbf3dd` i | `#f3dfa3` i | `#facc1f` i | `#f89d19` i | `#a7490d` w | `#452b1c` |
+| d | Tomato | 31 | `#fef0ed` i | `#fdd5ce` i | `#fd9886` i | `#c94634` w | `#9a3325` w | `#42261e` |
+| e | Lagoon | 197 | `#ddfafa` i | `#9ef1f1` i | `#55eaec` i | `#2a8081` w | `#1e6061` w | `#23302d` |
+| f | Grape | 308 | `#f7f0fe` i | `#e9d7fd` i | `#d09efd` i | `#9457c5` w | `#704096` w | `#35293c` |
+| g | Berry | 3 | `#feeff2` i | `#fdd3dc` i | `#fd91af` i | `#c5426f` w | `#963053` w | `#412529` |
+| h | Lime | 129 | `#edf8e3` i | `#cfebb2` i | `#ade660` i | `#7acc5b` i | `#267d30` w | `#273821` |
 
-**Garden** (chroma per step 0.026 0.058 0.095 0.105 0.088)
+**Morning garden** (`garden`)
 
-| Member | Name | Hue | Chroma x | 1 | 2 | 3 | 4 | 5 | Dark 1 |
-|---|---|---|---|---|---|---|---|---|---|
-| a | Sage | 151 | 0.70 | `#e8f4ea` | `#c3dec9` | `#97c2a1` | `#4f7d5a` | `#365b40` | `#272f24` |
-| b | Plum | 323 | 1.00 | `#f9ebfb` | `#e9caed` | `#d3a2da` | `#8d5a94` | `#683f6d` | `#342731` |
-| c | Ochre | 80 | 1.20 | `#fceed9` | `#efd1a2` | `#dcad5b` | `#956511` | `#6d490a` | `#352a1a` |
-| d | Teal | 194 | 0.81 | `#e1f5f4` | `#b3e0df` | `#78c6c4` | `#1e7f7e` | `#0d5d5c` | `#212f2c` |
-| e | Lavender | 283 | 1.00 | `#eeeffe` | `#d0d2f9` | `#adaef1` | `#6867ab` | `#4b4a80` | `#2b2b36` |
-| f | Terracotta | 44 | 0.98 | `#feece5` | `#f7cbb8` | `#e8a385` | `#a15b3b` | `#784027` | `#39281e` |
-| g | Dusty blue | 245 | 0.97 | `#e5f2fe` | `#b8dbf9` | `#82bced` | `#3576a7` | `#21557d` | `#232d35` |
-| h | Moss | 109 | 1.00 | `#f1f2de` | `#d8daae` | `#babb72` | `#75751f` | `#55550d` | `#2e2d1a` |
+| Member | Name | Hue | 1 | 2 | 3 | 4 | 5 | Dark 1 |
+|---|---|---|---|---|---|---|---|---|
+| a | Bluebell | 271 | `#f0f3fe` i | `#d5dffc` i | `#9bb0fa` i | `#586ecf` w | `#4253a0` w | `#292e3f` |
+| b | Fern | 161 | `#e4faed` i | `#b4f0d0` i | `#65efb1` i | `#2b845e` w | `#1e6446` w | `#233126` |
+| c | Buttercup | 91 | `#faf3df` i | `#f2dea7` i | `#f6cc4b` i | `#f2a036` i | `#a14e20` w | `#442c1e` |
+| d | Poppy | 24 | `#fef0ee` i | `#fcd5d2` i | `#fb9892` i | `#c24d4c` w | `#943837` w | `#412722` |
+| e | Pear | 118 | `#f1f6e2` i | `#dbe7af` i | `#c8de64` i | `#82ca68` i | `#327b38` w | `#283723` |
+| f | Peony | 355 | `#feeff4` i | `#fcd3e1` i | `#fb91bb` i | `#ba4c7d` w | `#8e375e` w | `#3f262c` |
+| g | Iris | 306 | `#f6f0fe` i | `#e8d7fc` i | `#cca1fa` i | `#8f5ebe` w | `#6c4592` w | `#342a3b` |
+| h | Apricot | 62 | `#fef1e6` i | `#fcd8ba` i | `#f99d43` i | `#ab6313` w | `#834b0c` w | `#3b2b1b` |
 
-**Bold** (chroma per step 0.04 0.1 0.16 0.19 0.155)
+**Crayon box** (`bold`)
 
-| Member | Name | Hue | Chroma x | 1 | 2 | 3 | 4 | 5 | Dark 1 |
-|---|---|---|---|---|---|---|---|---|---|
-| a | Cobalt | 270 | 1.00 | `#ebf0fe` | `#c8d5f9` | `#9cb3f8` | `#4662dd` | `#3146a5` | `#242b41` |
-| b | Magenta | 349 | 0.75 | `#feeaf3` | `#f9c4dd` | `#ef95c2` | `#aa487e` | `#7d325b` | `#3a252c` |
-| c | Emerald | 158 | 0.91 | `#ddf8e7` | `#a2e9c0` | `#53d192` | `#158555` | `#0d613c` | `#213023` |
-| d | Tangerine | 56 | 0.97 | `#feece1` | `#f9cbac` | `#f89d56` | `#a65911` | `#7a400a` | `#39281a` |
-| e | Violet | 302 | 0.89 | `#f3edfe` | `#ddcdf9` | `#c4a2f8` | `#8351c0` | `#60398f` | `#31273a` |
-| f | Red | 24 | 0.87 | `#feebea` | `#f9c8c4` | `#f99790` | `#bd3c3d` | `#8c292a` | `#3f231f` |
-| g | Cyan | 207 | 0.94 | `#d4f8fd` | `#86e8f5` | `#3bcbdc` | `#157e8a` | `#0c5c65` | `#212f2e` |
-| h | Gold | 100 | 1.18 | `#f7f2ce` | `#e8d878` | `#ccb734` | `#8e6911` | `#684c0a` | `#342b1a` |
+| Member | Name | Hue | 1 | 2 | 3 | 4 | 5 | Dark 1 |
+|---|---|---|---|---|---|---|---|---|
+| a | Cobalt | 255 | `#eaf3fe` i | `#c7dffd` i | `#7cb6fe` i | `#0474dd` w | `#0258ab` w | `#202f42` |
+| b | Grass | 162 | `#defaea` i | `#a2f1c9` i | `#54edad` i | `#2b845e` w | `#1e6446` w | `#233126` |
+| c | Lemon | 98 | `#f8f3d8` i | `#edde94` i | `#eccd0e` i | `#fa9d0b` i | `#a94703` w | `#462b1b` |
+| d | Red | 33 | `#feeeea` i | `#fdd0c7` i | `#fe9782` i | `#d53617` w | `#a12912` w | `#45251b` |
+| e | Sky | 208 | `#dbf8fd` i | `#98ecfa` i | `#51e0f5` i | `#2a7e8a` w | `#1e5f69` w | `#23302f` |
+| f | Raspberry | 7 | `#feedf0` i | `#fdced6` i | `#fe92a9` i | `#d22e65` w | `#9f234c` w | `#442427` |
+| g | Purple | 316 | `#f9edfe` i | `#efcffd` i | `#e097fe` i | `#a448c7` w | `#7c3696` w | `#39273c` |
+| h | Lime | 125 | `#ecf6dd` i | `#cee8a3` i | `#b3e14b` i | `#69cd40` i | `#267d30` w | `#273821` |
 
 ### Status colours
 
@@ -162,6 +173,9 @@ Step lightness (OKLCH L): 1 = .955, 2 = .875, 3 = .775, 4 = .545, 5 = .435. "Dar
 | `--info-soft` | `#ebf3ff` | `#1c2a3c` |
 
 ## Measurements
+
+Run `python docs/design/check_colours.py --markdown` for the current figures. The tables in this
+section were measured on the 2026-10-27 palette and are kept for comparison.
 
 All numbers below are printed by `python docs/design/check_colours.py --markdown`; rerun it rather than
 editing them. Thresholds: running text 4.5:1 and APCA Lc 75; small or secondary text (chips, labels)

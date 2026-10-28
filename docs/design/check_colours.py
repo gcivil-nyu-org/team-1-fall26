@@ -6,7 +6,7 @@ role for light and dark and for each deck, then checks:
 
   1. contrast of every text/background and edge/background pair the stylesheets use (WCAG 2.x ratio and
      APCA Lc, thresholds by role: body text, small text, large text, UI edges);
-  2. that every member ramp shares the step lightness, steps 1-5 get darker in order, and dark step 1
+  2. that every member ramp gets darker from step 1 to 5 (each colour keeps its own lightness), and dark step 1
      matches the dark quiet chip paint.css draws;
   3. that neighbouring members (a-b ... h-a) stay >= 10 CIEDE2000 apart at steps 3 and 4 for normal vision
      and full protanopia, deuteranopia and tritanopia (Machado 2009), the first four members >= 6 apart
@@ -106,23 +106,23 @@ CHIP_PAIRS = {
     "light": [
         ("l0 quiet chip", ".l0", "var(--s5)", "var(--s1)", "text"),
         ("l1 chip", ".l1", "var(--paint-ink)", "var(--s2)", "text"),
-        ("l2 chip, today rail event", ".l2, .ev", "var(--paint-ink)", "var(--s3)", "text"),
-        ("l3 chip, avatar dot", ".l3, .dot", "#ffffff", "var(--s4)", "text"),
-        ("l4 chip", ".l4", "#ffffff", "var(--s5)", "text"),
-        ("--on-paint-deep on step 4", "tokenised .l3, .dot, ticks", "var(--on-paint-deep)", "var(--s4)", "text"),
-        ("--on-paint-deep on step 5", "tokenised .l4", "var(--on-paint-deep)", "var(--s5)", "text"),
-        ("Step 4 edge on card", "avatar, checkbox ring", "var(--s4)", "var(--card)", "ui"),
+        ("l2 chip, today rail event, timeline plan", ".l2, .ev, .plan, .kid-date", "var(--s3t)", "var(--s3)", "text"),
+        ("l3 chip, avatar dot, ticks", ".l3, .dot, .box, .who-pick", "var(--s4t)", "var(--s4)", "text"),
+        ("l4 chip", ".l4", "var(--s5t)", "var(--s5)", "text"),
+        ("Step 3 accent edge on card", "kid hero and kid plan edge", "var(--s3)", "var(--card)", "none"),
+        ("Step 5 outline on card", "checkbox ring, unconfirmed dot", "var(--s5)", "var(--card)", "ui"),
         ("Selected text (paint.css)", "::selection", "#111111", "var(--a2)", "text"),
     ],
     "dark": [
         ("l0 quiet chip (dark)", "[data-theme=dark] .l0", "var(--s2)", "color-mix(in oklab, var(--s5) 30%, var(--card))", "text"),
         ("l1 chip", ".l1", "var(--paint-ink)", "var(--s2)", "text"),
-        ("l2 chip, today rail event", ".l2, .ev", "var(--paint-ink)", "var(--s3)", "text"),
-        ("l3 chip, avatar dot", ".l3, .dot", "#ffffff", "var(--s4)", "text"),
-        ("l4 chip", ".l4", "#ffffff", "var(--s5)", "text"),
-        ("--on-paint-deep on step 4", "tokenised .l3, .dot, ticks", "var(--on-paint-deep)", "var(--s4)", "text"),
-        ("--on-paint-deep on step 5", "tokenised .l4", "var(--on-paint-deep)", "var(--s5)", "text"),
-        ("Step 4 edge on card", "avatar, checkbox ring", "var(--s4)", "var(--card)", "ui"),
+        ("l2 chip, today rail event, timeline plan", ".l2, .ev, .plan, .kid-date", "var(--s3t)", "var(--s3)", "text"),
+        ("l3 chip, avatar dot, ticks", ".l3, .dot, .box, .who-pick", "var(--s4t)", "var(--s4)", "text"),
+        ("l4 chip", ".l4", "var(--s5t)", "var(--s5)", "text"),
+        ("Step 3 accent edge on card", "kid hero and kid plan edge", "var(--s3)", "var(--card)", "none"),
+        ("Step 3 outline on dark card", "checkbox ring, unconfirmed dot", "var(--s3)", "var(--card)", "ui"),
+        ("Member pill (dark)", "[data-theme=dark] .pill[data-hue]", "var(--s2)", "color-mix(in oklab, var(--s5) 40%, var(--card))", "text"),
+        ("Who's going, not picked (dark)", "[data-theme=dark] .who-pick label", "var(--s2)", "var(--s1)", "text"),
         ("Selected text (paint.css)", "::selection", "#111111", "var(--a2)", "text"),
     ],
 }
@@ -327,6 +327,7 @@ def with_hue(tokens, letter):
     t = dict(tokens)
     for k in range(1, 6):
         t[f"--s{k}"] = f"var(--{letter}{k})"
+        t[f"--s{k}t"] = f"var(--{letter}{k}t)"
     return t
 
 
@@ -417,19 +418,15 @@ def deck_colours(blocks, theme, deck):
 
 
 def check_ramps(report, blocks):
-    report.section("Member ramps: shared lightness, order, dark quiet step")
+    report.section("Member ramps: order, dark quiet step")
     for deck in DECKS:
         cols = deck_colours(blocks, "light", deck)
-        for k in range(5):
-            ls = [cm.rgb_to_oklch(cols[h][k])[0] for h in HUES]
-            mean = sum(ls) / len(ls)
-            spread = max(abs(x - mean) for x in ls)
-            report.check(f"{deck} step {k + 1}: every member at the same lightness", spread <= STEP_L_TOLERANCE,
-                         f"(OKLCH L {min(ls):.3f}-{max(ls):.3f})")
         for h in HUES:
             ls = [cm.rgb_to_oklch(c)[0] for c in cols[h]]
             gaps = [a - b for a, b in zip(ls, ls[1:])]
-            report.check(f"{deck} {h} steps darken in order", min(gaps) >= 0.07, f"(smallest step {min(gaps):.3f} L)")
+            olive = [k + 1 for k in (3, 4) if 85 <= cm.rgb_to_oklch(cols[h][k])[2] <= 125 and cm.rgb_to_oklch(cols[h][k])[0] < 0.62]
+            report.check(f"{deck} {h} deep steps are not olive or brown", not olive, f"(steps {olive})" if olive else "")
+            report.check(f"{deck} {h} steps darken in order", min(gaps) >= 0.04, f"(smallest step {min(gaps):.3f} L)")
         for theme in ("dark", "dark-os"):
             tokens = context(blocks, theme, deck)
             for h in HUES:
@@ -504,9 +501,10 @@ def check_custom(report, blocks, css_text):
                 pl, pc, ph = cm.rgb_to_oklch(cm.hex_to_rgba(picked))
                 steps = [cm.rgb_to_hex(cm.oklch_to_rgb_clipped(caps[k][0], min(pc, caps[k][1]), ph)) for k in range(1, 6)]
                 t = dict(tokens, **{f"--s{k}": steps[k - 1] for k in range(1, 6)})
+                t.update({f"--s{k}t": "var(--paint-ink)" if k <= 3 else "var(--on-paint-deep)" for k in range(1, 6)})
                 if theme == "dark":
                     t["--s1"] = "color-mix(in oklab, var(--s5) 30%, var(--card))"
-                for what, where, fg, bg, kind in CHIP_PAIRS[theme][:8]:
+                for what, where, fg, bg, kind in CHIP_PAIRS[theme][:7]:
                     f, b = evaluate(fg, t), evaluate(bg, t)
                     ratio, lc = cm.wcag_ratio(f, b), cm.apca_lc(f, b)
                     need_ratio, need_lc = KINDS[kind]

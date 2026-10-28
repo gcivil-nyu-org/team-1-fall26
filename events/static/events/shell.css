@@ -15,52 +15,77 @@
 
 /* Neutrals: one warm ramp at the canvas hue (OKLCH h 83). The number is the OKLCH lightness. */
 :root {
-  --n100:#ffffff; --n97:#f8f4ec; --n94:#f2ece1; --n90:#e6ded0; --n80:#c2bdb5; --n56:#78746c;
+  --n100:#ffffff; --n98:#fbf7f0; --n96:#f6f1e9; --n92:#ece3d4; --n80:#c2bdb5; --n56:#78746c;
   --n47:#5e5a53; --n31:#33302b; --n27:#292622; --n23:#1f1d19; --n20:#191714; --n18:#13110f;
 }
 
 /* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
- * The family's deck (Workspace.palette) is set as data-deck on <body>; Primaries is the default.
- * Every ramp shares the step lightness (OKLCH L .955 .875 .775 .545 .435), so a chip's depth reads the same weight
- * whoever it belongs to. Steps 1-3 carry --paint-ink, 4-5 carry --on-paint-deep (white), and step 5 reads on step 1.
- * Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4 for protan, deutan and tritan vision. */
+ * The family's deck (Workspace.palette) is set as data-deck on <body> on every page; Saturday market
+ * ("primaries") is the default, Morning garden ("garden") and Crayon box ("bold") are the options.
+ * Each colour keeps its natural lightness, and --x1t..--x5t give the text each step carries
+ * (--paint-ink or --on-paint-deep). Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4
+ * for protan, deutan and tritan vision. */
 :root, [data-deck="primaries"] {
-  --a1:#e9f0fe; --a2:#c4d7f9; --a3:#92b6f8; --a4:#3c6bc9; --a5:#274d98;   /* Harbor blue */
-  --b1:#def7ec; --b2:#aae5cc; --b3:#5dcea5; --b4:#158362; --b5:#0d6047;   /* Jade */
-  --c1:#faf0cf; --c2:#edd584; --c3:#d5b334; --c4:#906811; --c5:#694b0a;   /* Marigold */
-  --d1:#feebeb; --d2:#f9c8c8; --d3:#f9959a; --d4:#b44551; --d5:#872e38;   /* Coral */
-  --e1:#ddf6f6; --e2:#a8e3e3; --e3:#56cacc; --e4:#158081; --e5:#0d5d5e;   /* Teal */
-  --f1:#f2edfe; --f2:#dbcef9; --f3:#c1a4f8; --f4:#7e58b8; --f5:#5c3e8a;   /* Violet */
-  --g1:#feeaf3; --g2:#f8c5de; --g3:#ec97c4; --g4:#a8497f; --g5:#7d325d;   /* Magenta */
-  --h1:#ecf4e0; --h2:#ccdeb0; --h3:#a5c372; --h4:#5e7d12; --h5:#445a0a;   /* Leaf */
-  --a-name:"Harbor blue"; --b-name:"Jade"; --c-name:"Marigold"; --d-name:"Coral"; --e-name:"Teal"; --f-name:"Violet"; --g-name:"Magenta"; --h-name:"Leaf";
+  --a1:#eff4fe; --a2:#d2e0fd; --a3:#91b3fd; --a4:#436ed8; --a5:#3253a7;   /* Harbor blue */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#e3faed; --b2:#b1f1ce; --b3:#55f1ac; --b4:#2b845c; --b5:#1e6445;   /* Jade */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fef3d3; --c2:#fcdd7e; --c3:#facc1f; --c4:#f89d19; --c5:#a7490d;   /* Sunflower */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#fef0ed; --d2:#fdd5ce; --d3:#fd9886; --d4:#c94634; --d5:#9a3325;   /* Tomato */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#ddfafa; --e2:#9ef1f1; --e3:#55eaec; --e4:#2a8081; --e5:#1e6061;   /* Lagoon */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--on-paint-deep); --e5t:var(--on-paint-deep);
+  --f1:#f7f0fe; --f2:#e9d7fd; --f3:#d09efd; --f4:#9457c5; --f5:#704096;   /* Grape */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#feeff2; --g2:#fdd3dc; --g3:#fd91af; --g4:#c5426f; --g5:#963053;   /* Berry */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#edf8e3; --h2:#cfebb2; --h3:#ade660; --h4:#7acc5b; --h5:#267d30;   /* Lime */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--paint-ink); --h5t:var(--on-paint-deep);
+  --a-name:"Harbor blue"; --b-name:"Jade"; --c-name:"Sunflower"; --d-name:"Tomato"; --e-name:"Lagoon"; --f-name:"Grape"; --g-name:"Berry"; --h-name:"Lime";
 }
 [data-deck="garden"] {
-  --a1:#e8f4ea; --a2:#c3dec9; --a3:#97c2a1; --a4:#4f7d5a; --a5:#365b40;   /* Sage */
-  --b1:#f9ebfb; --b2:#e9caed; --b3:#d3a2da; --b4:#8d5a94; --b5:#683f6d;   /* Plum */
-  --c1:#fceed9; --c2:#efd1a2; --c3:#dcad5b; --c4:#956511; --c5:#6d490a;   /* Ochre */
-  --d1:#e1f5f4; --d2:#b3e0df; --d3:#78c6c4; --d4:#1e7f7e; --d5:#0d5d5c;   /* Teal */
-  --e1:#eeeffe; --e2:#d0d2f9; --e3:#adaef1; --e4:#6867ab; --e5:#4b4a80;   /* Lavender */
-  --f1:#feece5; --f2:#f7cbb8; --f3:#e8a385; --f4:#a15b3b; --f5:#784027;   /* Terracotta */
-  --g1:#e5f2fe; --g2:#b8dbf9; --g3:#82bced; --g4:#3576a7; --g5:#21557d;   /* Dusty blue */
-  --h1:#f1f2de; --h2:#d8daae; --h3:#babb72; --h4:#75751f; --h5:#55550d;   /* Moss */
-  --a-name:"Sage"; --b-name:"Plum"; --c-name:"Ochre"; --d-name:"Teal"; --e-name:"Lavender"; --f-name:"Terracotta"; --g-name:"Dusty blue"; --h-name:"Moss";
+  --a1:#f0f3fe; --a2:#d5dffc; --a3:#9bb0fa; --a4:#586ecf; --a5:#4253a0;   /* Bluebell */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#e4faed; --b2:#b4f0d0; --b3:#65efb1; --b4:#2b845e; --b5:#1e6446;   /* Fern */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fef3d5; --c2:#fcdd86; --c3:#f6cc4b; --c4:#f2a036; --c5:#a14e20;   /* Buttercup */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#fef0ee; --d2:#fcd5d2; --d3:#fb9892; --d4:#c24d4c; --d5:#943837;   /* Poppy */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#f1f6e2; --e2:#dbe7af; --e3:#c8de64; --e4:#82ca68; --e5:#327b38;   /* Pear */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--paint-ink); --e5t:var(--on-paint-deep);
+  --f1:#feeff4; --f2:#fcd3e1; --f3:#fb91bb; --f4:#ba4c7d; --f5:#8e375e;   /* Peony */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#f6f0fe; --g2:#e8d7fc; --g3:#cca1fa; --g4:#8f5ebe; --g5:#6c4592;   /* Iris */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#fef1e6; --h2:#fcd8ba; --h3:#f99d43; --h4:#ab6313; --h5:#834b0c;   /* Apricot */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--on-paint-deep); --h5t:var(--on-paint-deep);
+  --a-name:"Bluebell"; --b-name:"Fern"; --c-name:"Buttercup"; --d-name:"Poppy"; --e-name:"Pear"; --f-name:"Peony"; --g-name:"Iris"; --h-name:"Apricot";
 }
 [data-deck="bold"] {
-  --a1:#ebf0fe; --a2:#c8d5f9; --a3:#9cb3f8; --a4:#4662dd; --a5:#3146a5;   /* Cobalt */
-  --b1:#feeaf3; --b2:#f9c4dd; --b3:#ef95c2; --b4:#aa487e; --b5:#7d325b;   /* Magenta */
-  --c1:#ddf8e7; --c2:#a2e9c0; --c3:#53d192; --c4:#158555; --c5:#0d613c;   /* Emerald */
-  --d1:#feece1; --d2:#f9cbac; --d3:#f89d56; --d4:#a65911; --d5:#7a400a;   /* Tangerine */
-  --e1:#f3edfe; --e2:#ddcdf9; --e3:#c4a2f8; --e4:#8351c0; --e5:#60398f;   /* Violet */
-  --f1:#feebea; --f2:#f9c8c4; --f3:#f99790; --f4:#bd3c3d; --f5:#8c292a;   /* Red */
-  --g1:#d4f8fd; --g2:#86e8f5; --g3:#3bcbdc; --g4:#157e8a; --g5:#0c5c65;   /* Cyan */
-  --h1:#f7f2ce; --h2:#e8d878; --h3:#ccb734; --h4:#8e6911; --h5:#684c0a;   /* Gold */
-  --a-name:"Cobalt"; --b-name:"Magenta"; --c-name:"Emerald"; --d-name:"Tangerine"; --e-name:"Violet"; --f-name:"Red"; --g-name:"Cyan"; --h-name:"Gold";
+  --a1:#eaf3fe; --a2:#c7dffd; --a3:#7cb6fe; --a4:#0474dd; --a5:#0258ab;   /* Cobalt */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#defaea; --b2:#a2f1c9; --b3:#54edad; --b4:#2b845e; --b5:#1e6446;   /* Grass */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fcf3c6; --c2:#f9dd4a; --c3:#eccd0e; --c4:#fa9d0b; --c5:#a94703;   /* Lemon */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#feeeea; --d2:#fdd0c7; --d3:#fe9782; --d4:#d53617; --d5:#a12912;   /* Red */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#dbf8fd; --e2:#98ecfa; --e3:#51e0f5; --e4:#2a7e8a; --e5:#1e5f69;   /* Sky */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--on-paint-deep); --e5t:var(--on-paint-deep);
+  --f1:#feedf0; --f2:#fdced6; --f3:#fe92a9; --f4:#d22e65; --f5:#9f234c;   /* Raspberry */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#f9edfe; --g2:#efcffd; --g3:#e097fe; --g4:#a448c7; --g5:#7c3696;   /* Purple */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#ecf6dd; --h2:#cee8a3; --h3:#b3e14b; --h4:#69cd40; --h5:#267d30;   /* Lime */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--paint-ink); --h5t:var(--on-paint-deep);
+  --a-name:"Cobalt"; --b-name:"Grass"; --c-name:"Lemon"; --d-name:"Red"; --e-name:"Sky"; --f-name:"Raspberry"; --g-name:"Purple"; --h-name:"Lime";
 }
 
 /* Colour roles. Global, so accounts.css and checklists.css can use them on pages not yet ported. */
 :root {
-  --card:var(--n100); --raised:var(--n97); --control:var(--n56);
+  --card:var(--n100); --raised:var(--n96); --control:var(--n56);
   --primary:var(--n20); --on-primary:var(--n100);
   --paint-ink:var(--n20); --on-paint-deep:var(--n100); --fixed-white:var(--n100); --fixed-ink:var(--n20);
   --focus:var(--n20); --selection:var(--n80); --on-selection:var(--n20); --shadow:var(--n18); --backdrop:#13110f66;
@@ -68,8 +93,8 @@
   --warning:#8d5b11; --warning-soft:#fef2d5; --info:#3063a6; --info-soft:#ebf3ff;
 }
 .ui, body.paint {
-  --counter:var(--n94); --ink:var(--n20); --muted:var(--n47); --line:var(--n90);
-  --track:#e6ded0cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
+  --counter:var(--n98); --ink:var(--n20); --muted:var(--n47); --line:var(--n92);
+  --track:#ece3d4cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
   --radius:4px; --radius-control:6px;
   --font:"Schibsted Grotesk", system-ui, sans-serif;
 }
@@ -80,46 +105,46 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
  * Chips keep their paint, so a member's colour is the same at night; quiet chips (step 1) dim into the card. */
 [data-theme="dark"] body.paint, [data-theme="dark"] body.paint .ui {
   --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
-  --ink:var(--n97); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
-  --primary:var(--n97); --on-primary:var(--n18); --accent:var(--n97);
+  --ink:var(--n98); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+  --primary:var(--n98); --on-primary:var(--n18); --accent:var(--n98);
   --paint-ink:var(--n20); --on-paint-deep:var(--n100);
-  --focus:var(--n97); --selection:var(--n31); --on-selection:var(--n97); --backdrop:#000000a3;
+  --focus:var(--n98); --selection:var(--n31); --on-selection:var(--n98); --backdrop:#000000a3;
   --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
   --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
   --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
 }
-[data-theme="dark"] body.paint[data-deck="primaries"] { --a1:#232c3d; --b1:#213026; --c1:#342a1a; --d1:#3d2422; --e1:#212f2c; --f1:#302839; --g1:#3a252c; --h1:#2a2e1a; }
-[data-theme="dark"] body.paint[data-deck="garden"] { --a1:#272f24; --b1:#342731; --c1:#352a1a; --d1:#212f2c; --e1:#2b2b36; --f1:#39281e; --g1:#232d35; --h1:#2e2d1a; }
-[data-theme="dark"] body.paint[data-deck="bold"] { --a1:#242b41; --b1:#3a252c; --c1:#213023; --d1:#39281a; --e1:#31273a; --f1:#3f231f; --g1:#212f2e; --h1:#342b1a; }
+[data-theme="dark"] body.paint[data-deck="primaries"] { --a1:#252e41; --b1:#233126; --c1:#452b1c; --d1:#42261e; --e1:#23302d; --f1:#35293c; --g1:#412529; --h1:#273821; }
+[data-theme="dark"] body.paint[data-deck="garden"] { --a1:#292e3f; --b1:#233126; --c1:#442c1e; --d1:#412722; --e1:#283723; --f1:#3f262c; --g1:#342a3b; --h1:#3b2b1b; }
+[data-theme="dark"] body.paint[data-deck="bold"] { --a1:#202f42; --b1:#233126; --c1:#462b1b; --d1:#45251b; --e1:#23302f; --f1:#442427; --g1:#39273c; --h1:#273821; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) body.paint, :root:not([data-theme="light"]) body.paint .ui {
     --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
-    --ink:var(--n97); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
-    --primary:var(--n97); --on-primary:var(--n18); --accent:var(--n97);
+    --ink:var(--n98); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+    --primary:var(--n98); --on-primary:var(--n18); --accent:var(--n98);
     --paint-ink:var(--n20); --on-paint-deep:var(--n100);
-    --focus:var(--n97); --selection:var(--n31); --on-selection:var(--n97); --backdrop:#000000a3;
+    --focus:var(--n98); --selection:var(--n31); --on-selection:var(--n98); --backdrop:#000000a3;
     --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
     --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
     --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
   }
-  :root:not([data-theme="light"]) body.paint[data-deck="primaries"] { --a1:#232c3d; --b1:#213026; --c1:#342a1a; --d1:#3d2422; --e1:#212f2c; --f1:#302839; --g1:#3a252c; --h1:#2a2e1a; }
-  :root:not([data-theme="light"]) body.paint[data-deck="garden"] { --a1:#272f24; --b1:#342731; --c1:#352a1a; --d1:#212f2c; --e1:#2b2b36; --f1:#39281e; --g1:#232d35; --h1:#2e2d1a; }
-  :root:not([data-theme="light"]) body.paint[data-deck="bold"] { --a1:#242b41; --b1:#3a252c; --c1:#213023; --d1:#39281a; --e1:#31273a; --f1:#3f231f; --g1:#212f2e; --h1:#342b1a; }
+  :root:not([data-theme="light"]) body.paint[data-deck="primaries"] { --a1:#252e41; --b1:#233126; --c1:#452b1c; --d1:#42261e; --e1:#23302d; --f1:#35293c; --g1:#412529; --h1:#273821; }
+  :root:not([data-theme="light"]) body.paint[data-deck="garden"] { --a1:#292e3f; --b1:#233126; --c1:#442c1e; --d1:#412722; --e1:#283723; --f1:#3f262c; --g1:#342a3b; --h1:#3b2b1b; }
+  :root:not([data-theme="light"]) body.paint[data-deck="bold"] { --a1:#202f42; --b1:#233126; --c1:#462b1b; --d1:#45251b; --e1:#23302f; --f1:#442427; --g1:#39273c; --h1:#273821; }
 }
 /* On the root so scrollbars, form controls and the overscroll area follow the theme too. */
-:root:has(body.paint) { color-scheme: light; --counter:var(--n94); }
+:root:has(body.paint) { color-scheme: light; --counter:var(--n98); }
 :root[data-theme="dark"]:has(body.paint) { color-scheme: dark; --counter:var(--n18); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):has(body.paint) { color-scheme: dark; --counter:var(--n18); } }
 
 /* Member hue: set data-hue on any element and use --s1..--s5 (and --name, the colour's name) inside it. */
-[data-hue="a"] { --name:var(--a-name); --s1:var(--a1); --s2:var(--a2); --s3:var(--a3); --s4:var(--a4); --s5:var(--a5); }
-[data-hue="b"] { --name:var(--b-name); --s1:var(--b1); --s2:var(--b2); --s3:var(--b3); --s4:var(--b4); --s5:var(--b5); }
-[data-hue="c"] { --name:var(--c-name); --s1:var(--c1); --s2:var(--c2); --s3:var(--c3); --s4:var(--c4); --s5:var(--c5); }
-[data-hue="d"] { --name:var(--d-name); --s1:var(--d1); --s2:var(--d2); --s3:var(--d3); --s4:var(--d4); --s5:var(--d5); }
-[data-hue="e"] { --name:var(--e-name); --s1:var(--e1); --s2:var(--e2); --s3:var(--e3); --s4:var(--e4); --s5:var(--e5); }
-[data-hue="f"] { --name:var(--f-name); --s1:var(--f1); --s2:var(--f2); --s3:var(--f3); --s4:var(--f4); --s5:var(--f5); }
-[data-hue="g"] { --name:var(--g-name); --s1:var(--g1); --s2:var(--g2); --s3:var(--g3); --s4:var(--g4); --s5:var(--g5); }
-[data-hue="h"] { --name:var(--h-name); --s1:var(--h1); --s2:var(--h2); --s3:var(--h3); --s4:var(--h4); --s5:var(--h5); }
+[data-hue="a"] { --name:var(--a-name); --s1:var(--a1); --s1t:var(--a1t); --s2:var(--a2); --s2t:var(--a2t); --s3:var(--a3); --s3t:var(--a3t); --s4:var(--a4); --s4t:var(--a4t); --s5:var(--a5); --s5t:var(--a5t); }
+[data-hue="b"] { --name:var(--b-name); --s1:var(--b1); --s1t:var(--b1t); --s2:var(--b2); --s2t:var(--b2t); --s3:var(--b3); --s3t:var(--b3t); --s4:var(--b4); --s4t:var(--b4t); --s5:var(--b5); --s5t:var(--b5t); }
+[data-hue="c"] { --name:var(--c-name); --s1:var(--c1); --s1t:var(--c1t); --s2:var(--c2); --s2t:var(--c2t); --s3:var(--c3); --s3t:var(--c3t); --s4:var(--c4); --s4t:var(--c4t); --s5:var(--c5); --s5t:var(--c5t); }
+[data-hue="d"] { --name:var(--d-name); --s1:var(--d1); --s1t:var(--d1t); --s2:var(--d2); --s2t:var(--d2t); --s3:var(--d3); --s3t:var(--d3t); --s4:var(--d4); --s4t:var(--d4t); --s5:var(--d5); --s5t:var(--d5t); }
+[data-hue="e"] { --name:var(--e-name); --s1:var(--e1); --s1t:var(--e1t); --s2:var(--e2); --s2t:var(--e2t); --s3:var(--e3); --s3t:var(--e3t); --s4:var(--e4); --s4t:var(--e4t); --s5:var(--e5); --s5t:var(--e5t); }
+[data-hue="f"] { --name:var(--f-name); --s1:var(--f1); --s1t:var(--f1t); --s2:var(--f2); --s2t:var(--f2t); --s3:var(--f3); --s3t:var(--f3t); --s4:var(--f4); --s4t:var(--f4t); --s5:var(--f5); --s5t:var(--f5t); }
+[data-hue="g"] { --name:var(--g-name); --s1:var(--g1); --s1t:var(--g1t); --s2:var(--g2); --s2t:var(--g2t); --s3:var(--g3); --s3t:var(--g3t); --s4:var(--g4); --s4t:var(--g4t); --s5:var(--g5); --s5t:var(--g5t); }
+[data-hue="h"] { --name:var(--h-name); --s1:var(--h1); --s1t:var(--h1t); --s2:var(--h2); --s2t:var(--h2t); --s3:var(--h3); --s3t:var(--h3t); --s4:var(--h4); --s4t:var(--h4t); --s5:var(--h5); --s5t:var(--h5t); }
 /* A colour a parent picked (style="--hue:#rrggbb") is redrawn at the decks' step lightness, chroma capped
  * at what every hue reaches in sRGB, so any pick keeps the contrast the decks pass. Browsers without
  * relative colour syntax show the member's deck hue instead. */
@@ -128,6 +153,8 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
     --s1:oklch(from var(--hue) .955 min(c, .021) h); --s2:oklch(from var(--hue) .875 min(c, .06) h);
     --s3:oklch(from var(--hue) .775 min(c, .113) h); --s4:oklch(from var(--hue) .545 min(c, .091) h);
     --s5:oklch(from var(--hue) .435 min(c, .074) h);
+    --s1t:var(--paint-ink); --s2t:var(--paint-ink); --s3t:var(--paint-ink);
+    --s4t:var(--on-paint-deep); --s5t:var(--on-paint-deep);
   }
   [data-theme="dark"] body.paint [data-hue][style*="--hue"] { --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }
   @media (prefers-color-scheme: dark) {
@@ -153,7 +180,7 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .bar-end { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .bar .me { display: flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; }
 .bar .me-name { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ui .dot, body.paint .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; background: var(--s4, var(--ink)); color: #fff; flex-shrink: 0; }
+.ui .dot, body.paint .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; background: var(--s4, var(--ink)); color: var(--s4t, #fff); flex-shrink: 0; }
 .bar .sign-out { margin: 0; }
 
 /* Buttons (shared with ported pages) */

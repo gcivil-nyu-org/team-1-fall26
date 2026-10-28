@@ -6,9 +6,11 @@ from django.db import models
 
 class Workspace(models.Model):
     class Palette(models.TextChoices):
-        PRIMARIES = "primaries", "Primaries"
-        GARDEN = "garden", "Garden"
-        BOLD = "bold", "Bold"
+        # Stored keys stay as they were so saved families keep their choice; the labels are the
+        # names parents see. Saturday market is the default.
+        PRIMARIES = "primaries", "Saturday market"
+        GARDEN = "garden", "Morning garden"
+        BOLD = "bold", "Crayon box"
 
     id = models.UUIDField(
         primary_key=True,

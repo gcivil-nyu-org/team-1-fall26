@@ -17,36 +17,40 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import colourmath as cm  # noqa: E402
 
 # --- Member decks --------------------------------------------------------------------------
-# Step lightness is shared by every member of every deck: a chip's depth reads the same for
-# everyone. 1-3 carry --paint-ink (near-black) text, 4-5 carry white; 0.775 keeps ink at APCA
-# Lc 60+ and 0.535 keeps white at WCAG 4.5:1+ and Lc 75.
-STEP_L = (0.955, 0.875, 0.775, 0.545, 0.435)
-
-# 0.545 at step 4 is the narrow band where white text keeps 4.5:1 on the most luminous hue (green) and
-# the least luminous (magenta, red) still shows a 3:1 edge on the dark card.
-# Per deck: chroma per step (the deck's character), then members a..h as
-# (name, OKLCH hue, chroma multiplier). Yellows need a multiplier above 1: at a shared lightness the
-# same chroma that makes blue vivid leaves yellow khaki. Hues were searched so that neighbouring members
-# (a-b, b-c, ... h-a) stay >= 10 CIEDE2000 apart at steps 3 and 4 for normal vision and full
-# protanopia, deuteranopia and tritanopia, while a-d stay inside their approved colour family.
+# Three decks, chosen per family. Saturday market is the default (key "primaries", kept so saved
+# families keep working); Morning garden ("garden") and Crayon box ("bold") are the options.
+# Each colour keeps its own natural lightness: step 3, the member's main chip, sits near the
+# lightness where that hue is most vivid, so yellow stays light and bright, and rises only as far
+# as dark text needs. Steps 1-2 are pale tints at a shared lightness; 4-5 go deep enough for
+# white text. --x1t..--x5t name each step's text (--paint-ink or --on-paint-deep).
+# Deep yellows turn orange instead of olive; greens and cyans stop short of the neon sRGB edge.
+# Hues were searched so neighbouring members (a-b ... h-a) and the first four stay apart for
+# protanopia, deuteranopia and tritanopia.
 DECKS = {
-    "primaries": ((0.032, 0.075, 0.130, 0.155, 0.130), (
-        ("Harbor blue", 262.4, 1.00), ("Jade", 166.5, 0.93), ("Marigold", 93.4, 1.39),
-        ("Coral", 17.1, 0.93), ("Teal", 196.6, 0.80), ("Violet", 299.8, 0.95),
-        ("Magenta", 347.2, 0.90), ("Leaf", 125.3, 0.86))),
-    "garden": ((0.026, 0.058, 0.095, 0.105, 0.088), (
-        ("Sage", 151.2, 0.70), ("Plum", 322.6, 1.00), ("Ochre", 79.6, 1.20),
-        ("Teal", 193.9, 0.81), ("Lavender", 283.4, 1.00), ("Terracotta", 44.3, 0.98),
-        ("Dusty blue", 244.6, 0.97), ("Moss", 109.3, 1.00))),
-    "bold": ((0.040, 0.100, 0.160, 0.190, 0.155), (
-        ("Cobalt", 269.6, 1.00), ("Magenta", 348.7, 0.75), ("Emerald", 158.3, 0.91),
-        ("Tangerine", 56.3, 0.97), ("Violet", 301.8, 0.89), ("Red", 24.1, 0.87),
-        ("Cyan", 206.7, 0.94), ("Gold", 99.7, 1.18))),
+    "primaries": (
+        dict(l1=0.965, l2=0.905, l3=(0.66, 0.86), d4=0.15, d5=0.12, l4min=0.52, l5min=0.42,
+             chroma=(0.030, 0.080, 0.175, 0.170, 0.140), share=(0.90, 0.92, 0.97, 0.97, 0.97)),
+        (("Harbor blue", 264.9), ("Jade", 160.3), ("Sunflower", 91.7), ("Tomato", 30.9),
+         ("Lagoon", 196.6), ("Grape", 307.5), ("Berry", 3.0), ("Lime", 128.9))),
+    "garden": (
+        dict(l1=0.965, l2=0.905, l3=(0.66, 0.85), d4=0.15, d5=0.12, l4min=0.52, l5min=0.42,
+             chroma=(0.028, 0.075, 0.150, 0.150, 0.125), share=(0.90, 0.90, 0.93, 0.95, 0.95)),
+        (("Bluebell", 271.3), ("Fern", 161.2), ("Buttercup", 90.6), ("Poppy", 23.9),
+         ("Pear", 118.2), ("Peony", 355.4), ("Iris", 305.7), ("Apricot", 61.6))),
+    "bold": (
+        dict(l1=0.960, l2=0.895, l3=(0.62, 0.88), d4=0.16, d5=0.12, l4min=0.50, l5min=0.40,
+             chroma=(0.035, 0.095, 0.210, 0.200, 0.160), share=(0.90, 0.95, 0.99, 0.99, 0.99)),
+        (("Cobalt", 254.8), ("Grass", 161.6), ("Lemon", 98.0), ("Red", 32.6),
+         ("Sky", 208.5), ("Raspberry", 6.8), ("Purple", 315.6), ("Lime", 125.1))),
 }
-# Chroma never goes past this share of the sRGB limit at each step: colours stop short of the
-# gamut edge, where cyans and greens turn neon.
-GAMUT_SHARE = (0.90, 0.85, 0.90, 0.95, 0.95)
+DECK_LABELS = {"primaries": "Saturday market", "garden": "Morning garden", "bold": "Crayon box"}
 HUES = "abcdefgh"
+INK_HEX = "#191714"     # --paint-ink (n20)
+WHITE_HEX = "#ffffff"   # --on-paint-deep (n100)
+
+# Picked colours (below) keep the older shared step lightness, so one rule covers any hue:
+# steps 1-3 carry --paint-ink, 4-5 carry --on-paint-deep.
+STEP_L = (0.955, 0.875, 0.775, 0.545, 0.435)
 
 # A colour a parent picks is redrawn at the same step lightness with chroma capped per step.
 # The caps are the largest chroma every hue can reach in sRGB at that lightness, so a picked
@@ -54,14 +58,14 @@ HUES = "abcdefgh"
 CUSTOM_CAP = (0.021, 0.060, 0.113, 0.091, 0.074)
 
 # --- Neutrals --------------------------------------------------------------------------------
-# One warm ramp at the canvas hue. The three canvas values are the ones chosen on 2026-10-27
-# and are kept as they are. Names give the OKLCH lightness: --n94 is L 0.94.
+# One warm ramp at the canvas hue: Saturday market's bright warm paper (chosen 2026-10-28).
+# Names give the OKLCH lightness: --n98 is L 0.98.
 NEUTRAL_HUE = 83
 NEUTRALS = (
     ("n100", "#ffffff"),          # card stock (light card)
-    ("n97", "#f8f4ec"),           # light raised; dark ink
-    ("n94", "#f2ece1"),           # light counter (the warm canvas)
-    ("n90", "#e6ded0"),           # light line and track
+    ("n98", "#fbf7f0"),           # light counter (the canvas); dark ink
+    ("n96", (0.960, 0.012)),      # light raised
+    ("n92", "#ece3d4"),           # light line and track
     ("n80", (0.800, 0.013)),      # dark muted text; selection
     ("n56", (0.560, 0.013)),      # control edges, both themes (3:1 on every surface)
     ("n47", (0.470, 0.013)),      # light muted text
@@ -98,19 +102,74 @@ def neutral(name):
     return value if isinstance(value, str) else hexof(value[0], value[1], NEUTRAL_HUE)
 
 
-def deep_hue(hue):
-    """Yellows warm toward amber in steps 4-5, as ochre pigments do; at equal lightness a deep
-    yellow kept at its own hue turns olive."""
-    return hue - 0.6 * (hue - 72) if 78 <= hue <= 100 else hue
+def _cusp_l(h):
+    """The OKLCH lightness where hue h reaches its largest in-gamut chroma."""
+    best, at = 0.0, 0.5
+    for i in range(30, 98):
+        c = cm.max_chroma(i / 100, h)
+        if c > best:
+            best, at = c, i / 100
+    return at
 
 
-def ramp(chroma, hue, mult=1.0):
-    """Five hex steps for one member: shared lightness, chroma capped below the sRGB edge."""
-    out = []
-    for k, (L, C) in enumerate(zip(STEP_L, chroma)):
-        h = hue if k < 3 else deep_hue(hue)
-        out.append(hexof(L, min(C * mult, cm.max_chroma(L, h) * GAMUT_SHARE[k]), h))
-    return out
+def _passes(text_hex, bg_hex, ratio=4.6, lc=61):
+    t, b = cm.hex_to_rgba(text_hex), cm.hex_to_rgba(bg_hex)
+    return cm.wcag_ratio(t, b) >= ratio and abs(cm.apca_lc(t, b)) >= lc
+
+
+DARK_CARD = "#1f1d19"   # n23, the dark card a step-4 edge must show on
+
+
+def ramp(params, hue):
+    """Five hex steps for one member and the text each carries.
+
+    Steps 1-2: pale tints at a shared lightness. Step 3, the member's main chip, starts at the
+    lightness where the hue is most vivid and rises only until ink text passes (WCAG 4.5:1 and
+    APCA Lc 60), so yellow, green and teal stay bright. Steps 4-5 carry white, except a yellow's or
+    lime's step 4, which stays bright with ink. Step 5 also reads as text on step 1 (the quiet chip)
+    and is the member's outline colour on light cards (step 3 on dark ones)."""
+    yellow, cool = 70 <= hue <= 115, 120 <= hue <= 235
+    share = [min(x, 0.85) for x in params["share"]] if cool else list(params["share"])
+
+    def paint(k, L, h):
+        return hexof(L, min(params["chroma"][k], cm.max_chroma(L, h) * share[k]), h)
+
+    # Yellow tints need more chroma than other hues to read as yellow rather than sand.
+    tint = 1.7 if yellow else 1.0
+    s1 = hexof(params["l1"], min(params["chroma"][0] * tint, cm.max_chroma(params["l1"], hue) * share[0]), hue)
+    s2 = hexof(params["l2"], min(params["chroma"][1] * tint, cm.max_chroma(params["l2"], hue) * share[1]), hue)
+    # Step 3 stays at least 0.045 darker than the step-2 tint, so the steps read in order.
+    L = min(max(_cusp_l(hue), 0.70), 0.86 if cool else 0.90, params["l2"] - 0.045)
+    s3 = paint(2, L, hue)
+    while not _passes(INK_HEX, s3) and L < 0.97:
+        L += 0.005
+        s3 = paint(2, L, hue)
+    # At the depth white text needs, yellow turns brown and lime turns olive. So their step 4
+    # stays bright and carries ink (a marigold orange, a grass green), and only step 5 goes deep,
+    # as burnt orange or a true green.
+    lime = 115 < hue < 142
+    texts = ["ink", "ink", "ink", "white", "white"]
+    if yellow or lime:
+        h4 = 68 if yellow else 138
+        L = cm.rgb_to_oklch(cm.hex_to_rgba(s3))[0] - 0.09
+        s4 = paint(3, L, h4)
+        while not _passes(INK_HEX, s4) and L < 0.95:
+            L += 0.005
+            s4 = paint(3, L, h4)
+        texts[3] = "ink"
+        h5, L = (46 if yellow else 145), 0.52
+    else:
+        h4, L = hue, 0.575
+        s4 = paint(3, L, h4)
+        while not _passes(WHITE_HEX, s4) and L > 0.40:
+            L -= 0.005
+            s4 = paint(3, L, h4)
+        h5, L = hue, min(L - 0.10, 0.47)
+    s5 = paint(4, L, h5)
+    while not (_passes(WHITE_HEX, s5) and _passes(s5, s1)) and L > 0.30:
+        L -= 0.005
+        s5 = paint(4, L, h5)
+    return [s1, s2, s3, s4, s5], texts
 
 
 def dark_step1(step5, card):
@@ -119,8 +178,14 @@ def dark_step1(step5, card):
 
 
 def deck_values():
-    return {deck: {HUES[i]: (name, ramp(chroma, hue, mult)) for i, (name, hue, mult) in enumerate(members)}
-            for deck, (chroma, members) in DECKS.items()}
+    """{deck: {letter: (name, steps, texts)}}"""
+    out = {}
+    for deck, (params, members) in DECKS.items():
+        out[deck] = {}
+        for i, (name, hue) in enumerate(members):
+            steps, texts = ramp(params, hue)
+            out[deck][HUES[i]] = (name, steps, texts)
+    return out
 
 
 def status(theme, name):
@@ -135,9 +200,11 @@ SHELL = Path(__file__).resolve().parents[2] / "events/static/events/shell.css"
 def _deck_block(deck, members):
     sel = ':root, [data-deck="primaries"]' if deck == "primaries" else f'[data-deck="{deck}"]'
     lines = [f"{sel} {{"]
-    for h, (name, steps) in members.items():
+    for h, (name, steps, texts) in members.items():
         lines.append("  " + " ".join(f"--{h}{k + 1}:{v};" for k, v in enumerate(steps)) + f"   /* {name} */")
-    names = " ".join(f'--{h}-name:"{name}";' for h, (name, _) in members.items())
+        lines.append("    " + " ".join(
+            f"--{h}{k + 1}t:var({'--paint-ink' if t == 'ink' else '--on-paint-deep'});" for k, t in enumerate(texts)))
+    names = " ".join(f'--{h}-name:"{name}";' for h, (name, _, _) in members.items())
     lines.append(f"  {names}")
     return "\n".join(lines + ["}"])
 
@@ -146,10 +213,10 @@ def _dark_roles(st, n):
     d = st["dark"]
     return (
         "--counter:var(--n18); --card:var(--n23); --raised:var(--n27);\n"
-        "--ink:var(--n97); --muted:var(--n80); --line:var(--n31); --control:var(--n56);\n"
-        "--primary:var(--n97); --on-primary:var(--n18); --accent:var(--n97);\n"
+        "--ink:var(--n98); --muted:var(--n80); --line:var(--n31); --control:var(--n56);\n"
+        "--primary:var(--n98); --on-primary:var(--n18); --accent:var(--n98);\n"
         "--paint-ink:var(--n20); --on-paint-deep:var(--n100);\n"
-        "--focus:var(--n97); --selection:var(--n31); --on-selection:var(--n97); --backdrop:#000000a3;\n"
+        "--focus:var(--n98); --selection:var(--n31); --on-selection:var(--n98); --backdrop:#000000a3;\n"
         f"--danger:{d['danger']}; --danger-soft:{d['danger-soft']}; --success:{d['success']}; --success-soft:{d['success-soft']};\n"
         f"--warning:{d['warning']}; --warning-soft:{d['warning-soft']}; --info:{d['info']}; --info-soft:{d['info-soft']};\n"
         f"--track:{n['n27']}cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;"
@@ -166,9 +233,9 @@ def css_region():
     n = {name: neutral(name) for name, _ in NEUTRALS}
     st = {t: {k: status(t, k) for k in STATUS[t]} for t in STATUS}
     lt = st["light"]
-    dark_s1 = {d: " ".join(f"--{h}1:{dark_step1(steps[4], n['n23'])};" for h, (_, steps) in m.items()) for d, m in decks.items()}
+    dark_s1 = {d: " ".join(f"--{h}1:{dark_step1(steps[4], n['n23'])};" for h, (_, steps, _) in m.items())
+               for d, m in decks.items()}
     names = list(n)
-    L = " ".join(f"{x:g}"[1:] if x < 1 else f"{x:g}" for x in STEP_L)
     caps = [f"--s{k + 1}:oklch(from var(--hue) {f'{STEP_L[k]:g}'[1:]} min(c, {f'{CUSTOM_CAP[k]:g}'[1:]}) h);" for k in range(5)]
     dark_sel = '[data-theme="dark"] body.paint, [data-theme="dark"] body.paint .ui'
     os_sel = ':root:not([data-theme="light"]) body.paint, :root:not([data-theme="light"]) body.paint .ui'
@@ -184,17 +251,18 @@ def css_region():
 }}
 
 /* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
- * The family's deck (Workspace.palette) is set as data-deck on <body>; Primaries is the default.
- * Every ramp shares the step lightness (OKLCH L {L}), so a chip's depth reads the same weight
- * whoever it belongs to. Steps 1-3 carry --paint-ink, 4-5 carry --on-paint-deep (white), and step 5 reads on step 1.
- * Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4 for protan, deutan and tritan vision. */
+ * The family's deck (Workspace.palette) is set as data-deck on <body> on every page; Saturday market
+ * ("primaries") is the default, Morning garden ("garden") and Crayon box ("bold") are the options.
+ * Each colour keeps its natural lightness, and --x1t..--x5t give the text each step carries
+ * (--paint-ink or --on-paint-deep). Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4
+ * for protan, deutan and tritan vision. */
 {_deck_block("primaries", decks["primaries"])}
 {_deck_block("garden", decks["garden"])}
 {_deck_block("bold", decks["bold"])}
 
 /* Colour roles. Global, so accounts.css and checklists.css can use them on pages not yet ported. */
 :root {{
-  --card:var(--n100); --raised:var(--n97); --control:var(--n56);
+  --card:var(--n100); --raised:var(--n96); --control:var(--n56);
   --primary:var(--n20); --on-primary:var(--n100);
   --paint-ink:var(--n20); --on-paint-deep:var(--n100); --fixed-white:var(--n100); --fixed-ink:var(--n20);
   --focus:var(--n20); --selection:var(--n80); --on-selection:var(--n20); --shadow:var(--n18); --backdrop:{n['n18']}66;
@@ -202,8 +270,8 @@ def css_region():
   --warning:{lt['warning']}; --warning-soft:{lt['warning-soft']}; --info:{lt['info']}; --info-soft:{lt['info-soft']};
 }}
 .ui, body.paint {{
-  --counter:var(--n94); --ink:var(--n20); --muted:var(--n47); --line:var(--n90);
-  --track:{n['n90']}cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
+  --counter:var(--n98); --ink:var(--n20); --muted:var(--n47); --line:var(--n92);
+  --track:{n['n92']}cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
   --radius:4px; --radius-control:6px;
   --font:"Schibsted Grotesk", system-ui, sans-serif;
 }}
@@ -223,12 +291,12 @@ body.paint {{ --accent:var(--n20); }} /* drivers.css checkboxes */
 """ + "\n".join(f'  :root:not([data-theme="light"]) body.paint[data-deck="{d}"] {{ {dark_s1[d]} }}' for d in decks) + f"""
 }}
 /* On the root so scrollbars, form controls and the overscroll area follow the theme too. */
-:root:has(body.paint) {{ color-scheme: light; --counter:var(--n94); }}
+:root:has(body.paint) {{ color-scheme: light; --counter:var(--n98); }}
 :root[data-theme="dark"]:has(body.paint) {{ color-scheme: dark; --counter:var(--n18); }}
 @media (prefers-color-scheme: dark) {{ :root:not([data-theme="light"]):has(body.paint) {{ color-scheme: dark; --counter:var(--n18); }} }}
 
 /* Member hue: set data-hue on any element and use --s1..--s5 (and --name, the colour's name) inside it. */
-""" + "\n".join(f'[data-hue="{h}"] {{ --name:var(--{h}-name); ' + " ".join(f"--s{k}:var(--{h}{k});" for k in range(1, 6)) + " }" for h in HUES) + f"""
+""" + "\n".join(f'[data-hue="{h}"] {{ --name:var(--{h}-name); ' + " ".join(f"--s{k}:var(--{h}{k}); --s{k}t:var(--{h}{k}t);" for k in range(1, 6)) + " }" for h in HUES) + f"""
 /* A colour a parent picked (style="--hue:#rrggbb") is redrawn at the decks' step lightness, chroma capped
  * at what every hue reaches in sRGB, so any pick keeps the contrast the decks pass. Browsers without
  * relative colour syntax show the member's deck hue instead. */
@@ -237,6 +305,8 @@ body.paint {{ --accent:var(--n20); }} /* drivers.css checkboxes */
     {caps[0]} {caps[1]}
     {caps[2]} {caps[3]}
     {caps[4]}
+    --s1t:var(--paint-ink); --s2t:var(--paint-ink); --s3t:var(--paint-ink);
+    --s4t:var(--on-paint-deep); --s5t:var(--on-paint-deep);
   }}
   [data-theme="dark"] body.paint [data-hue][style*="--hue"] {{ --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }}
   @media (prefers-color-scheme: dark) {{
@@ -256,10 +326,10 @@ def write_region(path=SHELL):
 
 
 def print_ramp(hue):
-    print(f"OKLCH hue {hue}: shared step lightness {STEP_L}")
-    for deck, (chroma, _) in DECKS.items():
-        steps = ramp(chroma, hue)
-        print(f"  {deck:10s} " + " ".join(steps))
+    print(f"OKLCH hue {hue}")
+    for deck, (params, _) in DECKS.items():
+        steps, texts = ramp(params, hue)
+        print(f"  {DECK_LABELS[deck]:16s} " + " ".join(f"{c}({t})" for c, t in zip(steps, texts)))
     print("Paste one row as --x1..--x5 in the deck, then run docs/design/check_colours.py.")
 
 
