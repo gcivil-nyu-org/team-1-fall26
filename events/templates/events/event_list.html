@@ -63,6 +63,7 @@
                     <span class="grow">
                         <b>{{ event.title }}</b>
                         <small><span translate="no">{% for member in event.people %}{{ member.user|person }}{% if not forloop.last %}, {% endif %}{% empty %}Whole family{% endfor %}</span>{% if event.is_tentative %}, not confirmed yet{% endif %}{% if event.location %} · {{ event.location }}{% endif %}{% if not workspace and event.workspace %} · {{ event.workspace.name }}{% endif %}{% if event.source == 'google' %} · From Google Calendar{% endif %}</small>
+                        {% if event.requires_transport %}<small>{% include "events/_driver_summary.html" %}</small>{% endif %}
                     </span>
                     <span class="when">{{ event.starts_at|clock }}{% if event.starts_at|date:"Y-m-d" != event.ends_at|date:"Y-m-d" %}<small>to {{ event.ends_at|date:"D j" }}</small>{% endif %}</span>
                 </a>

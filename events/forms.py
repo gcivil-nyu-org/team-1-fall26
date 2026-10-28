@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from accounts.models import Workspace
 
-from .access import event_participants, family_workspaces
+from .access import event_drivers, event_participants, family_workspaces
 from .conflicts import find_overlapping_events
 from .models import Event
 
@@ -146,6 +146,9 @@ class EventForm(EventTimezoneForm):
         "latitude",
         "longitude",
         "transport_mode",
+        "requires_transport",
+        "dropoff_driver",
+        "pickup_driver",
         "is_tentative",
         "participants",
     ]
@@ -240,6 +243,11 @@ class EventForm(EventTimezoneForm):
         )
 
         self.workspace = workspace
+
+        if workspace is not None:
+            driver_form = EventDriverForm(instance=Event(workspace=workspace))
+            self.fields.update(driver_form.fields)
+            self.order_fields(self.field_order)
 
         self.fields["participants"].queryset = event_participants(
             workspace
@@ -342,6 +350,9 @@ class EventForm(EventTimezoneForm):
             longitude=longitude,
             transport_mode=cleaned_data["transport_mode"],
             is_tentative=cleaned_data.get("is_tentative", False),
+            requires_transport=cleaned_data.get("requires_transport", False),
+            dropoff_driver=cleaned_data.get("dropoff_driver"),
+            pickup_driver=cleaned_data.get("pickup_driver"),
         )
 
         try:
@@ -408,3 +419,24 @@ class EventForm(EventTimezoneForm):
                     )
 
         return cleaned_data
+
+
+class EventDriverForm(forms.ModelForm):
+    class Meta:
+        model = Event
+        fields = ["requires_transport", "dropoff_driver", "pickup_driver"]
+        labels = {
+            "requires_transport": "Transportation needed",
+            "dropoff_driver": "Drop-off driver",
+            "pickup_driver": "Pickup driver",
+        }
+        help_texts = {
+            "requires_transport": "Choose drivers for taking family members to and from this event.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        drivers = event_drivers(self.instance.workspace if self.instance.workspace_id else None)
+        for field in ("dropoff_driver", "pickup_driver"):
+            self.fields[field].queryset = drivers
+            self.fields[field].empty_label = "Not assigned"

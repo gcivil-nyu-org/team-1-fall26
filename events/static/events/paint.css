@@ -606,3 +606,24 @@ body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .paint .who-pick label:not(:has(input:checked)) { color: var(--s2, var(--ink)); }
 }
+
+/* Merged from develop: kid week navigation, rides on kid cards, invite links on Members. */
+.kid-week-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.kid-week-head .seg { margin-left: 0; }
+.paint .kid .kid-week-head h2 { margin-bottom: 12px; }
+.kid-plan .kid-ride { display: block; margin-top: 6px; font-size: 14px; }
+.invite-link { display: grid; gap: 6px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.invite-link input { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+.invite-link small { color: var(--muted); }
+.plan .driver-summary, .allday-chip .driver-summary { display: block; font-size: 11px; }
+
+/* Kid "My day": today from 7 AM to midnight with a Now line (Friday's timeline, in paint). */
+.kid-rail { position: relative; height: 560px; margin: 0 0 8px 56px; border-left: 1px solid var(--line); }
+.kid-hour { position: absolute; left: -56px; right: 0; height: 0; border-top: 1px dashed var(--line); font-style: normal; }
+.kid-hour span { position: absolute; top: -9px; left: 0; width: 48px; color: var(--muted); font-size: 12px; }
+.kid-slot { position: absolute; left: calc(8px + (100% - 8px) * var(--col, 0) / var(--cols, 1)); width: calc((100% - 8px) / var(--cols, 1) - 6px); min-height: 28px; overflow: hidden; padding: 6px 10px; border-radius: 6px; background: var(--s3, var(--raised)); color: var(--s3t, var(--ink)); font-size: 14px; line-height: 18px; text-decoration: none; }
+.kid-slot.tent { outline: 2px dashed currentColor; outline-offset: -4px; }
+.kid-slot time { font-weight: 600; }
+.kid-now { position: absolute; left: -8px; right: 0; height: 2px; background: var(--ink); }
+.kid-now span { position: absolute; right: 0; top: -20px; font-size: 12px; font-weight: 600; }
+body.paint .kid .kid-slot { color: var(--s3t, var(--paint-ink)); }

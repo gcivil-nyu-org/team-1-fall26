@@ -21,7 +21,7 @@ from calendars.models import CalendarConnection
 
 from .access import family_events, family_workspaces
 from .day import vertical_day
-from .forms import EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
+from .forms import EventDriverForm, EventForm, EventScheduleForm, EventTimezoneForm, EventWorkspaceForm
 from .models import Event
 from .travel_conflicts import find_travel_checks
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
@@ -98,6 +98,9 @@ def create_event(request, workspace_id=None):
                                 "location": event_details.location,
                                 "timezone_name": event_details.timezone_name,
                                 "transport_mode": event_details.transport_mode,
+                                "requires_transport": event_details.requires_transport,
+                                "dropoff_driver": event_details.dropoff_driver,
+                                "pickup_driver": event_details.pickup_driver,
                                 "is_tentative": event_details.is_tentative,
                                 "latitude": event_details.latitude,
                                 "longitude": event_details.longitude,
@@ -167,10 +170,12 @@ def choose_workspace(request):
 
 
 @login_required(login_url="accounts:login")
-@require_GET
+@require_http_methods(["GET", "POST"])
 def event_detail(request, pk):
     event = get_object_or_404(
-        family_events(request.user).select_related("workspace").prefetch_related("participants"),
+        family_events(request.user).select_related(
+            "workspace", "dropoff_driver", "pickup_driver",
+        ).prefetch_related("participants"),
         pk=pk,
     )
     list_url = (
@@ -184,6 +189,30 @@ def event_detail(request, pk):
     timezone_name = event.timezone_name
     if timezone_form.is_valid():
         timezone_name = timezone_form.cleaned_data["timezone"]
+    can_manage_drivers = bool(event.workspace_id) and family_workspaces(
+        request.user, caregivers_only=True,
+    ).filter(pk=event.workspace_id).exists()
+    driver_form = None
+    if request.method == "POST" and not can_manage_drivers:
+        raise PermissionDenied
+    if can_manage_drivers:
+        driver_form = EventDriverForm(
+            request.POST if request.method == "POST" else None,
+            instance=event,
+        )
+        if request.method == "POST":
+            if driver_form.is_valid():
+                try:
+                    with transaction.atomic():
+                        event.save(update_fields=[*driver_form.fields, "updated_at"])
+                except DatabaseError:
+                    driver_form.add_error(None, "Driver assignments could not be saved. Please try again.")
+                else:
+                    messages.success(request, "Driver assignments saved.")
+                    return redirect(
+                        f"{reverse('events:detail', args=[event.pk])}?{urlencode({'timezone': timezone_name})}"
+                    )
+            event.refresh_from_db()
     local_day = timezone.localtime(event.starts_at, ZoneInfo(timezone_name)).date()
     schedule_query = urlencode({
         "date": local_day,
@@ -215,9 +244,8 @@ def event_detail(request, pk):
             "list_url": list_url,
             "timezone_form": timezone_form,
             "timezone_name": timezone_name,
-            "can_create": bool(event.workspace_id) and family_workspaces(
-                request.user, caregivers_only=True,
-            ).filter(pk=event.workspace_id).exists(),
+            "can_create": can_manage_drivers,
+            "driver_form": driver_form,
             "workspace_url": (
                 reverse("accounts:workspace_detail", args=[event.workspace_id])
                 if event.workspace_id and event.workspace.primary_admin_id == request.user.pk
@@ -256,7 +284,7 @@ def event_list(request, workspace_id=None):
         events = accessible_events.filter(ends_at__gt=period["starts_at"])
         if period["view"] != "upcoming":
             events = events.filter(starts_at__lt=period["ends_at"])
-        events = events.select_related("workspace").order_by("starts_at", "pk")
+        events = events.select_related("workspace", "dropoff_driver", "pickup_driver").order_by("starts_at", "pk")
         timezone_query = {"timezone": period["timezone"]}
         create_query = urlencode({"date": period["date"], **timezone_query})
         context.update(

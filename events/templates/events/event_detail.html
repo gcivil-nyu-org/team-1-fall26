@@ -27,9 +27,22 @@
                     </div>
                     <div class="row"><div class="grow"><b>Getting there</b><small>{{ event.get_transport_mode_display }}</small></div></div>
                 {% endif %}
+                {% if event.workspace_id %}<div class="row"><div class="grow"><b>Drivers</b><small>{% if event.requires_transport %}{% include "events/_driver_summary.html" %}{% else %}No transportation requested{% endif %}</small></div></div>{% endif %}
                 <div class="row"><div class="grow"><b>Who can see it</b><small>{% if event.workspace %}Everyone in {{ event.workspace.name }}{% else %}Only you{% endif %}</small></div></div>
                 {% if event.source == 'google' %}<div class="row"><div class="grow"><b>From Google Calendar</b><small>Imported from Google Calendar. Change it there.</small></div></div>{% endif %}
             </div>
+            {% if driver_form %}
+                <details class="disclose driver-edit"{% if driver_form.errors %} open{% endif %}>
+                    <summary>Change drivers</summary>
+                    <form class="driver-form" method="post" action="{% url 'events:detail' event.pk %}?timezone={{ timezone_name|urlencode }}">
+                        {% csrf_token %}
+                        {{ driver_form.non_field_errors }}
+                        {% for field in driver_form %}<div class="field{% if field.name == 'requires_transport' %} field-requires_transport{% endif %}">{{ field.as_field_group }}</div>{% endfor %}
+                        <p>Only adults in the family can drive. Leave a driver unassigned while plans are still being made. Clear both drivers before turning off the ride.</p>
+                        <button class="btn" type="submit">Save drivers</button>
+                    </form>
+                </details>
+            {% endif %}
             <div class="actions start">
                 <a class="btn btn-quiet" href="{{ list_url }}?{{ schedule_query }}">See the whole day</a>
                 {% if can_create %}<a class="btn btn-quiet" href="{% url 'events:workspace_create' event.workspace_id %}?{{ schedule_query }}" data-dialog>Add another event that day</a>{% endif %}

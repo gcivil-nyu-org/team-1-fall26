@@ -95,6 +95,27 @@
                 {{ form.is_tentative.errors }}
             </div>
         </div>
+        {% if form.requires_transport %}
+            <div class="field check-field">
+                <div class="check">
+                    {{ form.requires_transport }}
+                    <label for="{{ form.requires_transport.id_for_label }}">Someone needs a ride<small>Choose who drives family members there and back.</small></label>
+                </div>
+                {{ form.requires_transport.errors }}
+            </div>
+            <div class="grid2">
+                <div class="field">
+                    <label for="{{ form.dropoff_driver.id_for_label }}">Drop-off driver <span class="opt">optional</span></label>
+                    {{ form.dropoff_driver }}
+                    {{ form.dropoff_driver.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.pickup_driver.id_for_label }}">Pickup driver <span class="opt">optional</span></label>
+                    {{ form.pickup_driver }}
+                    {{ form.pickup_driver.errors }}
+                </div>
+            </div>
+        {% endif %}
 
         {% if event_details %}
             {% timezone timezone_name %}
@@ -105,6 +126,7 @@
                     <div class="row"><div class="grow"><b>{{ event_details.title }}</b><small>{{ event_details.starts_at|date:"l j F" }}, {{ event_details.starts_at|clock }} to {% if event_details.starts_at|date:"Y-m-d" != event_details.ends_at|date:"Y-m-d" %}{{ event_details.ends_at|date:"D j M" }}, {% endif %}{{ event_details.ends_at|clock }} ({{ timezone_name }})</small></div></div>
                     <div class="row"><div class="grow"><b>Who’s going</b><small translate="no">{% for participant in form.cleaned_data.participants %}{{ participant|person }}{% if not forloop.last %}, {% endif %}{% empty %}Whole family{% endfor %}</small></div></div>
                     <div class="row"><div class="grow"><b>Where</b><small>{{ event_details.location|default:"No place set" }}{% if event_details.location %}, {{ event_details.get_transport_mode_display|lower }}{% endif %}</small></div></div>
+                    <div class="row"><div class="grow"><b>Drivers</b><small>{% if event_details.requires_transport %}{% include "events/_driver_summary.html" with event=event_details %}{% else %}No transportation requested{% endif %}</small></div></div>
                     <div class="row"><div class="grow"><b>Status</b><small>{% if event_details.is_tentative %}Not confirmed yet{% else %}Confirmed{% endif %}</small></div></div>
                 </div>
                 {% if travel_checks %}
@@ -134,6 +156,7 @@
             <li><span><b>Who’s going</b>Kids see the plans they’re in and whole-family plans.</span></li>
             <li><span><b>Not sure yet?</b>Tick Not confirmed yet. The plan shows with a dashed edge until it’s settled.</span></li>
             <li><span><b>Getting there</b>Pick how you’re travelling, and Syncmily warns you when there isn’t time to get between plans.</span></li>
+            <li><span><b>Rides</b>Tick Someone needs a ride to choose who drives there and back. Only adults in the family can drive.</span></li>
         </ol>
     </aside>
     </div>

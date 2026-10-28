@@ -536,8 +536,8 @@ class FamilyEventTests(TestCase):
         self.assertEqual(self.save_event([self.admin.pk, self.kid.pk]).status_code, 302)
         self.assertSetEqual(set(Event.objects.get().participants.all()), {self.admin, self.kid})
 
-    def test_kid_can_read_shared_event_even_without_being_selected(self):
-        self.save_event([self.parent.pk])
+    def test_kid_can_read_whole_family_event_but_not_one_for_parents(self):
+        self.save_event([])
         event = Event.objects.get()
         self.client.force_login(self.kid)
         detail = self.client.get(reverse("events:detail", args=[event.pk]))
@@ -550,6 +550,13 @@ class FamilyEventTests(TestCase):
             self.assertNotContains(response, "Create an event")
         combined = self.client.get(reverse("events:list"), {"view": "upcoming"})
         self.assertContains(combined, self.data["title"])
+
+        event.participants.set([self.parent])
+        detail = self.client.get(reverse("events:detail", args=[event.pk]))
+        self.assertEqual(detail.status_code, 404)
+        for view in ("day", "week", "upcoming"):
+            response = self.client.get(self.list_url, {"view": view, "date": self.event_date.isoformat()})
+            self.assertNotContains(response, self.data["title"])
 
     def test_kid_cannot_create_even_with_global_model_permission(self):
         self.kid.user_permissions.add(Permission.objects.get(content_type__app_label="events", codename="add_event"))

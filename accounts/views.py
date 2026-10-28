@@ -35,6 +35,9 @@ from .services import (
     get_family_context,
     get_membership_from_token,
     invite_member,
+    invite_url,
+    invites_left,
+    reissue_invite,
     send_invitation_email,
     user_for_google_account,
 )
@@ -135,6 +138,7 @@ def dashboard(request):
     upcoming_events = (
         family_events(request.user)
         .filter(workspace=workspace, ends_at__gt=timezone.now())
+        .select_related("dropoff_driver", "pickup_driver")
         .order_by("starts_at", "pk")[:5]
     )
     members = workspace.memberships.select_related("user")
@@ -170,6 +174,7 @@ def _kid_context(request, context):
     )
     return {
         "me_row": row,
+        "my_week": row,
         "today_chip": chips.get(today),
         "tomorrow_chip": chips.get(today + timedelta(days=1)),
         "kid_upcoming": upcoming,
@@ -195,6 +200,7 @@ def _week_context(request, workspace):
     events = list(
         family_events(request.user)
         .filter(workspace=workspace, starts_at__lt=ends_at, ends_at__gt=starts_at)
+        .select_related("dropoff_driver", "pickup_driver")
         .prefetch_related("participants")
         .order_by("starts_at", "pk")
     )
@@ -234,6 +240,12 @@ def manage_members(request, workspace_id):
     if request.method == "POST":
         form = InviteMemberForm(request.POST, workspace=workspace)
 
+        if form.is_valid() and not invites_left(request.user):
+            form.add_error(
+                None,
+                "You've sent a lot of invites in the last hour. "
+                "Try again a little later.",
+            )
         if form.is_valid():
             try:
                 membership = invite_member(
@@ -248,21 +260,7 @@ def manage_members(request, workspace_id):
                     "The invitation could not be created. Please try again.",
                 )
             else:
-                try:
-                    send_invitation_email(request, membership)
-                except OSError:
-                    messages.warning(
-                        request,
-                        f"{membership.user.username} was created, but the "
-                        "invitation email could not be sent.",
-                    )
-                else:
-                    messages.success(
-                        request,
-                        f"Invitation sent to {membership.user.email}. "
-                        f"Their username is {membership.user.username}.",
-                    )
-
+                report_invite(request, membership)
                 return redirect(
                     "accounts:manage_members",
                     workspace_id=workspace.id,
@@ -270,17 +268,78 @@ def manage_members(request, workspace_id):
     else:
         form = InviteMemberForm(workspace=workspace)
 
+    members = list(
+        workspace.memberships
+        .exclude(user_id=workspace.primary_admin_id)
+        .select_related("user")
+    )
+    for member in members:
+        if member.is_pending:
+            member.invite_url = invite_url(request, member)
+
     return render(
         request,
         "accounts/manage_members.html",
         {
             "workspace": workspace,
             "form": form,
-            "members": workspace.memberships.select_related("user"),
+            "members": members,
             "family": family_members([workspace]),
-            "pending": workspace.memberships.filter(accepted_at__isnull=True).select_related("user"),
+            "pending": [member for member in members if member.is_pending],
         },
     )
+
+
+def report_invite(request, membership):
+    """
+    Email the invite when the member has an address, and tell the admin what
+    actually happened. The link stays on the members page either way.
+    """
+    username = membership.user.username
+    if not membership.user.email:
+        messages.success(
+            request,
+            f"{username} is ready. Copy their invite link below and send it "
+            "to them.",
+        )
+        return
+    try:
+        send_invitation_email(request, membership)
+    except OSError:
+        messages.warning(
+            request,
+            f"The email to {membership.user.email} didn't go through. "
+            f"Copy {username}'s invite link below and send it yourself.",
+        )
+    else:
+        messages.success(
+            request,
+            f"Invite emailed to {membership.user.email}. "
+            f"Their username is {username}.",
+        )
+
+
+@login_required
+@require_POST
+def resend_invite(request, workspace_id, membership_id):
+    """Start a fresh invite for a pending member; older links stop working."""
+    workspace = get_object_or_404(Workspace, id=workspace_id)
+    if workspace.primary_admin_id != request.user.pk:
+        raise PermissionDenied("Only the primary admin can manage members.")
+    membership = get_object_or_404(
+        workspace.memberships.select_related("user"),
+        pk=membership_id,
+        accepted_at__isnull=True,
+    )
+    if not invites_left(request.user):
+        messages.warning(
+            request,
+            "You've sent a lot of invites in the last hour. "
+            "Try again a little later.",
+        )
+    else:
+        report_invite(request, reissue_invite(membership))
+    return redirect("accounts:manage_members", workspace_id=workspace.id)
 
 
 @require_http_methods(["GET", "POST"])
@@ -314,7 +373,7 @@ def accept_invite(request, token):
         login(request, membership.user, backend=DIRECT_LOGIN_BACKEND)
         messages.success(
             request,
-            f"Welcome to {membership.workspace.name}! You're signed in as "
+            f"You're in {membership.workspace.name}, signed in as "
             f"{membership.user.username}.",
         )
         return redirect("accounts:dashboard")

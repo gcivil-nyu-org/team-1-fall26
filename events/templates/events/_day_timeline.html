@@ -37,7 +37,7 @@
                     {% for slot in lane.slots %}
                         <li style="--top: {{ slot.top|stringformat:'s' }}%; --h: {{ slot.height|stringformat:'s' }}%; --col: {{ slot.column }}; --cols: {{ slot.columns }}">
                             <a class="plan{% if slot.event.is_tentative %} tent{% endif %}{% if slot.clipped %} cont{% endif %}" href="{% url 'events:detail' slot.event.pk %}?{{ timezone_query }}" data-dialog{% if slot.event.source == 'google' %} title="From Google Calendar"{% endif %}>
-                                <b>{{ slot.event.title }}</b><span class="sr-only">, </span>{% if slot.event.is_tentative %}<span class="maybe">Not confirmed</span><span class="sr-only">, </span>{% endif %}{% if slot.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<time data-clock="{{ slot.time_clock }}">{{ slot.time_label }}</time>
+                                <b>{{ slot.event.title }}</b><span class="sr-only">, </span>{% if slot.event.requires_transport %}{% include "events/_driver_summary.html" with event=slot.event %}<span class="sr-only">, </span>{% endif %}{% if slot.event.is_tentative %}<span class="maybe">Not confirmed</span><span class="sr-only">, </span>{% endif %}{% if slot.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<time data-clock="{{ slot.time_clock }}">{{ slot.time_label }}</time>
                             </a>
                         </li>
                     {% empty %}

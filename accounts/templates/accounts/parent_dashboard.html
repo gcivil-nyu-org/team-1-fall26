@@ -26,7 +26,7 @@
                         <a class="chip l{{ chip.level }}{% if chip.tentative %} tent{% endif %}" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">
                             <span class="chip-day">{{ chip.date|date:"D j" }}</span>
                             {% for item in chip.items %}
-                                <p>{{ item.event.title }}{% if item.tentative %}<span class="maybe">Not confirmed</span>{% endif %}{% if item.all_day %}<time>All day</time>{% elif item.starts_earlier %}<time>Continues</time>{% else %}<time datetime="{{ item.event.starts_at|date:'c' }}" data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time>{% endif %}</p>
+                                <p>{{ item.event.title }}{% if item.event.requires_transport %}{% include "events/_driver_summary.html" with event=item.event %}{% endif %}{% if item.tentative %}<span class="maybe">Not confirmed</span>{% endif %}{% if item.all_day %}<time>All day</time>{% elif item.starts_earlier %}<time>Continues</time>{% else %}<time datetime="{{ item.event.starts_at|date:'c' }}" data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time>{% endif %}</p>
                             {% empty %}
                                 Free
                             {% endfor %}
