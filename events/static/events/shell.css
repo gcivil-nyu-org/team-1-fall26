@@ -210,7 +210,7 @@
 @media (max-width: 900px) {
   .bar .mark { min-width: 44px; min-height: 44px; }
   .bar .account summary.me { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
-  .bar .add-btn { height: 44px; }
+  .bar .btn.add-btn { height: 44px; }
   .bar .acct-menu a, .bar .acct-menu button, .bar .palette-options button { min-height: 44px; }
 }
 /* Only the narrowest phones drop the wordmark: icon + switches + add + avatar need ~390px. */
