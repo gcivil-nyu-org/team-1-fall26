@@ -372,3 +372,21 @@ class SignInPageTests(FamilyMixin, TestCase):
         self.assertContains(response, "Join Reyes family")
         self.assertContains(response, "Ana</span> invited you as a kid")
         self.assertContains(response, invite.user.username)
+
+
+class KidViewTests(FamilyMixin, TestCase):
+    def test_kid_gets_the_paint_kid_view_in_their_colour(self):
+        self.plan("Swim", timezone.now() + timedelta(days=1), 60, [self.lucia])
+        self.plan("Book club", timezone.now() + timedelta(days=1), 60, [self.ana])
+        self.client.force_login(self.lucia)
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertPaint(response)
+        self.assertTemplateUsed(response, "accounts/kid_dashboard.html")
+        self.assertContains(response, 'class="kid" data-hue="c"')
+        self.assertContains(response, "Hi <span translate=\"no\">Lucía</span>")
+        self.assertContains(response, 'class="kid-week"')
+        self.assertContains(response, "Swim")
+        self.assertNotContains(response, "Book club</b>")
+        self.assertContains(response, "You</span>")
+        self.assertNotContains(response, "Lucía!")
+        self.assertContains(response, "Reyes family")

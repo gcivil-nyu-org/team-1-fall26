@@ -497,3 +497,37 @@ body.paint .btn-small:hover { background: var(--raised); color: var(--ink); }
 .invite-facts { margin: -8px 0 16px; }
 .auth-body .form-error { margin-bottom: 16px; }
 .auth-body h1:first-child { margin-top: 40px; }
+
+/* ===== Kid view: one big card in the kid's own colour (kid mockup) ===== */
+.kid { max-width: 1080px; margin: 0 auto; }
+.kid-hero { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; padding: 32px; border-radius: 8px; background: var(--s3, var(--raised)); color: var(--paint-ink); }
+.paint .kid-hero h1 { font-size: 40px; line-height: 44px; letter-spacing: -0.02em; }
+.paint .kid-hero p { margin-top: 8px; font-size: 18px; line-height: 26px; }
+.paint .kid-date { margin: 0; padding: 12px 20px; border-radius: 8px; background: var(--s1, var(--card)); color: var(--s5, var(--ink)); font-size: 15px; font-weight: 600; text-align: center; }
+.kid-date strong { display: block; font-size: 48px; line-height: 52px; }
+.paint .kid h2 { margin: 32px 0 12px; font-size: 22px; line-height: 28px; }
+.kid-today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.kid-plan { display: block; padding: 20px; border-radius: 8px; color: var(--paint-ink); font-size: 18px; line-height: 26px; text-decoration: none; }
+.paint .kid-plan { color: var(--paint-ink); }
+.paint .kid-plan.l3 { color: var(--on-deep); }
+.kid-plan .kid-when { display: block; font-size: 15px; font-weight: 600; }
+.kid-plan b { display: block; margin: 4px 0; font-size: 22px; line-height: 28px; }
+.kid-plan:hover b { text-decoration: underline; }
+.kid-plan.tent { outline: 2px dashed currentColor; outline-offset: -6px; }
+.paint .kid-free, .paint .kid-more { color: var(--ink); font-size: 16px; line-height: 24px; }
+.paint .kid-more { margin-top: 12px; }
+.kid-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; overflow: hidden; border-radius: 8px; }
+.kid-week .chip { min-height: 120px; padding: 14px; font-size: 15px; line-height: 20px; }
+.kid-week .chip strong { font-size: 13px; }
+.kid-week .chip.is-today strong { text-decoration: underline; text-underline-offset: 4px; }
+.paint .family-dots { display: flex; flex-wrap: wrap; gap: 20px; margin: 0; padding: 0; list-style: none; }
+.family-dots li { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
+body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
+@media (max-width: 900px) {
+  .kid-hero { grid-template-columns: 1fr; padding: 24px; }
+  .paint .kid-hero h1 { font-size: 32px; line-height: 36px; }
+  .kid-date { justify-self: start; }
+  .kid-today, .kid-week { grid-template-columns: minmax(0, 1fr); }
+  .kid-week .chip { min-height: 0; flex-direction: row; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+}
+.paint .kid h2 .span { margin-left: 8px; font-size: 16px; font-weight: 400; }
