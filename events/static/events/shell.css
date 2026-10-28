@@ -206,6 +206,13 @@
   .bar .nav-short { display: inline; }
   body { padding-bottom: 64px; }
 }
+/* Phones: 44px targets for the bar's own controls (the avatar menu, the mark, Add event, menu rows). */
+@media (max-width: 900px) {
+  .bar .mark { min-width: 44px; min-height: 44px; }
+  .bar .account summary.me { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
+  .bar .add-btn { height: 44px; }
+  .bar .acct-menu a, .bar .acct-menu button, .bar .palette-options button { min-height: 44px; }
+}
 /* Only the narrowest phones drop the wordmark: icon + switches + add + avatar need ~390px. */
 @media (max-width: 440px) { .bar .mark .mark-text { display: none; } }
 /* "Add event" keeps its label until the bar runs out of room; below that it is an icon button. */
