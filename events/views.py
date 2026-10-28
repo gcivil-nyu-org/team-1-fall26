@@ -149,6 +149,14 @@ def choose_workspace(request):
             "timezone": request.GET.get("timezone") or timezone.get_current_timezone_name(),
         },
     )
+    if not form.is_bound:
+        # One family to add to: nothing to choose, so go straight to the event form.
+        choices = list(form.fields["workspace"].queryset[:2])
+        if len(choices) == 1:
+            form = EventWorkspaceForm(
+                {**form.initial, "workspace": choices[0].pk, "date": form.initial["date"] or ""},
+                user=request.user,
+            )
     if form.is_bound and form.is_valid():
         workspace = form.cleaned_data["workspace"]
         query = {"timezone": form.cleaned_data["timezone"]}

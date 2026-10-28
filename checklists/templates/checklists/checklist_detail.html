@@ -2,7 +2,6 @@
 {% load paint %}
 {% block title %}{{ checklist.title }} | Syncmily{% endblock %}
 {% block content %}
-<div class="narrow">
     <p class="crumbs"><a href="{% url 'checklists:list' checklist.workspace.pk %}">Checklists</a> / {{ checklist.title }}</p>
     {% include 'events/_flashes.html' %}
     <div class="head">
@@ -18,9 +17,10 @@
             </div>
         {% endif %}
     </div>
+    <div class="layout-form">
     <section class="panel checklist" aria-labelledby="items-heading"{% if member %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>
         <h2 class="sr-only" id="items-heading">Items</h2>
-        <p class="span">{% if total_items %}{{ completed_items }} of {{ total_items }} done{% else %}Nothing on this list yet.{% if can_manage %} Add the first item below.{% endif %}{% endif %}{% if checklist.created_by %} · Made by <span translate="no">{{ checklist.created_by|person }}</span>{% endif %}</p>
+        {% if not total_items %}<p class="span">Nothing on this list yet.{% if can_manage %} Add the first item below.{% endif %}</p>{% endif %}
         {% for item in items %}
             <div class="check-row{% if item.is_completed %} done{% endif %}">
                 <form method="post" action="{% url 'checklists:item_toggle' item.pk %}">
@@ -51,5 +51,17 @@
             </form>
         {% endif %}
     </section>
-</div>
+    <aside class="panel helper" aria-labelledby="progress-heading"{% if member %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>
+        <h2 id="progress-heading">Progress</h2>
+        {% if total_items %}
+            {% widthratio completed_items total_items 100 as pct %}
+            <span class="meter meter-big" role="img" aria-label="{{ completed_items }} of {{ total_items }} done, {{ pct }}%"><span class="meter-track"><i style="width: {{ pct }}%"></i></span><span class="pct" aria-hidden="true">{{ pct }}%</span></span>
+            <p class="span">{{ completed_items }} of {{ total_items }} done{% if completed_items == total_items %}. All done!{% endif %}</p>
+        {% else %}
+            <p class="span">Nothing on this list yet.</p>
+        {% endif %}
+        {% if checklist.event %}<p class="span">For <a href="{% url 'events:detail' checklist.event.pk %}" data-dialog>{{ checklist.event.title }}</a>, {{ checklist.event.starts_at|date:"l j F" }}.</p>{% endif %}
+        {% if checklist.created_by %}<p class="span">Made by <span translate="no">{{ checklist.created_by|person }}</span>.</p>{% endif %}
+    </aside>
+    </div>
 {% endblock %}

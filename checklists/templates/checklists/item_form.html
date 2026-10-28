@@ -5,7 +5,8 @@
     <div class="head">
         <h1>Edit item</h1>
     </div>
-    <section class="panel narrow">
+    <div class="layout-form">
+    <section class="panel">
         <form method="post">
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -20,4 +21,10 @@
             </div>
         </form>
     </section>
+    <aside class="panel helper" aria-labelledby="item-tips">
+        <h2 id="item-tips">On {{ checklist.title }}</h2>
+        <p class="span">Changes show for everyone in the family. To take the item off the list, use Remove on the list itself.</p>
+        <p class="span"><a href="{% url 'checklists:detail' checklist.pk %}">Back to {{ checklist.title }}</a></p>
+    </aside>
+    </div>
 {% endblock %}

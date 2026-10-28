@@ -554,3 +554,37 @@ body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
   .tz-note > summary { min-height: 44px; }
   .paint .rail .row { min-height: 48px; }
 }
+
+/* ===== Page layouts (part 3): wide screens get a second column, not blank space ===== */
+/* Form pages: the task on the left, what to know or what comes next on the right. */
+.layout-form { display: grid; gap: 24px; align-items: start; }
+@container page (width >= 900px) { .layout-form { grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); } }
+.helper { display: grid; gap: 12px; align-content: start; }
+.helper h2 { margin: 0; font-size: 16px; }
+.helper .tips { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; counter-reset: tip; }
+.helper .tips li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; color: var(--muted); font-size: 14px; }
+.helper .tips li::before { counter-increment: tip; content: counter(tip); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--raised); color: var(--ink); font-size: 12px; font-weight: 600; }
+.helper .tips b { display: block; color: var(--ink); font-weight: 600; }
+.helper .qr { justify-self: start; }
+
+/* Card grids: lists of a few big things (families, checklists) fill the width. */
+.cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.card-link { display: grid; gap: 12px; align-content: start; min-height: 140px; padding: 18px 20px; border-radius: var(--radius); border-top: 6px solid var(--s3, var(--control)); background: var(--card); color: inherit; text-decoration: none; }
+.card-link:hover b, .card-link:focus-visible b { text-decoration: underline; text-decoration-thickness: 1px; }
+.card-link b { font-size: 17px; font-weight: 600; }
+.card-link small { display: block; color: var(--muted); font-size: 13px; }
+
+/* Progress: a full-width bar with the share done. */
+.meter { display: flex; align-items: center; gap: 12px; }
+.meter-track { flex: 1; height: 10px; border-radius: 5px; background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.meter-track i { display: block; height: 100%; border-radius: 5px; background: var(--s4, var(--ink)); }
+.meter .pct { min-width: 4ch; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.meter-big .meter-track { height: 14px; border-radius: 7px; }
+.meter-big .pct { font-size: 28px; line-height: 1; }
+
+/* Schedule list: date, time zone, colours and Google Calendar sit beside the list. */
+.schedule-side .page-foot { margin-top: 0; }
+.schedule-side .foot-tools { display: grid; gap: 10px; }
+.schedule-side .foot-tools .btn, .schedule-side .disclose summary { justify-self: start; }
+.schedule-side .inline-form { display: grid; gap: 12px; }
+.checklist h2.sr-only + .check-row { border-top: 0; }

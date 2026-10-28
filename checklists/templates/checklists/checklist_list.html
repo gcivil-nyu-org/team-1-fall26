@@ -2,24 +2,27 @@
 {% load paint %}
 {% block title %}Checklists | Syncmily{% endblock %}
 {% block content %}
-<div class="narrow">
     {% include 'events/_flashes.html' %}
     <div class="head">
         <h1>Checklists</h1>
         <span class="span">{{ workspace.name }}, {{ checklists|length }} list{{ checklists|length|pluralize }}</span>
         {% if can_manage %}<div class="head-tools"><a class="btn" href="{% url 'checklists:create' workspace.pk %}">New checklist</a></div>{% endif %}
     </div>
-    <section class="panel lists" aria-labelledby="lists-heading">
+    <section class="{% if checklists %}cards{% else %}panel{% endif %} lists" aria-labelledby="lists-heading">
         <h2 class="sr-only" id="lists-heading">Lists in {{ workspace.name }}</h2>
         {% for checklist in checklists %}
-            <a class="row" href="{% url 'checklists:detail' checklist.pk %}"{% if checklist.member %} data-hue="{{ checklist.member.hue }}"{% if checklist.member.custom_color %} style="--hue: {{ checklist.member.custom_color }}"{% endif %}{% endif %}>
-                <span class="dot{% if not checklist.member %} dot-quiet{% endif %}" aria-hidden="true">{{ checklist.title|first|upper }}</span>
-                <span class="grow">
+            <a class="card-link" href="{% url 'checklists:detail' checklist.pk %}"{% if checklist.member %} data-hue="{{ checklist.member.hue }}"{% if checklist.member.custom_color %} style="--hue: {{ checklist.member.custom_color }}"{% endif %}{% endif %}>
+                <span>
                     <b>{{ checklist.title }}</b>
                     <small>{% if checklist.event %}For {{ checklist.event.title }}, {{ checklist.event.starts_at|date:"D j M" }}{% else %}Not linked to an event{% endif %}</small>
-                    {% if checklist.total_items %}<span class="progress" aria-hidden="true"><i style="width: {% widthratio checklist.completed_items checklist.total_items 100 %}%"></i></span>{% endif %}
                 </span>
-                <span class="pill">{% if checklist.total_items %}{{ checklist.completed_items }} of {{ checklist.total_items }} done{% else %}Empty{% endif %}</span>
+                {% if checklist.total_items %}
+                    {% widthratio checklist.completed_items checklist.total_items 100 as pct %}
+                    <span class="meter" role="img" aria-label="{{ checklist.completed_items }} of {{ checklist.total_items }} done, {{ pct }}%"><span class="meter-track"><i style="width: {{ pct }}%"></i></span><span class="pct" aria-hidden="true">{{ pct }}%</span></span>
+                    <small>{{ checklist.completed_items }} of {{ checklist.total_items }} done</small>
+                {% else %}
+                    <small>Empty. Open it to add the first item.</small>
+                {% endif %}
             </a>
         {% empty %}
             <div class="empty-row">
@@ -28,5 +31,4 @@
             </div>
         {% endfor %}
     </section>
-</div>
 {% endblock %}

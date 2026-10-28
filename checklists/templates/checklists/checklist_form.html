@@ -5,7 +5,8 @@
     <div class="head">
         <h1>{% if editing %}Edit checklist{% else %}New checklist{% endif %}</h1>
     </div>
-    <section class="panel narrow">
+    <div class="layout-form">
+    <section class="panel">
         <form method="post">
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -27,4 +28,13 @@
             </div>
         </form>
     </section>
+    <aside class="panel helper" aria-labelledby="list-tips">
+        <h2 id="list-tips">How lists work</h2>
+        <ol class="tips">
+            <li><span><b>Everyone can tick</b>Anyone in the family can mark items done. Parents add and change them.</span></li>
+            <li><span><b>Link it to a plan</b>A list for an event takes the colour of the first person going.</span></li>
+            <li><span><b>See progress</b>The checklists page shows how much of each list is done.</span></li>
+        </ol>
+    </aside>
+    </div>
 {% endblock %}

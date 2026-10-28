@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from events.access import family_events
@@ -13,6 +13,9 @@ from .services import get_household_messages
 @login_required
 def chat_home(request):
     workspaces = accessible_workspaces(request.user).order_by("name")
+    # One family: its chat is the only place to go, so skip the list.
+    if len(workspaces) == 1:
+        return redirect("chat:workspace_chat", workspaces[0].pk)
 
     return render(
         request,

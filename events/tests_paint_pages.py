@@ -188,7 +188,13 @@ class EventPageTests(FamilyMixin, TestCase):
         self.assertContains(response, 'value="save"')
         self.assertContains(response, "location_autocomplete.js")
 
+    def test_one_family_skips_the_family_picker(self):
+        response = self.client.get(reverse("events:choose_workspace"))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse("events:workspace_create", args=[self.workspace.pk])))
+
     def test_choose_family_page(self):
+        Workspace.objects.create(name="Grandma's house", primary_admin=self.ana)
         response = self.client.get(reverse("events:choose_workspace"))
         self.assertPaint(response)
         self.assertContains(response, "Which family is this for?")
@@ -255,7 +261,13 @@ class ChatPageTests(FamilyMixin, TestCase):
         self.assertContains(response, 'tabindex="0"')
         self.assertContains(response, "Coming up")
 
+    def test_chat_home_opens_the_only_family(self):
+        self.client.force_login(self.ana)
+        response = self.client.get(reverse("chat:home"))
+        self.assertRedirects(response, reverse("chat:workspace_chat", args=[self.workspace.pk]))
+
     def test_chat_home_lists_families(self):
+        Workspace.objects.create(name="Grandma's house", primary_admin=self.ana)
         self.client.force_login(self.ana)
         response = self.client.get(reverse("chat:home"))
         self.assertPaint(response)

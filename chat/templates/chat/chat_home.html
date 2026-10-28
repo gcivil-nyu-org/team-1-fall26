@@ -66,9 +66,9 @@
     <div class="head">
         <h1>Household chat</h1>
     </div>
-    <section class="panel narrow" aria-label="Families">
+    <section class="{% if workspaces %}cards{% else %}panel{% endif %}" aria-label="Families">
         {% for item in workspaces %}
-            <a class="row" href="{% url 'chat:workspace_chat' item.id %}"><span class="grow"><b>{{ item.name }}</b><small>Open the family’s chat</small></span></a>
+            <a class="card-link" href="{% url 'chat:workspace_chat' item.id %}"><b>{{ item.name }}</b><small>Open the family’s chat</small></a>
         {% empty %}
             <h2>No family chat yet</h2>
             <p class="span">Chats belong to a family. Start one, or open the invite a parent sent you.</p>

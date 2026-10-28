@@ -43,7 +43,9 @@
     {% elif day %}
         {% include "events/_day_timeline.html" %}
     {% else %}
-        <section class="panel agenda narrow" aria-labelledby="agenda-title">
+        <div class="split">
+        <div class="stack">
+        <section class="panel agenda" aria-labelledby="agenda-title">
             <h2 class="sr-only" id="agenda-title">{% if view == 'upcoming' %}Upcoming and ongoing events{% else %}Plans for the week of {{ start_date|date:"j F" }}{% endif %}</h2>
             {% if view == 'upcoming' and page.paginator.count > 3 %}
                 <div class="find">
@@ -81,63 +83,19 @@
                 {% if page.has_next %}<a class="btn btn-quiet" href="?{{ period_query }}&amp;page={{ page.next_page_number }}">Next page</a>{% endif %}
             </nav>
         {% endif %}
+        </div>
+        <aside class="stack schedule-side" aria-label="Schedule settings">
+            <section class="panel page-foot">
+                {% include "events/_schedule_tools.html" %}
+            </section>
+        </aside>
+        </div>
     {% endif %}
 
+    {% if day or form.errors %}
     <footer class="page-foot">
-        <p class="note">Times are shown in {{ timezone_name }}.{% if day.free_note %} {{ day.free_note }}{% endif %}</p>
-        <div class="foot-tools">
-            <details class="disclose"{% if form.errors %} open{% endif %}>
-                <summary>Change date or time zone</summary>
-                <form class="inline-form" method="get">
-                    <div class="field">
-                        <label for="{{ form.date.id_for_label }}">Date</label>
-                        {{ form.date }}
-                        {{ form.date.errors }}
-                    </div>
-                    <div class="field">
-                        <label for="{{ form.timezone.id_for_label }}">Time zone</label>
-                        {{ form.timezone }}
-                        {{ form.timezone.errors }}
-                    </div>
-                    <div class="field">
-                        <label for="{{ form.view.id_for_label }}">Show</label>
-                        {{ form.view }}
-                    </div>
-                    <button class="btn" type="submit">Show</button>
-                </form>
-            </details>
-            {% if color_members %}
-                <details class="disclose">
-                    <summary>Change colours</summary>
-                    <form class="inline-form colours" method="post" action="{% url 'events:member_colors' color_workspace.pk %}" data-colours>
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        {% for member in color_members %}
-                            <label class="colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
-                                <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}"{% if not member.custom_color %} data-deck{% endif %}>
-                                <span translate="no">{% if member.user == request.user %}You{% else %}{{ member.user|person }}{% endif %}</span>
-                            </label>
-                        {% endfor %}
-                        <button class="btn btn-quiet" type="submit">Save colours</button>
-                    </form>
-                </details>
-            {% endif %}
-            {% if calendar_workspace %}
-                <form class="calendar-account" method="post" action="{% url 'calendars:google_connect' calendar_workspace.pk %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    {% if calendar_connection %}
-                        <p class="note">Google Calendar{% if calendar_connection.account_email %}: <span translate="no">{{ calendar_connection.account_email }}</span>{% else %} connected{% endif %}</p>
-                        <button class="btn btn-quiet" type="submit">Change Google Account</button>
-                    {% else %}
-                        <button class="btn btn-quiet" type="submit">Connect Google Calendar</button>
-                    {% endif %}
-                </form>
-            {% endif %}
-            {% if can_create and not workspace %}
-                <a class="btn btn-quiet" href="{% url 'events:choose_workspace' %}?{{ create_query }}" data-dialog>Add event to a family</a>
-            {% endif %}
-        </div>
+        {% include "events/_schedule_tools.html" %}
     </footer>
+    {% endif %}
 {% endwith %}
 {% endblock %}
