@@ -126,7 +126,7 @@ Text on each step: **i** = `--paint-ink`, **w** = `--on-paint-deep` (white). "Da
 |---|---|---|---|---|---|---|---|---|
 | a | Harbor blue | 265 | `#eff4fe` i | `#d2e0fd` i | `#91b3fd` i | `#436ed8` w | `#3253a7` w | `#252e41` |
 | b | Jade | 160 | `#e3faed` i | `#b1f1ce` i | `#55f1ac` i | `#2b845c` w | `#1e6445` w | `#233126` |
-| c | Sunflower | 92 | `#fbf3dd` i | `#f3dfa3` i | `#facc1f` i | `#f89d19` i | `#a7490d` w | `#452b1c` |
+| c | Sunflower | 92 | `#fef3d3` i | `#fcdd7e` i | `#facc1f` i | `#f89d19` i | `#a7490d` w | `#452b1c` |
 | d | Tomato | 31 | `#fef0ed` i | `#fdd5ce` i | `#fd9886` i | `#c94634` w | `#9a3325` w | `#42261e` |
 | e | Lagoon | 197 | `#ddfafa` i | `#9ef1f1` i | `#55eaec` i | `#2a8081` w | `#1e6061` w | `#23302d` |
 | f | Grape | 308 | `#f7f0fe` i | `#e9d7fd` i | `#d09efd` i | `#9457c5` w | `#704096` w | `#35293c` |
@@ -137,27 +137,27 @@ Text on each step: **i** = `--paint-ink`, **w** = `--on-paint-deep` (white). "Da
 
 | Member | Name | Hue | 1 | 2 | 3 | 4 | 5 | Dark 1 |
 |---|---|---|---|---|---|---|---|---|
-| a | Bluebell | 271 | `#f0f3fe` i | `#d5dffc` i | `#9bb0fa` i | `#586ecf` w | `#4253a0` w | `#292e3f` |
-| b | Fern | 161 | `#e4faed` i | `#b4f0d0` i | `#65efb1` i | `#2b845e` w | `#1e6446` w | `#233126` |
-| c | Buttercup | 91 | `#faf3df` i | `#f2dea7` i | `#f6cc4b` i | `#f2a036` i | `#a14e20` w | `#442c1e` |
-| d | Poppy | 24 | `#fef0ee` i | `#fcd5d2` i | `#fb9892` i | `#c24d4c` w | `#943837` w | `#412722` |
-| e | Pear | 118 | `#f1f6e2` i | `#dbe7af` i | `#c8de64` i | `#82ca68` i | `#327b38` w | `#283723` |
-| f | Peony | 355 | `#feeff4` i | `#fcd3e1` i | `#fb91bb` i | `#ba4c7d` w | `#8e375e` w | `#3f262c` |
-| g | Iris | 306 | `#f6f0fe` i | `#e8d7fc` i | `#cca1fa` i | `#8f5ebe` w | `#6c4592` w | `#342a3b` |
-| h | Apricot | 62 | `#fef1e6` i | `#fcd8ba` i | `#f99d43` i | `#ab6313` w | `#834b0c` w | `#3b2b1b` |
+| a | Sage | 132 | `#eff9e8` i | `#d4ecc3` i | `#b0e388` i | `#80cb65` i | `#327b38` w | `#283723` |
+| b | Plum | 330 | `#fef0fc` i | `#fbd5f7` i | `#e698df` i | `#a952a4` w | `#803d7c` w | `#3a2835` |
+| c | Ochre | 82 | `#fef4e3` i | `#fbdfae` i | `#f2be5b` i | `#f5a133` i | `#a14e20` w | `#442c1e` |
+| d | Teal | 196 | `#e4fbfa` i | `#b4f0f0` i | `#55eaec` i | `#2a8081` w | `#1e6061` w | `#23302d` |
+| e | Lavender | 297 | `#f6f3fe` i | `#e5defb` i | `#bfa8f5` i | `#8460c8` w | `#644897` w | `#322b3c` |
+| f | Terracotta | 34 | `#fef2f0` i | `#fbdbd3` i | `#f59d88` i | `#c34e35` w | `#943a27` w | `#41271f` |
+| g | Dusty blue | 265 | `#f1f5fe` i | `#d8e3fb` i | `#9ab7f5` i | `#4870d0` w | `#36559f` w | `#262e3f` |
+| h | Mint | 166 | `#e7fbf1` i | `#bef0da` i | `#71ecbe` i | `#2b8365` w | `#1e634b` w | `#233127` |
 
 **Crayon box** (`bold`)
 
 | Member | Name | Hue | 1 | 2 | 3 | 4 | 5 | Dark 1 |
 |---|---|---|---|---|---|---|---|---|
-| a | Cobalt | 255 | `#eaf3fe` i | `#c7dffd` i | `#7cb6fe` i | `#0474dd` w | `#0258ab` w | `#202f42` |
-| b | Grass | 162 | `#defaea` i | `#a2f1c9` i | `#54edad` i | `#2b845e` w | `#1e6446` w | `#233126` |
-| c | Lemon | 98 | `#f8f3d8` i | `#edde94` i | `#eccd0e` i | `#fa9d0b` i | `#a94703` w | `#462b1b` |
-| d | Red | 33 | `#feeeea` i | `#fdd0c7` i | `#fe9782` i | `#d53617` w | `#a12912` w | `#45251b` |
-| e | Sky | 208 | `#dbf8fd` i | `#98ecfa` i | `#51e0f5` i | `#2a7e8a` w | `#1e5f69` w | `#23302f` |
-| f | Raspberry | 7 | `#feedf0` i | `#fdced6` i | `#fe92a9` i | `#d22e65` w | `#9f234c` w | `#442427` |
-| g | Purple | 316 | `#f9edfe` i | `#efcffd` i | `#e097fe` i | `#a448c7` w | `#7c3696` w | `#39273c` |
-| h | Lime | 125 | `#ecf6dd` i | `#cee8a3` i | `#b3e14b` i | `#69cd40` i | `#267d30` w | `#273821` |
+| a | Cobalt | 258 | `#eaf2fe` i | `#c9defe` i | `#82b4ff` i | `#006ff1` w | `#0054ba` w | `#1f2f46` |
+| b | Magenta | 352 | `#feecf3` i | `#fecce0` i | `#ff90c2` i | `#d02185` w | `#9f1764` w | `#44222e` |
+| c | Emerald | 162 | `#dbfbea` i | `#96f4c6` i | `#54edae` i | `#2a825e` w | `#1d6246` w | `#233126` |
+| d | Tangerine | 58 | `#feeee3` i | `#fed3b3` i | `#ff9941` i | `#b15f00` w | `#884700` w | `#3d2a1a` |
+| e | Violet | 303 | `#f5effe` i | `#e4d3fe` i | `#c9a1ff` i | `#9549e0` w | `#7135ab` w | `#352842` |
+| f | Red | 37 | `#feeee9` i | `#fed1c3` i | `#ff987a` i | `#d23c00` w | `#a02c00` w | `#442519` |
+| g | Cyan | 211 | `#dcf8fd` i | `#9debfa` i | `#53e0f7` i | `#2a7e8c` w | `#1e5f6a` w | `#233030` |
+| h | Gold | 94 | `#fef2c6` i | `#feda52` i | `#f3ca00` i | `#fb9d00` i | `#aa4600` w | `#462b1b` |
 
 ### Status colours
 

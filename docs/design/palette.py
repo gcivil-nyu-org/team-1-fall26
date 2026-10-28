@@ -18,7 +18,8 @@ import colourmath as cm  # noqa: E402
 
 # --- Member decks --------------------------------------------------------------------------
 # Three decks, chosen per family. Saturday market is the default (key "primaries", kept so saved
-# families keep working); Morning garden ("garden") and Crayon box ("bold") are the options.
+# families keep working); Morning garden ("garden", soft) and Crayon box ("bold", strong) are the
+# options. Each deck orders its colour families differently, so switching visibly recolours everyone.
 # Each colour keeps its own natural lightness: step 3, the member's main chip, sits near the
 # lightness where that hue is most vivid, so yellow stays light and bright, and rises only as far
 # as dark text needs. Steps 1-2 are pale tints at a shared lightness; 4-5 go deep enough for
@@ -33,15 +34,18 @@ DECKS = {
         (("Harbor blue", 264.9), ("Jade", 160.3), ("Sunflower", 91.7), ("Tomato", 30.9),
          ("Lagoon", 196.6), ("Grape", 307.5), ("Berry", 3.0), ("Lime", 128.9))),
     "garden": (
-        dict(l1=0.965, l2=0.905, l3=(0.66, 0.85), d4=0.15, d5=0.12, l4min=0.52, l5min=0.42,
-             chroma=(0.028, 0.075, 0.150, 0.150, 0.125), share=(0.90, 0.90, 0.93, 0.95, 0.95)),
-        (("Bluebell", 271.3), ("Fern", 161.2), ("Buttercup", 90.6), ("Poppy", 23.9),
-         ("Pear", 118.2), ("Peony", 355.4), ("Iris", 305.7), ("Apricot", 61.6))),
+        # Morning garden: soft pastels. Lower chroma and a lighter main chip than the other decks,
+        # with its own order of colour families, so switching to it changes every member's colour.
+        dict(l1=0.970, l2=0.915, l3min=0.78, chroma=(0.024, 0.060, 0.130, 0.155, 0.125),
+             share=(0.85, 0.85, 0.85, 0.90, 0.90)),
+        (("Sage", 132.4), ("Plum", 329.6), ("Ochre", 81.7), ("Teal", 196.4),
+         ("Lavender", 297.4), ("Terracotta", 33.7), ("Dusty blue", 265.1), ("Mint", 166.2))),
     "bold": (
-        dict(l1=0.960, l2=0.895, l3=(0.62, 0.88), d4=0.16, d5=0.12, l4min=0.50, l5min=0.40,
-             chroma=(0.035, 0.095, 0.210, 0.200, 0.160), share=(0.90, 0.95, 0.99, 0.99, 0.99)),
-        (("Cobalt", 254.8), ("Grass", 161.6), ("Lemon", 98.0), ("Red", 32.6),
-         ("Sky", 208.5), ("Raspberry", 6.8), ("Purple", 315.6), ("Lime", 125.1))),
+        # Crayon box: full-strength colours in their own order of families.
+        dict(l1=0.960, l2=0.895, l3min=0.70, chroma=(0.040, 0.110, 0.240, 0.220, 0.180),
+             share=(0.95, 0.97, 1.00, 1.00, 1.00)),
+        (("Cobalt", 258.2), ("Magenta", 352.4), ("Emerald", 162.1), ("Tangerine", 57.8),
+         ("Violet", 303.1), ("Red", 36.6), ("Cyan", 210.6), ("Gold", 94.1))),
 }
 DECK_LABELS = {"primaries": "Saturday market", "garden": "Morning garden", "bold": "Crayon box"}
 HUES = "abcdefgh"
@@ -128,7 +132,7 @@ def ramp(params, hue):
     APCA Lc 60), so yellow, green and teal stay bright. Steps 4-5 carry white, except a yellow's or
     lime's step 4, which stays bright with ink. Step 5 also reads as text on step 1 (the quiet chip)
     and is the member's outline colour on light cards (step 3 on dark ones)."""
-    yellow, cool = 70 <= hue <= 115, 120 <= hue <= 235
+    yellow, cool = 60 <= hue <= 115, 120 <= hue <= 235
     share = [min(x, 0.85) for x in params["share"]] if cool else list(params["share"])
 
     def paint(k, L, h):
@@ -139,7 +143,7 @@ def ramp(params, hue):
     s1 = hexof(params["l1"], min(params["chroma"][0] * tint, cm.max_chroma(params["l1"], hue) * share[0]), hue)
     s2 = hexof(params["l2"], min(params["chroma"][1] * tint, cm.max_chroma(params["l2"], hue) * share[1]), hue)
     # Step 3 stays at least 0.045 darker than the step-2 tint, so the steps read in order.
-    L = min(max(_cusp_l(hue), 0.70), 0.86 if cool else 0.90, params["l2"] - 0.045)
+    L = min(max(_cusp_l(hue), params.get("l3min", 0.70)), 0.86 if cool else 0.90, params["l2"] - 0.045)
     s3 = paint(2, L, hue)
     while not _passes(INK_HEX, s3) and L < 0.97:
         L += 0.005
