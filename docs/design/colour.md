@@ -396,7 +396,7 @@ Measured on `design/warm-canvas-background` (before) and this branch (after) wit
 
 | | Before | After |
 |---|---|---|
-| Gate (`check_colours.py`) | 275 failures (85 of them roles that did not exist yet) | 765 checks, 0 failures |
+| Gate (`check_colours.py`) | 375 failures (185 of them roles that did not exist yet) | 765 checks, 0 failures |
 | Neutral hue (ink, muted, control, all dark surfaces) | OKLCH h 155-165, green-grey, against a canvas at h 83 | h 83 throughout |
 | `--control` (input and quiet-button edges) | 1.67:1 on card, 1.42:1 on canvas; dark 2.04:1 | 4.65:1, 3.96:1; dark 3.62:1 |
 | Lightness spread inside one step (step 3) | primaries 0.099, garden 0.054, bold 0.125 (OKLCH L) | 0.002 in every deck and step |
