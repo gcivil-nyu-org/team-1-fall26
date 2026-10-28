@@ -23,6 +23,8 @@
             <div class="corner"></div>
             <div class="axis">
                 {% for hour in day.hours %}<span style="top: {{ hour.top|stringformat:'s' }}%" data-clock="{{ hour.starts_at|time:'H' }}:00" data-axis>{{ hour.starts_at|time:"g A" }}</span>{% endfor %}
+                {# The day ends at midnight: label the bottom edge so the last hour is closed off. #}
+                <span style="top: 100%" data-clock="00:00" data-axis>12 AM</span>
                 {% if day.now_top is not None %}<i class="now-dot" style="top: {{ day.now_top|stringformat:'s' }}%"></i>{% endif %}
             </div>
         </div>
@@ -45,6 +47,7 @@
                     {% endfor %}
                 </ol>
                 {% for hour in day.hours %}<i class="hl" style="top: {{ hour.top|stringformat:'s' }}%" aria-hidden="true"></i>{% endfor %}
+                <i class="hl" style="top: 100%" aria-hidden="true"></i>
                 {% if day.now_top is not None %}<i class="now" style="top: {{ day.now_top|stringformat:'s' }}%" aria-hidden="true"></i>{% endif %}
                 </div>
             </section>

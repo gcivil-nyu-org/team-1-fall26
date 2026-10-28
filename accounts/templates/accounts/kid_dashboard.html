@@ -58,6 +58,7 @@
             <h2>My day <span class="span">{{ today|date:"l j F" }} · {% if rail.items %}{{ rail.items|length }} plan{{ rail.items|length|pluralize }}{% else %}nothing planned{% endif %}</span></h2>
             <div class="kid-rail" aria-label="Today from 7 AM to midnight">
                 {% for hour in rail.hours %}<i class="kid-hour" style="top:{{ hour.top }}%"><span>{% if hour.hour == 0 %}12 AM{% elif hour.hour < 12 %}{{ hour.hour }} AM{% elif hour.hour == 12 %}12 PM{% else %}{{ hour.hour|add:"-12" }} PM{% endif %}</span></i>{% endfor %}
+                <i class="kid-hour" style="top:100%"><span>12 AM</span></i>
                 {% for item in rail.items %}
                     <a class="kid-slot{% if item.event.is_tentative %} tent{% endif %}" data-hue="{% if item.member %}{{ item.member.hue }}{% else %}{{ me.hue }}{% endif %}"{% if item.member.custom_color %} style="--hue:{{ item.member.custom_color }};top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"{% else %} style="top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"{% endif %} href="{% url 'events:detail' item.event.pk %}" data-dialog>
                         <time>{{ item.event.starts_at|clock }}</time> <b>{{ item.event.title }}</b>
