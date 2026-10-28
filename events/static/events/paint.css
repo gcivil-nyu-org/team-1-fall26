@@ -142,3 +142,253 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
   .auth { grid-template-columns: 1fr; }
   .auth-deck { display: none; }
 }
+
+/* ===== Screens beyond the week (part 2): shared parts ===== */
+/* White text on a deep paint step (4-5) in both themes. Tokens wanted: a shared --on-paint-deep. */
+.paint [hidden] { display: none !important; }
+body.paint { --on-deep: var(--card); }
+[data-theme="dark"] body.paint { --on-deep: var(--ink); }
+.paint ::-webkit-scrollbar-thumb { background: var(--control); }
+.paint { scrollbar-color: var(--control) transparent; caret-color: var(--ink); }
+
+.head-tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.head-tools .seg { margin-left: 0; }
+.crumbs { margin-bottom: 8px; color: var(--muted); }
+.crumbs a { color: var(--muted); }
+.crumbs a:hover { color: var(--ink); }
+.lede { color: var(--muted); margin: 4px 0 20px; max-width: 60ch; }
+
+.panel { background: var(--card); border-radius: var(--radius); padding: 20px; }
+.panel > h2 + .span, .panel > h2 + p { margin-top: 4px; }
+.stack { display: grid; gap: 16px; align-content: start; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+@container page (width >= 900px) { .split { grid-template-columns: minmax(0, 1fr) 340px; } }
+.narrow { max-width: 640px; }
+.agenda.narrow { max-width: 760px; }
+
+/* Rows: the list pattern from the week's rail, used for members, plans and lists. */
+.panel .row, .agenda .row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 0; border-top: 1px solid var(--line); color: inherit; text-decoration: none; }
+.panel .row:first-child, .panel h2 + .row, .panel .day-sep + .row, .panel .sr-only + .row { border-top: 0; }
+.row .grow { flex: 1; min-width: 0; font-weight: 400; }
+.row b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.row small { display: block; color: var(--muted); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+a.row:hover b, a.row:hover .grow { text-decoration: underline; text-decoration-thickness: 1px; }
+.row .when { flex: none; text-align: right; font-weight: 500; }
+.row .when small { font-weight: 400; }
+body.paint .dot.dot-quiet { background: var(--raised); color: var(--muted); }
+.paint .row.tent { outline: 0; }
+.row.tent .dot { outline: 1.5px dashed var(--s4, var(--ink)); outline-offset: 2px; background: transparent; color: var(--s5, var(--ink)); }
+.day-sep { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; padding: 16px 0 6px; font-size: 13px; line-height: 20px; font-weight: 600; }
+.day-sep span { color: var(--muted); font-size: 12px; font-weight: 400; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.pill.tent { background: transparent; color: var(--ink); outline: 1.5px dashed currentColor; outline-offset: -1.5px; }
+[data-theme="dark"] .paint .pill[data-hue], [data-theme="dark"] .paint [data-hue] > .pill { background: color-mix(in oklab, var(--s5) 40%, var(--card)); color: var(--s1); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.empty-row { padding: 20px 0 8px; }
+.empty-row h3 { font-size: 14px; }
+.empty-row p, p.empty-row { color: var(--muted); }
+
+/* Actions and buttons */
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.actions.start { justify-content: flex-start; }
+.actions form { margin: 0; }
+body.paint .btn-danger, body.paint .btn-danger:hover { background: var(--danger); border-color: var(--danger); color: var(--on-primary); }
+body.paint .btn-quiet.btn-danger, body.paint .btn-quiet.btn-danger:hover { background: transparent; color: var(--danger); border-color: var(--control); }
+body.paint .btn-quiet.btn-danger:hover { background: color-mix(in oklab, var(--danger) 8%, var(--card)); }
+body.paint button.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.link-btn { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* Forms */
+.paint fieldset { min-width: 0; margin: 0 0 16px; padding: 0; border: 0; }
+.paint legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+.paint input[type="checkbox"], .paint input[type="radio"] { width: 18px; height: 18px; margin: 1px 0 0; padding: 0; flex: none; accent-color: var(--ink); }
+.paint textarea { height: auto; min-height: 88px; resize: vertical; }
+.paint select { cursor: pointer; }
+.paint textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; border-color: var(--ink); }
+.paint input[aria-invalid="true"], .paint select[aria-invalid="true"] { border-color: var(--danger); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 12px; }
+.check { display: flex; align-items: flex-start; gap: 10px; }
+.paint .check label { margin: 0; font-size: 14px; font-weight: 500; }
+.check small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.form-error { margin: 0 0 16px; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in oklab, var(--danger) 10%, var(--card)); color: var(--danger); }
+.form-error ul { margin: 0; padding: 0; list-style: none; }
+.field .err { display: block; margin-top: 6px; color: var(--danger); font-size: 13px; }
+.choice { display: grid; gap: 8px; }
+.choice label { display: flex; align-items: flex-start; gap: 12px; margin: 0; padding: 12px 14px; border: 1px solid var(--control); border-radius: var(--radius-control); font-size: 14px; font-weight: 600; cursor: pointer; }
+.choice label:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.choice label small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.code { font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .04em; }
+
+/* Disclosure: a quiet button that opens a small form in place. */
+.disclose > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--control); border-radius: var(--radius-control); font-weight: 600; cursor: pointer; user-select: none; }
+.disclose > summary::-webkit-details-marker { display: none; }
+.disclose > summary::after { content: ""; width: 6px; height: 6px; margin-top: -3px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); transition: transform .15s; }
+.disclose[open] > summary::after { margin-top: 3px; transform: rotate(-135deg); }
+.disclose > summary:hover, .disclose[open] > summary { background: var(--raised); }
+.inline-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin-top: 8px; padding: 16px; border-radius: var(--radius); background: var(--card); }
+.inline-form .field { flex: 1 1 180px; margin: 0; }
+
+.page-foot { display: grid; gap: 12px; margin-top: 24px; }
+.paint .page-foot .note { margin: 0; padding: 0; border: 0; }
+.foot-tools { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.foot-tools > details[open] { flex-basis: 100%; }
+.foot-tools form { margin: 0; }
+.calendar-account { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.colours { align-items: center; }
+.paint .colours label.colour { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 500; }
+.paint .colours input[type="color"] { width: 44px; height: 36px; padding: 3px; cursor: pointer; }
+
+/* Dialogs: event details and the add-event form open over the page (the "sheet"); confirmations. */
+dialog.sheet, dialog.confirm { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
+dialog.confirm { width: min(440px, calc(100vw - 32px)); }
+dialog.sheet::backdrop, dialog.confirm::backdrop { background: color-mix(in oklab, var(--paint-ink) 45%, transparent); }
+dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16, 1, .3, 1); }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+.dlg-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 8px 8px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
+.dlg-head h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sheet-page { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.sheet-page:hover { color: var(--ink); }
+.dlg-body { padding: 20px; }
+.sheet .dlg-body { transition: opacity .15s; }
+.sheet[aria-busy="true"] .dlg-body { opacity: .45; }
+.x { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--radius-control); background: none; color: var(--ink); cursor: pointer; }
+.x:hover { background: var(--raised); }
+.confirm .dlg-body p { margin-bottom: 8px; }
+/* Inside the sheet a page drops its own title (the sheet shows it) and stacks its columns. */
+.sheet [data-sheet-hide] { display: none; }
+.sheet .split { grid-template-columns: minmax(0, 1fr); }
+.sheet .panel { padding: 0; }
+.sheet .panel + .panel, .sheet .split > * + * { padding-top: 20px; border-top: 1px solid var(--line); }
+.sheet .narrow { max-width: none; }
+.sheet .head { margin-bottom: 12px; }
+.sheet-error { margin: 0 0 16px; }
+@media (max-width: 560px) {
+  dialog.sheet { width: 100vw; max-width: 100vw; max-height: 92dvh; margin: auto 0 0; border-radius: 12px 12px 0 0; }
+  @keyframes rise { from { opacity: 0; transform: translateY(40px); } }
+}
+
+/* ===== Schedule: day grid, list ===== */
+.agenda { padding: 4px 20px 12px; }
+.find { position: relative; margin: 12px 0 4px; }
+.find svg { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; color: var(--muted); pointer-events: none; }
+.paint .find input { padding-left: 36px; }
+.pager { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+
+.day { container: day / inline-size; }
+.allday { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; margin-bottom: 12px; }
+.allday h3 { font-size: 12px; font-weight: 600; color: var(--muted); }
+.allday ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.allday-chip { display: inline-flex; align-items: baseline; gap: 8px; min-height: 36px; padding: 8px 12px; border-radius: var(--radius); background: var(--s2, var(--raised)); color: var(--paint-ink); text-decoration: none; font-size: 13px; line-height: 18px; }
+.paint .allday-chip { color: var(--paint-ink); }
+.allday-chip span { font-size: 12px; }
+.allday-chip.tent { outline: 1.5px dashed currentColor; outline-offset: -4px; }
+.allday-chip:hover, .plan:hover { filter: brightness(.96); }
+
+/* Narrow: each member is a card listing their plans. */
+.daygrid .hours { display: none; }
+.lane { margin-bottom: 10px; border-radius: var(--radius); background: var(--card); }
+.colhead { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 16px; font-size: 16px; line-height: 24px; font-weight: 600; }
+.colhead .lane-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.colhead small { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 400; }
+.track { padding: 0 8px 8px; }
+.plans { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.track > .hl, .track > .now { display: none; }
+.plan { display: grid; gap: 2px; padding: 10px 12px; border-radius: 3px; background: var(--s2); color: var(--paint-ink); font-size: 13px; line-height: 18px; text-decoration: none; transition: filter .15s; }
+.paint .plan { color: var(--paint-ink); }
+.plan b { font-weight: 600; overflow-wrap: anywhere; }
+.plan time { font-size: 12px; }
+.plan .maybe { font-size: 12px; font-style: italic; }
+.plan.tent { outline: 1.5px dashed currentColor; outline-offset: -4px; }
+.lane-family .plan, .paint .lane-family .plan { background: var(--raised); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.lane-empty { padding: 0 8px 4px; color: var(--muted); }
+
+/* Wide: hours down the left, one column per member, plans placed by percentage (events/day.py). */
+@container day (width >= 720px) {
+  .daygrid { --hour: 52px; display: grid; grid-template-columns: 64px repeat(var(--lanes), minmax(120px, 1fr)); overflow-x: auto; border-radius: var(--radius); background: var(--card); }
+  .daygrid .hours { display: block; }
+  .corner { height: 48px; border-bottom: 1px solid var(--line); }
+  .axis { position: relative; height: calc(var(--span) * var(--hour)); margin: 12px 0; }
+  .axis span { position: absolute; right: 10px; transform: translateY(-50%); color: var(--muted); font-size: 12px; line-height: 16px; white-space: nowrap; }
+  .now-dot { position: absolute; right: -4px; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--ink); }
+  .lane { min-width: 0; margin: 0; border-left: 1px solid var(--line); border-radius: 0; background: none; }
+  .colhead { height: 48px; padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 20px; }
+  .colhead .dot { width: 26px; height: 26px; font-size: 12px; }
+  .colhead small, .lane-empty { display: none; }
+  .track { position: relative; height: calc(var(--span) * var(--hour)); margin: 12px 0; padding: 0; }
+  .plans { display: block; }
+  .plans li { position: absolute; z-index: 1; top: var(--top); height: var(--h); min-height: 26px; left: calc(4px + (100% - 8px) * var(--col) / var(--cols)); width: calc((100% - 8px) / var(--cols) - 4px); }
+  .plan { position: absolute; inset: 0; display: block; overflow: hidden; padding: 5px 8px; background: var(--s3); font-size: 12px; line-height: 16px; }
+  .plan b, .plan time, .plan .maybe { display: block; }
+  .plan.cont { border-top-left-radius: 0; border-top-right-radius: 0; }
+  .track > .hl { display: block; position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
+  .track > .now { display: block; position: absolute; z-index: 2; left: 0; right: 0; height: 2px; margin-top: -1px; background: var(--ink); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.sheet[open], dialog.confirm[open] { animation: none; }
+  .plan, .allday-chip, .sheet .dlg-body, .disclose > summary::after { transition: none; }
+}
+/* Phones: 44px targets for the page's own controls. */
+@media (max-width: 900px) {
+  .head-tools { margin-left: 0; width: 100%; }
+  .seg a { padding: 11px 14px; }
+  body.paint .page .btn, body.paint .sheet .btn, body.paint .confirm .btn, .disclose > summary { min-height: 44px; height: auto; }
+  .paint input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]), .paint select { height: 44px; }
+  .paint .colours input[type="color"] { height: 44px; }
+}
+@media (max-width: 560px) {
+  .head-tools { display: grid; gap: 8px; }
+  .head-tools .seg a { flex: 1; text-align: center; }
+}
+
+/* ===== Event: details and the add-event form ===== */
+.when-line { margin: 4px 0 16px; }
+.event-card .pills { margin-bottom: 8px; }
+.facts .row { min-height: 52px; }
+.facts .row:first-child { border-top: 0; }
+.map-link { flex: none; padding: 12px 0; font-weight: 500; }
+.tz-note { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.tz-note > summary { cursor: pointer; padding: 6px 0; }
+.tz-note > summary:hover { color: var(--ink); }
+.tz-form { display: grid; gap: 8px; margin-top: 8px; color: var(--ink); }
+.paint .tz-form label { margin: 0; }
+.event-card .actions { margin-top: 16px; }
+
+.event-form { display: block; }
+.paint .opt { margin-left: 4px; color: var(--muted); font-weight: 400; }
+.notice { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius); background: var(--raised); color: var(--ink); }
+.grid3 { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+@media (max-width: 560px) { .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid3 > :first-child { grid-column: 1 / -1; } }
+.check-field { align-self: center; }
+.who-pick small { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.who-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.paint .who-pick label { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; padding: 6px 16px 6px 6px; border-radius: 999px; background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color .15s, color .15s; }
+.paint .who-pick input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.who-pick .sw { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--s3, var(--control)); }
+.paint .who-pick label:has(input:checked) { background: var(--s4, var(--ink)); color: var(--on-deep); }
+.who-pick label:has(input:checked) .sw::after { content: ""; width: 11px; height: 6px; margin-top: -3px; border: solid var(--paint-ink); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+.who-pick label:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.who-pick label:hover { filter: brightness(.97); }
+.review { margin: 8px 0 16px; padding: 16px; border-radius: var(--radius); background: var(--raised); }
+.review .facts { margin-top: 8px; }
+.review-sub { margin: 16px 0 8px; font-size: 14px; }
+.travel { padding: 10px 0; border-top: 1px solid var(--line); }
+.travel p { margin-top: 2px; }
+.travel-insufficient b { color: var(--danger); }
+.link-quiet { margin-right: auto; color: var(--muted); }
+.link-quiet:hover { color: var(--ink); }
+
+/* Place search (location_autocomplete.js) */
+.location-autocomplete { position: relative; width: 100%; }
+.location-suggestions { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); box-shadow: 0 12px 32px color-mix(in oklab, var(--paint-ink) 16%, transparent); }
+.location-suggestions button { display: block; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: var(--radius-control); background: none; color: var(--ink); text-align: left; cursor: pointer; }
+.location-suggestions button:hover, .location-suggestions button:focus-visible { background: var(--raised); }
+.location-suggestions .location-message { padding: 12px; color: var(--muted); }
+.location-attribution { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+.dlg-head h2:focus, .paint h1[tabindex="-1"]:focus { outline: none; }
+.form-error .errorlist.nonfield { margin: 4px 0 0; padding: 0; background: none; font-size: 14px; }
+.form-error p + p { margin-top: 4px; }
+.tz-note > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.tz-note > summary::-webkit-details-marker { display: none; }
+.tz-note > summary::after { content: ""; width: 5px; height: 5px; margin-top: -3px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.tz-note[open] > summary::after { margin-top: 2px; transform: rotate(-135deg); }

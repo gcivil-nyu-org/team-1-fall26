@@ -17,10 +17,9 @@
 
         form.dataset.locationAutocompleteInitialized = "true";
 
+        // Looks come from the page's stylesheet (paint.css), so the list follows light and dark.
         const wrapper = document.createElement("div");
         wrapper.className = "location-autocomplete";
-        wrapper.style.position = "relative";
-        wrapper.style.width = "100%";
 
         locationInput.parentNode.insertBefore(wrapper, locationInput);
         wrapper.appendChild(locationInput);
@@ -30,28 +29,14 @@
         suggestions.setAttribute("role", "listbox");
         suggestions.setAttribute("aria-label", "Location suggestions");
         suggestions.hidden = true;
-
-        Object.assign(suggestions.style, {
-            position: "absolute",
-            top: "100%",
-            left: "0",
-            right: "0",
-            zIndex: "10000",
-            background: "#ffffff",
-            color: "#222222",
-            border: "1px solid #cccccc",
-            borderRadius: "8px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            maxHeight: "240px",
-            overflowY: "auto"
-        });
+        suggestions.id = `${locationInput.id || "location"}-suggestions`;
+        locationInput.setAttribute("aria-controls", suggestions.id);
 
         wrapper.appendChild(suggestions);
 
         const attribution = document.createElement("small");
-        attribution.textContent = "Location search powered by Photon / OpenStreetMap";
-        attribution.style.display = "block";
-        attribution.style.marginTop = "5px";
+        attribution.className = "location-attribution";
+        attribution.textContent = "Place search by Photon and OpenStreetMap";
         wrapper.appendChild(attribution);
 
         let debounceTimer = null;
@@ -73,8 +58,8 @@
             suggestions.replaceChildren();
 
             const item = document.createElement("div");
+            item.className = "location-message";
             item.textContent = message;
-            item.style.padding = "12px";
 
             suggestions.appendChild(item);
             suggestions.hidden = false;
@@ -142,25 +127,6 @@
                 option.type = "button";
                 option.textContent = label;
                 option.setAttribute("role", "option");
-
-                Object.assign(option.style, {
-                    display: "block",
-                    width: "100%",
-                    padding: "10px 12px",
-                    textAlign: "left",
-                    border: "none",
-                    background: "transparent",
-                    color: "inherit",
-                    cursor: "pointer"
-                });
-
-                option.addEventListener("mouseenter", () => {
-                    option.style.background = "#f0f4f8";
-                });
-
-                option.addEventListener("mouseleave", () => {
-                    option.style.background = "transparent";
-                });
 
                 option.addEventListener("click", () => {
                     selectLocation(feature);

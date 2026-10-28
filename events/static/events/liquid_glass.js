@@ -1,4 +1,4 @@
-/* Liquid glass for the selected pills (top nav, Upcoming/Day/Week, List/Cards).
+/* Liquid glass for the selected pills (top nav, the segmented controls, the light and clock switches).
  *
  * Ported from archisvaze/liquid-glass (MIT License, Copyright (c) 2026 Archis Vaze,
  * https://github.com/archisvaze/liquid-glass): a refraction profile from Snell's law through a
@@ -9,7 +9,7 @@
  * get the same specular rim, inner glow and tint with a plain blur behind it. Each pill gets maps
  * sized to it; maps are cached by size. */
 (() => {
-    const GLASS = ".primary-nav a[aria-current], .schedule-tabs a[aria-current], .display-switch .glass-thumb";
+    const GLASS = ".bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb";
     const THICKNESS = 40, IOR = 3.0, SCALE_RATIO = 1.0, BLUR = 0.3, SPEC_OPACITY = 0.6, SPEC_SATURATION = 4;
     const squircle = x => Math.pow(1 - Math.pow(1 - x, 4), 0.25);
     const chromium = !!navigator.userAgentData?.brands?.some(b => /Chromium/.test(b.brand));

@@ -1,4 +1,4 @@
-{% load static %}
+{% load static paint %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,12 +17,13 @@
     <link rel="stylesheet" href="{% static 'events/shell.css' %}?v=2">
     {% block page_css %}{% endblock %}
 
-    <script src="{% static 'events/shell.js' %}?v=1" defer></script>
-    <script src="{% static 'events/liquid_glass.js' %}?v=1" defer></script>
+    <script src="{% static 'events/shell.js' %}?v=2" defer></script>
+    <script src="{% static 'events/liquid_glass.js' %}?v=2" defer></script>
     {% block legacy_js %}
     <script src="{% static 'events/interface.js' %}?v=5" defer></script>
     <script src="{% static 'events/location_autocomplete.js' %}?v=2" defer></script>
     {% endblock %}
+    {% block shell_js %}{% endblock %}
 
     {% block scripts %}{% endblock %}
 </head>
@@ -53,11 +54,11 @@
             {% block switches %}{% endblock %}
             {% if shell %}
                 {% if shell.add_event_url %}
-                    <a class="btn add-btn" href="{{ shell.add_event_url }}"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg><span class="btn-label">Add event</span></a>
+                    <a class="btn add-btn" href="{{ shell.add_event_url }}{% block add_event_query %}{% endblock %}" data-dialog><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg><span class="btn-label">Add event</span></a>
                 {% endif %}
                 <details class="account">
                     <summary class="me" {% if shell.me %}data-hue="{{ shell.me.hue }}"{% if shell.me.custom_color %} style="--hue:{{ shell.me.custom_color }}"{% endif %}{% endif %}>
-                        <span class="dot" aria-hidden="true">{{ request.user.username|first|upper }}</span><span class="me-name">{{ request.user.username }}</span><span class="sr-only">Account menu</span>
+                        <span class="dot" aria-hidden="true">{{ request.user|initial }}</span><span class="me-name">{{ request.user|person }}</span><span class="sr-only">Account menu</span>
                     </summary>
                     <div class="acct-menu">
                         <a href="{% url 'accounts:profile' %}">Profile &amp; settings</a>
@@ -84,5 +85,6 @@
     </dialog>
     <p id="planner-status" class="sr-only" role="status"></p>
 {% endblock %}
+{% block dialogs %}{% endblock %}
 </body>
 </html>
