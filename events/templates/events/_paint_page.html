@@ -6,9 +6,9 @@
     Links marked data-dialog open their page in the sheet below (event details, add event).
 {% endcomment %}
 {% block legacy_css %}{% endblock %}
-{% block page_css %}<link rel="stylesheet" href="{% static 'events/paint.css' %}?v=4">{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'events/paint.css' %}?v=5">{% endblock %}
 {% block legacy_js %}{% endblock %}
-{% block shell_js %}<script src="{% static 'events/paint.js' %}?v=1" defer></script>{% endblock %}
+{% block shell_js %}<script src="{% static 'events/paint.js' %}?v=2" defer></script>{% endblock %}
 {% block legacy_dialog %}{% endblock %}
 {% block dialogs %}{% if shell %}
     <dialog class="sheet" id="sheet" aria-labelledby="sheet-title" data-location-script="{% static 'events/location_autocomplete.js' %}?v=3">
@@ -19,6 +19,16 @@
         </div>
         <div class="dlg-body" id="sheet-body"></div>
         <p class="sr-only" id="sheet-status" role="status"></p>
+    </dialog>
+    <dialog class="confirm" id="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+        <div class="dlg-head">
+            <h2 id="confirm-title">Are you sure?</h2>
+            <button class="x" type="button" data-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="dlg-body">
+            <p id="confirm-text"></p>
+            <div class="actions"><button class="btn btn-quiet" type="button" data-close data-keep>Keep it</button><button class="btn btn-danger" type="button" data-go>Delete</button></div>
+        </div>
     </dialog>
 {% endif %}{% endblock %}
 {% block body_class %}paint{% endblock %}

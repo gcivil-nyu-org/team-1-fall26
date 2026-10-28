@@ -11,21 +11,11 @@
     }
 
     // ---- Confirm before a destructive form submits (inline onsubmit is blocked by the CSP) ----
-    var confirmDialog = null;
     function askConfirm(form, submitter) {
-        if (!window.HTMLDialogElement || !document.body.classList.contains("paint")) return false;
-        if (!confirmDialog) {
-            confirmDialog = document.createElement("dialog");
-            confirmDialog.className = "confirm";
-            confirmDialog.setAttribute("aria-labelledby", "confirm-title");
-            confirmDialog.setAttribute("aria-describedby", "confirm-text");
-            confirmDialog.innerHTML =
-                '<div class="dlg-head"><h2 id="confirm-title"></h2>' +
-                '<button class="x" type="button" data-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button></div>' +
-                '<div class="dlg-body"><p id="confirm-text"></p><div class="actions">' +
-                '<button class="btn btn-quiet" type="button" data-close data-keep></button>' +
-                '<button class="btn btn-danger" type="button" data-go></button></div></div>';
-            document.body.appendChild(confirmDialog);
+        var confirmDialog = document.getElementById("confirm");
+        if (!confirmDialog || !confirmDialog.showModal) return false;
+        if (!confirmDialog.dataset.ready) {
+            confirmDialog.dataset.ready = "yes";
             confirmDialog.querySelectorAll("[data-close]").forEach(function (button) {
                 button.addEventListener("click", function () { confirmDialog.close(); });
             });
