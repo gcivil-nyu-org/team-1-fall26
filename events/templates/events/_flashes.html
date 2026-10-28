@@ -1,0 +1,3 @@
+{% if messages %}
+    <div class="flashes">{% for message in messages %}<p class="flash flash-{{ message.tags }}" role="{% if message.level >= 40 %}alert{% else %}status{% endif %}">{{ message }}</p>{% endfor %}</div>
+{% endif %}

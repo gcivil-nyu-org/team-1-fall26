@@ -1,221 +1,65 @@
-
-{% extends 'events/base.html' %}
-{% load static %}
-
+{% extends 'events/_paint_page.html' %}
+{% load paint %}
 {% block title %}{{ workspace.name }} | Syncmily{% endblock %}
-
-{% block scripts %}
-<link rel="stylesheet" href="{% static 'accounts/workspace.css' %}">
-{% endblock %}
-
 {% block content %}
-<div class="family-ui">
-
-    <nav class="family-breadcrumbs" aria-label="Breadcrumb">
-        <a href="{% url 'events:choose_workspace' %}">Workspaces</a>
-        <span aria-hidden="true">/</span>
-        <span>{{ workspace.name }}</span>
-    </nav>
-
-    {% include 'accounts/_messages.html' %}
-
-    <header class="family-hero">
-        <div class="family-hero-copy">
-            <p class="family-eyebrow">YOUR FAMILY'S HAPPY PLACE</p>
-
-            <h1>Welcome to {{ workspace.name }}!</h1>
-
-            <p>
-                A little less chaos, a lot more together.
-                Let's make room for all the moments that matter.
-            </p>
-
-            <div class="family-actions">
-                <a data-dialog
-                   class="family-button"
-                   href="{% url 'events:workspace_create' workspace.pk %}">
-                    Create an event
-                    <span aria-hidden="true">＋</span>
-                </a>
-            </div>
-        </div>
-
-        <div class="family-art" aria-hidden="true">
-            <span class="family-sun"></span>
-            <div class="family-house">
-                <div class="family-roof"></div>
-                <div class="family-door"></div>
-                <div class="family-window"></div>
-            </div>
-            <span class="family-art-heart">♥</span>
-        </div>
-    </header>
-
-    <div class="family-grid">
-
-        <section class="family-card family-schedule"
-                 aria-labelledby="schedule-heading">
-
-            <div class="family-calendar-icon" aria-hidden="true">
-                {% now 'M' %}
-                <strong>{% now 'd' %}</strong>
-            </div>
-
-            <p class="family-eyebrow">THE FAMILY CALENDAR</p>
-
-            <h2 id="schedule-heading">
-                So, what's on the family agenda?
-            </h2>
-
-            <p>
-                From the everyday routines to the big celebrations,
-                every family moment deserves its place.
-                See what's coming up or plan something new.
-            </p>
-
-            <div class="family-actions">
-                <a class="family-button"
-                   href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">
-                    View upcoming events
-                    <span aria-hidden="true">→</span>
-                </a>
-
-                <a class="family-text-link"
-                   href="{% url 'events:workspace_list' workspace.pk %}?view=week">
-                    See this week
-                </a>
-            </div>
-        </section>
-
-        <div class="family-sidebar">
-
-            <aside class="family-card"
-                   aria-labelledby="details-heading">
-
-                <p class="family-eyebrow">YOUR LITTLE CORNER</p>
-                <h2 id="details-heading">Workspace details</h2>
-
-                <dl class="family-details">
-                    <dt>Primary Admin</dt>
-                    <dd>
-                        <span class="family-avatar" aria-hidden="true">
-                            {{ workspace.primary_admin.username|first|upper }}
-                        </span>
-                        {{ workspace.primary_admin.username }}
-                    </dd>
-
-                    <dt>Created on</dt>
-                    <dd>{{ workspace.created_at|date:'F j, Y' }}</dd>
-                </dl>
-
-                <details>
-                    <summary>Workspace ID</summary>
-                    <p class="family-id">{{ workspace.id }}</p>
-                </details>
-
-                <p>
-                    <a class="family-text-link"
-                       href="{% url 'accounts:create_workspace' %}">
-                        Create another workspace →
-                    </a>
-                </p>
-            </aside>
-
-            <section class="family-card family-calendar-connect"
-                     aria-labelledby="google-calendar-heading">
-
-                <p class="family-eyebrow">KEEP EVERYTHING TOGETHER</p>
-                <h2 id="google-calendar-heading">Google Calendar</h2>
-
-                {% if calendar_connection %}
-                    <p>
-                        Connected{% if calendar_connection.account_email %} as {{ calendar_connection.account_email }}{% endif %}.
-                    </p>
-
-                    {% if calendar_connection.workspace and calendar_connection.workspace != workspace %}
-                        <p>
-                            Events go to
-                            <a href="{% url 'accounts:workspace_detail' calendar_connection.workspace_id %}">
-                                {{ calendar_connection.workspace.name }}
-                            </a>.
-                        </p>
-                    {% endif %}
-
-                    <p>
-                        {% if calendar_connection.last_synced_at %}
-                            Last imported
-                            {{ calendar_connection.last_synced_at|timesince }}
-                            ago.
-                        {% else %}
-                            Not imported yet.
-                        {% endif %}
-                    </p>
-
-                    <form method="post"
-                          action="{% url 'calendars:google_sync' %}">
-                        {% csrf_token %}
-                        <button class="family-button" type="submit">
-                            Import events now
-                        </button>
-                    </form>
-
-                    <form method="post"
-                          action="{% url 'calendars:google_disconnect' %}">
-                        {% csrf_token %}
-                        <button class="family-button family-button-secondary"
-                                type="submit">
-                            Disconnect Google Calendar
-                        </button>
-                    </form>
-
-                {% else %}
-                    <p>
-                        Bring your existing Google Calendar events
-                        into your family schedule. Syncmily only
-                        asks to read your calendar.
-                    </p>
-
-                    <form method="post"
-                          action="{% url 'calendars:google_connect' workspace.pk %}" data-full-page>
-                        {% csrf_token %}
-                        <button class="family-button" type="submit">
-                            Connect Google Calendar
-                            <span aria-hidden="true">→</span>
-                        </button>
-                    </form>
-                {% endif %}
-            </section>
-
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>{{ workspace.name }}</h1>
+        <span class="span">{{ family|length }} member{{ family|length|pluralize }}{% if pending %}, {{ pending|length }} invited{% endif %}</span>
+        <div class="head-tools">
+            <a class="btn btn-quiet" href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">See what’s coming up</a>
         </div>
     </div>
-
-    <section class="family-card family-checklists"
-            aria-labelledby="checklists-heading">
-
-        <p class="family-eyebrow">LITTLE TASKS, BIG TEAMWORK</p>
-
-        <h2 id="checklists-heading">
-            Let's get things checked off!
-        </h2>
-
-        <p>
-            Packing for a family trip? Getting ready for
-            a special occasion? Or just keeping track of
-            everyday household tasks?
-
-            Create shared checklists, tick off completed
-            tasks, and keep everyone on the same page.
-        </p>
-
-        <div class="family-actions">
-            <a class="family-button"
-            href="{% url 'checklists:list' workspace.pk %}">
-                View family checklists
-                <span aria-hidden="true">→</span>
-            </a>
+    <div class="split">
+        <div class="stack">
+            <section class="panel" aria-labelledby="members-heading">
+                <h2 id="members-heading" class="sr-only">Members</h2>
+                {% include 'accounts/_family_rows.html' %}
+            </section>
+            {% if color_members %}
+                <section class="panel" aria-labelledby="colours-heading">
+                    <h2 id="colours-heading">Colours</h2>
+                    <p class="span">Each person keeps one colour across the week and the day. You can pick your own and your kids’.</p>
+                    <form class="colours colours-panel" method="post" action="{% url 'events:member_colors' workspace.pk %}" data-colours>
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        {% for member in color_members %}
+                            <label class="colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
+                                <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}"{% if not member.custom_color %} data-deck{% endif %}>
+                                <span translate="no">{% if member.user == request.user %}You{% else %}{{ member.user|person }}{% endif %}</span>
+                            </label>
+                        {% endfor %}
+                        <button class="btn btn-quiet" type="submit">Save colours</button>
+                    </form>
+                </section>
+            {% endif %}
+            <section class="panel" aria-labelledby="google-calendar-heading">
+                <h2 id="google-calendar-heading">Google Calendar</h2>
+                {% if calendar_connection %}
+                    <p class="span">Connected{% if calendar_connection.account_email %} as {{ calendar_connection.account_email }}{% endif %}.{% if calendar_connection.workspace and calendar_connection.workspace != workspace %} Events go to <a href="{% url 'accounts:workspace_detail' calendar_connection.workspace_id %}">{{ calendar_connection.workspace.name }}</a>.{% endif %} {% if calendar_connection.last_synced_at %}Last imported {{ calendar_connection.last_synced_at|timesince }} ago.{% else %}Not imported yet.{% endif %}</p>
+                    <div class="actions start">
+                        <form method="post" action="{% url 'calendars:google_sync' %}">{% csrf_token %}<button class="btn" type="submit">Import events now</button></form>
+                        <form method="post" action="{% url 'calendars:google_disconnect' %}" data-confirm="Plans imported from Google Calendar leave the schedule. You can connect again later." data-confirm-title="Disconnect Google Calendar?">{% csrf_token %}<button class="btn btn-quiet" type="submit">Disconnect Google Calendar</button></form>
+                    </div>
+                {% else %}
+                    <p class="span">Bring the events already in your Google Calendar into the family schedule. Syncmily only asks to read your calendar.</p>
+                    <form class="actions start" method="post" action="{% url 'calendars:google_connect' workspace.pk %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Connect Google Calendar</button></form>
+                {% endif %}
+            </section>
         </div>
-
-    </section>
-
-</div>
+        <aside class="stack">
+            <section class="panel" aria-labelledby="invite-heading">
+                <h2 id="invite-heading">Invite someone</h2>
+                <p class="span lede-s">They get an email with a link to join {{ workspace.name }}.</p>
+                {% include 'accounts/_invite_form.html' with form=invite_form %}
+            </section>
+            <section class="panel" aria-labelledby="more-heading">
+                <h2 id="more-heading">More for the family</h2>
+                <a class="row" href="{% url 'checklists:list' workspace.pk %}"><span class="grow"><b>Checklists</b><small>Chores, groceries and trips, shared with everyone</small></span></a>
+                <a class="row" href="{% url 'events:workspace_list' workspace.pk %}?view=day"><span class="grow"><b>Today, hour by hour</b><small>The day view, one column per person</small></span></a>
+                <a class="row" href="{% url 'accounts:create_workspace' %}"><span class="grow"><b>Start another family</b><small>For a second household with its own schedule</small></span></a>
+                <p class="note">Created {{ workspace.created_at|date:"j F Y" }}. Family ID <span class="code" translate="no">{{ workspace.id }}</span></p>
+            </section>
+        </aside>
+    </div>
 {% endblock %}

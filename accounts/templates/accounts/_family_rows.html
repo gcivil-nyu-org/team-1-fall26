@@ -1,0 +1,21 @@
+{% load paint %}
+{% comment %}Family members as paint rows (dot in their colour), then pending invites. Needs family, pending, workspace.{% endcomment %}
+{% for member in family %}
+    <div class="row" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
+        <span class="dot" aria-hidden="true">{{ member.user|initial }}</span>
+        <div class="grow">
+            <b translate="no">{{ member.user|person }}{% if member.user == request.user %} <span class="you">(you)</span>{% endif %}</b>
+            <small>{% if member.user.pk == workspace.primary_admin_id %}Parent, admin{% elif member.is_kid %}Kid{% else %}Parent{% endif %}{% if member.user.first_name %}, signs in as <span translate="no">{{ member.user.username }}</span>{% endif %}{% if show_emails and member.user.email %} · <span translate="no">{{ member.user.email }}</span>{% endif %}</small>
+        </div>
+    </div>
+{% endfor %}
+{% for invite in pending %}
+    <div class="row">
+        <span class="dot dot-quiet" aria-hidden="true">{{ invite.user.email|first|upper }}</span>
+        <div class="grow">
+            <b translate="no">{{ invite.user.email }}</b>
+            <small>Invited as a {{ invite.get_role_display|lower }}, not joined yet. Their username is <span translate="no">{{ invite.user.username }}</span>.</small>
+        </div>
+        <span class="pill">Invited</span>
+    </div>
+{% endfor %}

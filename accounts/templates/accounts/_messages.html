@@ -1,7 +1,0 @@
-{% if messages %}
-    <div class="flash-messages">
-        {% for message in messages %}
-            <p class="flash flash-{{ message.tags }}" role="status">{{ message }}</p>
-        {% endfor %}
-    </div>
-{% endif %}

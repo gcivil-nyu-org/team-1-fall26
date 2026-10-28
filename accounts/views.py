@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError, transaction
+from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -20,7 +21,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from calendars import google
 from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
-from events.timeline import family_members
+from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
 from . import two_step
@@ -105,12 +106,17 @@ def workspace_detail(request, workspace_id):
         .first()
     )
 
+    family = family_members([workspace])
     return render(
         request,
         "accounts/workspace_detail.html",
         {
             "workspace": workspace,
             "calendar_connection": calendar_connection,
+            "family": family,
+            "pending": workspace.memberships.filter(accepted_at__isnull=True).select_related("user"),
+            "invite_form": InviteMemberForm(workspace=workspace),
+            "color_members": editable_members(request.user, workspace, family),
         },
     )
 
@@ -142,10 +148,33 @@ def dashboard(request):
         ).filter(pk=workspace.pk).exists(),
         "can_view_events": family_workspaces(request.user).filter(pk=workspace.pk).exists(),
     }
-    if family["role"] == Membership.Role.KID:
-        return render(request, "accounts/kid_dashboard.html", context)
     context.update(_week_context(request, workspace))
+    if family["role"] == Membership.Role.KID:
+        context.update(_kid_context(request, context))
+        return render(request, "accounts/kid_dashboard.html", context)
     return render(request, "accounts/parent_dashboard.html", context)
+
+
+def _kid_context(request, context):
+    """The kid's own row of the week, today and tomorrow, and the plans coming up that include them."""
+    row = next((row for row in context["week"]["rows"] if row["user"].pk == request.user.pk), None)
+    chips = {chip["date"]: chip for chip in row["chips"]} if row else {}
+    today = context["today"]
+    # Their own plans and whole-family plans, next three.
+    upcoming = (
+        family_events(request.user)
+        .filter(workspace=context["workspace"], ends_at__gt=timezone.now())
+        .filter(Q(participants=request.user) | Q(participants__isnull=True))
+        .distinct()
+        .order_by("starts_at", "pk")[:3]
+    )
+    return {
+        "me_row": row,
+        "today_chip": chips.get(today),
+        "tomorrow_chip": chips.get(today + timedelta(days=1)),
+        "kid_upcoming": upcoming,
+        "family": family_members([context["workspace"]]),
+    }
 
 
 def _week_context(request, workspace):
@@ -248,6 +277,8 @@ def manage_members(request, workspace_id):
             "workspace": workspace,
             "form": form,
             "members": workspace.memberships.select_related("user"),
+            "family": family_members([workspace]),
+            "pending": workspace.memberships.filter(accepted_at__isnull=True).select_related("user"),
         },
     )
 

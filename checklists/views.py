@@ -6,6 +6,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from events.timeline import family_members
+
 from .access import (
     caregiver_workspaces,
     get_manageable_checklist,
@@ -15,6 +17,14 @@ from .access import (
 )
 from .forms import ChecklistForm, ChecklistItemForm
 from .models import Checklist, ChecklistItem
+
+
+def _event_member(event, members):
+    """The family member whose colour a list linked to this event is drawn in, or None."""
+    if event is None:
+        return None
+    people = list(event.participants.all())
+    return members.get(people[0].pk) if people else None
 
 
 # ---------------------------------------------------------
@@ -41,6 +51,12 @@ def checklist_list(request, workspace_id):
     can_manage = caregiver_workspaces(request.user).filter(
         pk=workspace.pk
     ).exists()
+
+    # A list linked to an event takes the colour of that event's first person.
+    members = {member["user"].pk: member for member in family_members([workspace])}
+    checklists = list(checklists.prefetch_related("event__participants"))
+    for checklist in checklists:
+        checklist.member = _event_member(checklist.event, members)
 
     return render(
         request,
@@ -126,11 +142,14 @@ def checklist_detail(request, checklist_id):
         pk=checklist.workspace_id
     ).exists()
 
+    members = {member["user"].pk: member for member in family_members([checklist.workspace])}
+
     return render(
         request,
         "checklists/checklist_detail.html",
         {
             "checklist": checklist,
+            "member": _event_member(checklist.event, members),
             "items": items,
             "total_items": total_items,
             "completed_items": completed_items,

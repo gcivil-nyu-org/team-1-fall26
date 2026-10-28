@@ -1,5 +1,7 @@
 
 from django import forms
+from django.utils import timezone
+from django.utils.dateformat import format as date_format
 
 from events.models import Event
 
@@ -25,9 +27,14 @@ class ChecklistForm(forms.ModelForm):
 
         # Only allow events from the current workspace.
         self.fields["event"].queryset = (
-            Event.objects.filter(workspace=workspace)
+            Event.objects.filter(workspace=workspace).order_by("-starts_at", "pk")
             if workspace is not None
             else Event.objects.none()
+        )
+        self.fields["event"].empty_label = "No event"
+        # "Soccer, Wed 28 Oct": several plans can share a title.
+        self.fields["event"].label_from_instance = lambda event: (
+            f"{event.title}, {date_format(timezone.localtime(event.starts_at), 'D j M Y')}"
         )
 
     def clean_title(self):

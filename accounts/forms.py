@@ -12,8 +12,8 @@ class WorkspaceForm(forms.ModelForm):
         widgets = {
             "name": forms.TextInput(
                 attrs={
-                    "placeholder": "Enter your family workspace name",
-                    "class": "form-control",
+                    "placeholder": "The Reyes family",
+                    "autocomplete": "off",
                 }
             ),
         }

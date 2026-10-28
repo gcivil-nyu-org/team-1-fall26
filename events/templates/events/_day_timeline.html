@@ -1,63 +1,54 @@
-{% load tz %}
-<section class="day-timeline" aria-labelledby="day-timeline-title">
+{% load tz paint %}
+{% comment %}
+    The day: one column per family member with the hours running down (events/day.py places the plans).
+    Narrow pages stack the members as cards, each listing its plans in time order.
+{% endcomment %}
+<section class="day" aria-labelledby="day-timeline-title">
     <h2 id="day-timeline-title" class="sr-only">Schedule for {{ start_date|date:"l, F j, Y" }}</h2>
-    <div class="timeline-key">
-        {% if timeline.lanes %}
-            <ul class="member-legend" aria-label="Family colours">
-                {% for lane in timeline.lanes %}{% if lane.user %}
-                    <li><span class="legend-swatch" style="--member-color: {{ lane.color }}" aria-hidden="true"></span><span translate="no">{{ lane.user.username }}</span><span class="legend-role">{% if lane.is_kid %}Kid{% else %}Parent{% endif %}</span></li>
-                {% endif %}{% endfor %}
-            </ul>
-        {% endif %}
-        {% if color_members %}
-            <details class="member-colors">
-                <summary>Change colours <span aria-hidden="true">⌄</span></summary>
-                <form method="post" action="{% url 'events:member_colors' color_workspace.pk %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    {% for member in color_members %}
-                        <label><input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}">{% if member.user == request.user %}You{% else %}<span translate="no">{{ member.user.username }}</span>{% endif %}</label>
-                    {% endfor %}
-                    <button type="submit">Save colours</button>
-                </form>
-            </details>
-        {% endif %}
-    </div>
     {% timezone timezone_name %}
     {% if timeline.all_day %}
-        <div class="all-day-strip">
+        <div class="allday">
             <h3>All day</h3>
             <ul>
                 {% for item in timeline.all_day %}
-                    <li data-event-card><a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}">{{ item.event.title }}</a>{% for member in item.members %}<span class="member-chip" style="--member-color: {{ member.color }}; --member-text: {{ member.text_color }}" translate="no">{{ member.user.username }}</span>{% endfor %}</li>
+                    {% with first=item.members.0 %}
+                    <li><a class="allday-chip{% if item.event.is_tentative %} tent{% endif %}" href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}" data-dialog{% if first %} data-hue="{{ first.hue }}"{% if first.custom_color %} style="--hue: {{ first.custom_color }}"{% endif %}{% endif %}><b>{{ item.event.title }}</b> <span translate="no">{% for member in item.members %}{{ member.user|person }}{% if not forloop.last %}, {% endif %}{% empty %}Whole family{% endfor %}</span>{% if item.event.is_tentative %}<span class="sr-only">, not confirmed yet</span>{% endif %}</a></li>
+                    {% endwith %}
                 {% endfor %}
             </ul>
         </div>
     {% endif %}
-    <div class="timeline-scroll" data-timeline data-scroll-to="{{ timeline.scroll_to }}" role="region" aria-label="Day schedule by family member" tabindex="0">
-        <div class="timeline-grid" style="--hours: {{ timeline.hour_count }}">
-            <div class="timeline-axis" aria-hidden="true">
-                <span class="lane-name"></span>
-                <div class="axis-track">{% for hour in timeline.hours %}<span style="left: {{ hour.left }}%">{{ hour.starts_at|time:"g A" }}</span>{% endfor %}</div>
+    <div class="daygrid" style="--lanes: {{ day.lanes|length }}; --span: {{ day.span_hours|stringformat:'s' }}">
+        <div class="hours" aria-hidden="true">
+            <div class="corner"></div>
+            <div class="axis">
+                {% for hour in day.hours %}<span style="top: {{ hour.top|stringformat:'s' }}%" data-clock="{{ hour.starts_at|time:'H' }}:00" data-axis>{{ hour.starts_at|time:"g A" }}</span>{% endfor %}
+                {% if day.now_top is not None %}<i class="now-dot" style="top: {{ day.now_top|stringformat:'s' }}%"></i>{% endif %}
             </div>
-            {% for lane in timeline.lanes %}
-                <section class="timeline-lane" aria-labelledby="lane-{{ forloop.counter }}"{% if lane.user %} style="--member-color: {{ lane.color }}; --member-text: {{ lane.text_color }}"{% endif %}>
-                    <h3 class="lane-name" id="lane-{{ forloop.counter }}">{% if lane.user %}<span class="legend-swatch" aria-hidden="true"></span><span class="lane-label" title="{{ lane.user.username }}" translate="no">{{ lane.user.username }}</span>{% else %}<span class="lane-label">Whole family</span>{% endif %}</h3>
-                    <ol class="lane-track">
-                        {% for item in lane.items %}
-                            <li data-event-card class="timeline-event{% if item.starts_before %} starts-before{% endif %}{% if item.ends_after %} ends-after{% endif %}" style="left: {{ item.left }}%; width: {{ item.width }}%">
-                                <a data-dialog href="{% url 'events:detail' item.event.pk %}?{{ timezone_query }}"{% if item.event.source == 'google' %} title="From Google Calendar"{% endif %}><strong>{{ item.event.title }}</strong><span class="sr-only">, </span>{% if item.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<span>{% if item.starts_before %}{{ item.event.starts_at|date:"M j, g:i A" }}{% else %}{{ item.event.starts_at|time:"g:i A" }}{% endif %} – {% if item.ends_after %}{{ item.event.ends_at|date:"M j, g:i A" }}{% else %}{{ item.event.ends_at|time:"g:i A" }}{% endif %}</span></a>
-                            </li>
-                        {% empty %}
-                            <li class="lane-empty">Nothing scheduled</li>
-                        {% endfor %}
-                    </ol>
-                </section>
-            {% empty %}
-                <p class="lane-empty-day">You have no events scheduled for this day.</p>
-            {% endfor %}
-            {% if timeline.now_left is not None %}<div class="now-line" style="--at: {{ timeline.now_left }}" aria-hidden="true"></div>{% endif %}
         </div>
+        {% for lane in day.lanes %}
+            <section class="lane{% if not lane.user %} lane-family{% endif %}" aria-labelledby="lane-{{ forloop.counter }}"{% if lane.user %} data-hue="{{ lane.hue }}"{% if lane.custom_color %} style="--hue: {{ lane.custom_color }}"{% endif %}{% endif %}>
+                <h3 class="colhead" id="lane-{{ forloop.counter }}">
+                    {% if lane.user %}<span class="dot" aria-hidden="true">{{ lane.user|initial }}</span><span class="lane-name" translate="no">{{ lane.user|person }}</span>{% else %}<span class="dot dot-quiet" aria-hidden="true"></span><span class="lane-name">Whole family</span>{% endif %}
+                    <small>{% if lane.slots %}{{ lane.slots|length }} plan{{ lane.slots|length|pluralize }}{% else %}Free{% endif %}</small>
+                </h3>
+                <div class="track">
+                <ol class="plans">
+                    {% for slot in lane.slots %}
+                        <li style="--top: {{ slot.top|stringformat:'s' }}%; --h: {{ slot.height|stringformat:'s' }}%; --col: {{ slot.column }}; --cols: {{ slot.columns }}">
+                            <a class="plan{% if slot.event.is_tentative %} tent{% endif %}{% if slot.clipped %} cont{% endif %}" href="{% url 'events:detail' slot.event.pk %}?{{ timezone_query }}" data-dialog{% if slot.event.source == 'google' %} title="From Google Calendar"{% endif %}>
+                                <b>{{ slot.event.title }}</b><span class="sr-only">, </span>{% if slot.event.is_tentative %}<span class="maybe">Not confirmed</span><span class="sr-only">, </span>{% endif %}{% if slot.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<time data-clock="{{ slot.time_clock }}">{{ slot.time_label }}</time>
+                            </a>
+                        </li>
+                    {% empty %}
+                        <li class="lane-empty">Nothing planned</li>
+                    {% endfor %}
+                </ol>
+                {% for hour in day.hours %}<i class="hl" style="top: {{ hour.top|stringformat:'s' }}%" aria-hidden="true"></i>{% endfor %}
+                {% if day.now_top is not None %}<i class="now" style="top: {{ day.now_top|stringformat:'s' }}%" aria-hidden="true"></i>{% endif %}
+                </div>
+            </section>
+        {% endfor %}
     </div>
     {% endtimezone %}
 </section>

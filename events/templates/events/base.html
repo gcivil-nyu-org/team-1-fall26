@@ -1,4 +1,4 @@
-{% load static %}
+{% load static paint %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,19 +10,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&amp;display=swap">
-    {% block legacy_css %}
-    <link rel="stylesheet" href="{% static 'events/event_form.css' %}?v=12">
-    <link rel="stylesheet" href="{% static 'accounts/accounts.css' %}?v=4">
-    {% endblock %}
-    <link rel="stylesheet" href="{% static 'events/shell.css' %}?v=2">
+    {% comment %}Every page now extends _paint_page.html. The legacy_* blocks stay empty for templates that
+    still override them; the old stylesheets, interface.js and its planner dialog are no longer loaded.{% endcomment %}
+    {% block legacy_css %}{% endblock %}
+    <link rel="stylesheet" href="{% static 'events/shell.css' %}?v=4">
     {% block page_css %}{% endblock %}
 
-    <script src="{% static 'events/shell.js' %}?v=1" defer></script>
-    <script src="{% static 'events/liquid_glass.js' %}?v=1" defer></script>
-    {% block legacy_js %}
-    <script src="{% static 'events/interface.js' %}?v=5" defer></script>
-    <script src="{% static 'events/location_autocomplete.js' %}?v=2" defer></script>
-    {% endblock %}
+    <script src="{% static 'events/shell.js' %}?v=2" defer></script>
+    <script src="{% static 'events/liquid_glass.js' %}?v=2" defer></script>
+    {% block legacy_js %}{% endblock %}
+    {% block shell_js %}{% endblock %}
 
     {% block scripts %}{% endblock %}
 </head>
@@ -53,11 +50,11 @@
             {% block switches %}{% endblock %}
             {% if shell %}
                 {% if shell.add_event_url %}
-                    <a class="btn add-btn" href="{{ shell.add_event_url }}"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg><span class="btn-label">Add event</span></a>
+                    <a class="btn add-btn" href="{{ shell.add_event_url }}{% block add_event_query %}{% endblock %}" data-dialog><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg><span class="btn-label">Add event</span></a>
                 {% endif %}
                 <details class="account">
                     <summary class="me" {% if shell.me %}data-hue="{{ shell.me.hue }}"{% if shell.me.custom_color %} style="--hue:{{ shell.me.custom_color }}"{% endif %}{% endif %}>
-                        <span class="dot" aria-hidden="true">{{ request.user.username|first|upper }}</span><span class="me-name">{{ request.user.username }}</span><span class="sr-only">Account menu</span>
+                        <span class="dot" aria-hidden="true">{{ request.user|initial }}</span><span class="me-name">{{ request.user|person }}</span><span class="sr-only">Account menu</span>
                     </summary>
                     <div class="acct-menu">
                         <a href="{% url 'accounts:profile' %}">Profile &amp; settings</a>
@@ -75,14 +72,7 @@
     <main id="main-content" class="{% block main_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
-{% block legacy_dialog %}
-    <dialog id="planner-dialog" aria-labelledby="dialog-title">
-        <div class="dialog-topbar"><div><span class="dialog-eyebrow">SYNCMILY / FAMILY PLANNER</span><h2 id="dialog-title">Make a plan</h2></div><div class="dialog-tools"><a id="dialog-page-link" target="_blank" rel="noopener" href="{% url 'events:list' %}">Open page <span aria-hidden="true">↗</span></a><button id="dialog-close" type="button" aria-label="Close window" autofocus>×</button></div></div>
-        <div id="dialog-notice" class="dialog-notice" role="alert" hidden></div>
-        <div class="dialog-loading" role="status"><span class="loading-spinner"></span><span>Opening your planner…</span></div>
-        <div id="dialog-content"></div>
-    </dialog>
-    <p id="planner-status" class="sr-only" role="status"></p>
-{% endblock %}
+{% block legacy_dialog %}{% endblock %}
+{% block dialogs %}{% endblock %}
 </body>
 </html>

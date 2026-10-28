@@ -73,12 +73,15 @@ def build_today_rail(events, members, today, tz, now):
 RAIL_MIN_PERCENT = 4
 
 
-def place_side_by_side(items):
-    """Give plans that would overlap on screen their own column, sharing the width in that cluster."""
+def place_side_by_side(items, min_percent=RAIL_MIN_PERCENT):
+    """Give plans that would overlap on screen their own column, sharing the width in that cluster.
+
+    `min_percent` is the smallest height a plan is drawn at, as a share of the axis.
+    """
     items.sort(key=lambda item: (item["top"], -item["height"]))
     clusters = []
     for item in items:
-        bottom = item["top"] + max(item["height"], RAIL_MIN_PERCENT)
+        bottom = item["top"] + max(item["height"], min_percent)
         if not clusters or item["top"] >= clusters[-1]["end"]:
             clusters.append({"items": [], "column_ends": [], "end": bottom})
         cluster = clusters[-1]
