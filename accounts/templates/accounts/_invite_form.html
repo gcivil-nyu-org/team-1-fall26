@@ -1,0 +1,18 @@
+{% comment %}The invite form; posts to the members page, which sends the email. Needs form, workspace.{% endcomment %}
+<form class="invite-form" method="post" action="{% url 'accounts:manage_members' workspace.pk %}">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="field">
+        <label for="{{ form.email.id_for_label }}">Email</label>
+        {{ form.email }}
+        {{ form.email.errors }}
+    </div>
+    <fieldset class="choice">
+        <legend>They join as</legend>
+        {% for choice in form.role %}
+            <label>{{ choice.tag }}<span>{{ choice.choice_label }}<small>{% if choice.data.value == 'parent' %}Adds events and sees the family week. Username like Parent2.{% else %}Gets their own kid view. Username like Kid1.{% endif %}</small></span></label>
+        {% endfor %}
+        {{ form.role.errors }}
+    </fieldset>
+    <button class="btn" type="submit">Send invite</button>
+</form>

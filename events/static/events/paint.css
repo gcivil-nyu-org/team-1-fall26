@@ -153,10 +153,10 @@ body.paint { --on-deep: var(--card); }
 
 .head-tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .head-tools .seg { margin-left: 0; }
-.crumbs { margin-bottom: 8px; color: var(--muted); }
+.paint .crumbs { margin-bottom: 12px; color: var(--muted); }
 .crumbs a { color: var(--muted); }
 .crumbs a:hover { color: var(--ink); }
-.lede { color: var(--muted); margin: 4px 0 20px; max-width: 60ch; }
+.paint .lede { color: var(--muted); margin: 4px 0 20px; max-width: 60ch; }
 
 .panel { background: var(--card); border-radius: var(--radius); padding: 20px; }
 .panel > h2 + .span, .panel > h2 + p { margin-top: 4px; }
@@ -185,6 +185,7 @@ body.paint .dot.dot-quiet { background: var(--raised); color: var(--muted); }
 [data-theme="dark"] .paint .pill[data-hue], [data-theme="dark"] .paint [data-hue] > .pill { background: color-mix(in oklab, var(--s5) 40%, var(--card)); color: var(--s1); }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .empty-row { padding: 20px 0 8px; }
+.paint .panel > .span + .actions, .paint .panel > .span + form { margin-top: 12px; }
 .empty-row h3 { font-size: 14px; }
 .empty-row p, p.empty-row { color: var(--muted); }
 
@@ -342,7 +343,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 }
 
 /* ===== Event: details and the add-event form ===== */
-.when-line { margin: 4px 0 16px; }
+.paint .when-line { margin: 4px 0 16px; }
 .event-card .pills { margin-bottom: 8px; }
 .facts .row { min-height: 52px; }
 .facts .row:first-child { border-top: 0; }
@@ -356,7 +357,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 
 .event-form { display: block; }
 .paint .opt { margin-left: 4px; color: var(--muted); font-weight: 400; }
-.notice { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius); background: var(--raised); color: var(--ink); }
+.paint .notice { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius); background: var(--raised); color: var(--ink); }
 .grid3 { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 @media (max-width: 560px) { .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid3 > :first-child { grid-column: 1 / -1; } }
 .check-field { align-self: center; }
@@ -371,7 +372,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .who-pick label:hover { filter: brightness(.97); }
 .review { margin: 8px 0 16px; padding: 16px; border-radius: var(--radius); background: var(--raised); }
 .review .facts { margin-top: 8px; }
-.review-sub { margin: 16px 0 8px; font-size: 14px; }
+.paint .review-sub { margin: 16px 0 8px; font-size: 14px; }
 .travel { padding: 10px 0; border-top: 1px solid var(--line); }
 .travel p { margin-top: 2px; }
 .travel-insufficient b { color: var(--danger); }
@@ -392,3 +393,12 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .tz-note > summary::-webkit-details-marker { display: none; }
 .tz-note > summary::after { content: ""; width: 5px; height: 5px; margin-top: -3px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 .tz-note[open] > summary::after { margin-top: 2px; transform: rotate(-135deg); }
+
+/* ===== Family, members, new family ===== */
+.you { color: var(--muted); font-weight: 400; }
+.paint .lede-s { margin: 4px 0 16px; }
+.invite-form .choice { margin-bottom: 16px; }
+.paint .choice label > span { display: block; }
+.colours-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 16px; }
+.panel .note .code { font-size: 11px; overflow-wrap: anywhere; }
+.panel > .note:last-child { margin-top: 12px; }

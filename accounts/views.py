@@ -20,7 +20,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from calendars import google
 from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
-from events.timeline import family_members
+from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
 from . import two_step
@@ -105,12 +105,17 @@ def workspace_detail(request, workspace_id):
         .first()
     )
 
+    family = family_members([workspace])
     return render(
         request,
         "accounts/workspace_detail.html",
         {
             "workspace": workspace,
             "calendar_connection": calendar_connection,
+            "family": family,
+            "pending": workspace.memberships.filter(accepted_at__isnull=True).select_related("user"),
+            "invite_form": InviteMemberForm(workspace=workspace),
+            "color_members": editable_members(request.user, workspace, family),
         },
     )
 
@@ -248,6 +253,8 @@ def manage_members(request, workspace_id):
             "workspace": workspace,
             "form": form,
             "members": workspace.memberships.select_related("user"),
+            "family": family_members([workspace]),
+            "pending": workspace.memberships.filter(accepted_at__isnull=True).select_related("user"),
         },
     )
 

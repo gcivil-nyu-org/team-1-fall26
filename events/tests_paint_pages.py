@@ -193,3 +193,43 @@ class EventPageTests(FamilyMixin, TestCase):
         self.assertPaint(response)
         self.assertContains(response, "Which family is this for?")
         self.assertContains(response, 'name="workspace"')
+
+
+class FamilyPageTests(FamilyMixin, TestCase):
+    def setUp(self):
+        self.client.force_login(self.ana)
+
+    def test_family_page_lists_members_in_their_colours_with_an_invite_form(self):
+        response = self.client.get(reverse("accounts:workspace_detail", args=[self.workspace.pk]))
+        self.assertPaint(response)
+        self.assertContains(response, "<h1>Reyes family</h1>", html=True)
+        self.assertContains(response, "3 members")
+        self.assertContains(response, 'class="row" data-hue="a"')
+        self.assertContains(response, "Parent, admin")
+        self.assertContains(response, f'action="{reverse("accounts:manage_members", args=[self.workspace.pk])}"')
+        self.assertContains(response, 'name="role"')
+        self.assertContains(response, "Connect Google Calendar")
+        self.assertContains(response, "Save colours")
+
+    def test_primary_admin_with_a_membership_row_is_listed_once(self):
+        Membership.objects.create(
+            workspace=self.workspace, user=self.ana, role=Membership.Role.PARENT, invited_by=self.ana,
+            accepted_at=timezone.now(),
+        )
+        response = self.client.get(reverse("accounts:manage_members", args=[self.workspace.pk]))
+        self.assertPaint(response)
+        self.assertContains(response, "In the family (3)")
+        self.assertContains(response, "Parent, admin", count=1)
+
+    def test_pending_invites_show_their_username(self):
+        self.client.post(reverse("accounts:manage_members", args=[self.workspace.pk]),
+                         {"email": "grandma@example.com", "role": "parent"})
+        response = self.client.get(reverse("accounts:workspace_detail", args=[self.workspace.pk]))
+        self.assertContains(response, "grandma@example.com")
+        self.assertContains(response, "not joined yet")
+
+    def test_new_family_page(self):
+        response = self.client.get(reverse("accounts:create_workspace"))
+        self.assertPaint(response)
+        self.assertContains(response, "Start a family")
+        self.assertContains(response, 'name="name"')
