@@ -10,7 +10,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -167,6 +167,30 @@ def choose_workspace(request):
             query["date"] = form.cleaned_data["date"]
         return redirect(f"{reverse('events:workspace_create', args=[workspace.pk])}?{urlencode(query)}")
     return render(request, "events/choose_workspace.html", {"form": form})
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def set_transport_mode(request, pk):
+    """A parent changes how a plan is reached straight from the "Your day" pop-up.
+
+    The full event form still offers the same choice; this only saves the one field.
+    """
+    event = get_object_or_404(
+        Event.objects.filter(workspace__in=family_workspaces(request.user, caregivers_only=True)), pk=pk,
+    )
+    mode = request.POST.get("transport_mode", "")
+    if mode not in Event.TransportMode.values:
+        return HttpResponseBadRequest("Choose car, subway or bus, walking or cycling.")
+    if event.transport_mode != mode:
+        event.transport_mode = mode
+        event.save(update_fields=["transport_mode", "updated_at"])
+    if request.headers.get("X-Requested-With") == "fetch":
+        return HttpResponse(status=204)
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}, request.is_secure()):
+        next_url = reverse("accounts:dashboard")
+    return redirect(next_url)
 
 
 @login_required(login_url="accounts:login")

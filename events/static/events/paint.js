@@ -215,7 +215,7 @@
     ready(function () {
         var day = document.getElementById("my-day");
         if (!day || !day.showModal) return;
-        var form = day.querySelector("form");
+        var form = day.querySelector(".my-day-actions");
         var title = document.getElementById("my-day-title");
         var opener = document.querySelector("[data-open-my-day]");
         var returnFocus = null, told = false;
@@ -243,6 +243,38 @@
             }
             var target = returnFocus && returnFocus.isConnected ? returnFocus : opener;
             if (target && !target.hidden) target.focus();
+        });
+        // Parents change how a plan is reached right here. Picking a mode shows Confirm; nothing is
+        // saved until they press it.
+        day.querySelectorAll("form[data-transport-mode]").forEach(function (modeForm) {
+            var select = modeForm.querySelector("select");
+            var confirmButton = modeForm.querySelector("[data-mode-confirm]");
+            var status = modeForm.querySelector("[role='status']");
+            var saved = select.value;
+            confirmButton.hidden = true;
+            select.addEventListener("change", function () {
+                confirmButton.hidden = select.value === saved;
+                status.textContent = "";
+            });
+            modeForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                if (confirmButton.disabled) return;
+                confirmButton.disabled = true;
+                status.textContent = "Saving…";
+                fetch(modeForm.action, {
+                    method: "POST", body: new FormData(modeForm), credentials: "same-origin",
+                    headers: { "X-Requested-With": "fetch" },
+                }).then(function (response) {
+                    if (!response.ok) throw new Error(String(response.status));
+                    saved = select.value;
+                    confirmButton.hidden = true;
+                    status.textContent = "Saved";
+                }).catch(function () {
+                    status.textContent = "Couldn’t save. Try again.";
+                }).finally(function () {
+                    confirmButton.disabled = false;
+                });
+            });
         });
         if (day.hasAttribute("data-auto-open")) open(null);
     });

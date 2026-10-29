@@ -656,6 +656,22 @@ body.paint .my-day-head .x { color: inherit; }
 .my-day-ride dd { margin: 0; }
 .my-day-ask { font-weight: 600; }
 .paint .my-day-free { padding: 16px 0; font-size: 18px; }
+/* Parents: their drives, rides with no driver and overlaps first, then who each plan is for. */
+.my-day-summary { display: grid; gap: 8px; margin: 16px 24px 0; padding: 14px 16px; border-radius: 8px; background: var(--raised); font-size: 16px; line-height: 22px; }
+.paint .my-day-summary-title { margin: 0; font-weight: 600; }
+.paint .my-day-drives { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.my-day-at { display: inline-block; min-width: 6.5em; font-weight: 600; }
+.paint .my-day-summary .my-day-flag { margin: 0; }
+.my-day-flag { display: block; width: fit-content; margin-top: 6px; padding: 2px 8px; border-radius: 6px; background: var(--warning-soft); color: var(--warning); font-size: 16px; font-weight: 600; }
+.my-day-who { display: block; margin-top: 2px; font-size: 16px; color: var(--muted); }
+body.paint .my-day-ride label { display: inline; margin: 0; font-size: inherit; line-height: inherit; font-weight: 600; color: inherit; }
+.my-day-ride div:has(select) { align-items: center; }
+.my-day-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.paint .my-day-mode select { min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); font: inherit; }
+body.paint .my-day-mode .btn { min-height: 36px; padding: 0 16px; font-size: 16px; }
+body.paint .my-day-mode .btn[hidden] { display: none; }
+.my-day-saved { color: var(--muted); font-size: 14px; }
+.my-day-saved:empty { display: none; }
 .my-day-actions { display: flex; justify-content: flex-end; padding: 8px 24px 24px; }
 body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 18px; }
 @media (max-width: 560px) {

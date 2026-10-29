@@ -191,11 +191,14 @@ class WeekPageTests(TestCase):
             )
             event.participants.set([self.kid])
 
-        add_plan(0)
+        # Start with today's plan, so the "Your day" briefing has something to show from the first count.
+        today = (django_timezone.localdate() - monday).days
+        add_plan(today)
         with CaptureQueriesContext(connection) as one_event:
             self.client.get(self.url)
-        for day in range(1, 7):
-            add_plan(day)
+        for day in range(7):
+            if day != today:
+                add_plan(day)
         with self.assertNumQueries(len(one_event)):
             self.client.get(self.url)
 

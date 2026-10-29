@@ -52,6 +52,8 @@ class Command(BaseCommand):
                 # title, start, end, people, transport (drop-off, pickup, mode), tentative
                 ("School", at(0, 8), at(0, 15), [kid], (parent, None, Event.TransportMode.DRIVING), False, "PS 41"),
                 ("Soccer practice", at(0, 16, 30), at(0, 18), [kid], (other, parent, Event.TransportMode.DRIVING), False, "Pier 40"),
+                # Overlaps soccer, so the parents' briefing has a double-booking to flag.
+                ("Dentist", at(0, 17), at(0, 17, 45), [kid], (parent, parent, Event.TransportMode.DRIVING), False, "Smile Dental"),
                 ("Family dinner", at(0, 19), at(0, 20), [], None, False, ""),
                 ("Piano lesson", at(0, 21), at(0, 21, 45), [kid], (None, None, Event.TransportMode.WALKING), False, ""),
                 ("Field trip", at(1, 0), at(2, 0), [kid], None, False, "Museum of Natural History"),

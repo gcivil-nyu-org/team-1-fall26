@@ -66,8 +66,6 @@ class Membership(models.Model):
 
     invited_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
-    # The local day a kid last closed their "Your day" briefing; it opens again the next day.
-    briefing_seen_on = models.DateField(null=True, blank=True)
 
     # A kid's own pick of the family presets, for their screens only; blank follows the family's.
     palette = models.CharField(
@@ -119,6 +117,25 @@ class MemberColor(models.Model):
 
     def __str__(self):
         return f"{self.user} is {self.color} in {self.workspace}"
+
+
+class BriefingSeen(models.Model):
+    """The local day someone last closed their "Your day" briefing; it opens again the next day.
+
+    Kept per user rather than on Membership, because a family's primary admin has no membership.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="briefing_seen",
+    )
+
+    seen_on = models.DateField()
+
+    def __str__(self):
+        return f"{self.user} closed their briefing on {self.seen_on}"
 
 
 class GoogleIdentity(models.Model):

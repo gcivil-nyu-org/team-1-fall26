@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from accounts.models import MemberColor, Membership, Workspace
+from accounts.models import BriefingSeen, MemberColor, Membership, Workspace
 from events.briefing import build_kid_briefing
 from events.models import Event
 
@@ -47,7 +47,7 @@ class KidDayTests(TestCase):
                 workspace=cls.workspace, user=user, role=role, invited_by=cls.ana, accepted_at=MORNING,
             )
         cls.url = reverse("accounts:dashboard")
-        cls.seen_url = reverse("accounts:kid_day_seen")
+        cls.seen_url = reverse("accounts:day_seen")
 
     def plan(self, title, starts_at, ends_at, people=(), **fields):
         event = Event.objects.create(
@@ -94,14 +94,14 @@ class KidDayTests(TestCase):
         with frozen(MORNING):
             response = self.client.post(self.seen_url, HTTP_X_REQUESTED_WITH="fetch")
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(Membership.objects.get(user=self.lucia).briefing_seen_on, WEDNESDAY)
+        self.assertEqual(BriefingSeen.objects.get(user=self.lucia).seen_on, WEDNESDAY)
 
     def test_closing_twice_is_harmless(self):
         self.client.force_login(self.lucia)
         with frozen(MORNING):
             self.client.post(self.seen_url, HTTP_X_REQUESTED_WITH="fetch")
             self.client.post(self.seen_url, HTTP_X_REQUESTED_WITH="fetch")
-        self.assertEqual(Membership.objects.get(user=self.lucia).briefing_seen_on, WEDNESDAY)
+        self.assertEqual(BriefingSeen.objects.get(user=self.lucia).seen_on, WEDNESDAY)
 
     def test_opens_again_after_local_midnight(self):
         self.client.force_login(self.lucia)
@@ -117,20 +117,15 @@ class KidDayTests(TestCase):
             self.client.post(self.seen_url)
         self.assertTrue(self.opens_by_itself(self.dashboard(MORNING, self.tomas)))
 
-    def test_parents_never_get_it(self):
-        response = self.dashboard(MORNING, self.mateo)
-        self.assertTemplateUsed(response, "accounts/parent_dashboard.html")
-        self.assertNotContains(response, 'id="my-day"')
-
-    def test_a_parent_closing_it_changes_nothing(self):
+    def test_a_parent_closing_theirs_leaves_the_kids_open(self):
         self.client.force_login(self.mateo)
         with frozen(MORNING):
             self.client.post(self.seen_url)
-        self.assertIsNone(Membership.objects.get(user=self.mateo).briefing_seen_on)
+        self.assertTrue(self.opens_by_itself(self.dashboard(MORNING)))
 
     def test_closing_needs_a_signed_in_post(self):
         self.assertEqual(self.client.post(self.seen_url).status_code, 302)
-        self.assertIsNone(Membership.objects.get(user=self.lucia).briefing_seen_on)
+        self.assertFalse(BriefingSeen.objects.exists())
         self.client.force_login(self.lucia)
         self.assertEqual(self.client.get(self.seen_url).status_code, 405)
 

@@ -38,8 +38,8 @@ urlpatterns = [
     ),
     path(
         "dashboard/my-day/seen/",
-        views.kid_day_seen,
-        name="kid_day_seen",
+        views.day_seen,
+        name="day_seen",
     ),
     path(
         "profile/",

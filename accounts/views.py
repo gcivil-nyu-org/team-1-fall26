@@ -21,13 +21,13 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from calendars import google
 from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
-from events.briefing import build_kid_briefing
+from events.briefing import build_family_briefing, build_kid_briefing
 from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
 from . import two_step
 from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
-from .models import GoogleIdentity, Membership, Workspace
+from .models import BriefingSeen, GoogleIdentity, Membership, Workspace
 from .services import (
     GoogleAccountTaken,
     GoogleEmailInUse,
@@ -158,6 +158,10 @@ def dashboard(request):
     if family["role"] == Membership.Role.KID:
         context.update(_kid_context(request, context))
         return render(request, "accounts/kid_dashboard.html", context)
+    context.update(
+        me_row=next((row for row in context["week"]["rows"] if row["user"].pk == request.user.pk), None),
+        briefing=_day_briefing(request, workspace, build_family_briefing),
+    )
     return render(request, "accounts/parent_dashboard.html", context)
 
 
@@ -182,27 +186,23 @@ def _kid_context(request, context):
         "tomorrow_chip": chips.get(today + timedelta(days=1)),
         "kid_upcoming": upcoming,
         "family": family_members([context["workspace"]]),
-        "briefing": _kid_briefing(request, context["workspace"]),
+        "briefing": _day_briefing(request, context["workspace"], build_kid_briefing),
     }
 
 
-def _kid_briefing(request, workspace):
-    """The "Your day" pop-up, opened by itself on the kid's first visit of each local day."""
-    briefing = build_kid_briefing(
-        request.user, workspace, timezone.now(), timezone.get_current_timezone(),
-    )
-    seen_on = Membership.objects.filter(user=request.user).values_list("briefing_seen_on", flat=True).first()
+def _day_briefing(request, workspace, build):
+    """The "Your day" pop-up, opened by itself on the first visit of each local day."""
+    briefing = build(request.user, workspace, timezone.now(), timezone.get_current_timezone())
+    seen_on = BriefingSeen.objects.filter(user=request.user).values_list("seen_on", flat=True).first()
     briefing["auto_open"] = seen_on != timezone.localdate()
     return briefing
 
 
 @login_required
 @require_POST
-def kid_day_seen(request):
-    """Keep today's "Your day" pop-up closed once the kid has closed it; it opens again tomorrow."""
-    Membership.objects.filter(user=request.user, role=Membership.Role.KID).update(
-        briefing_seen_on=timezone.localdate(),
-    )
+def day_seen(request):
+    """Keep today's "Your day" pop-up closed once it has been closed; it opens again tomorrow."""
+    BriefingSeen.objects.update_or_create(user=request.user, defaults={"seen_on": timezone.localdate()})
     if request.headers.get("X-Requested-With") == "fetch":
         return HttpResponse(status=204)
     return redirect("accounts:dashboard")
