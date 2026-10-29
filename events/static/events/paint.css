@@ -635,6 +635,8 @@ body.paint .my-day-open { min-height: 44px; padding: 0 20px; font-size: 16px; }
 dialog.my-day { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
 dialog.my-day::backdrop { background: color-mix(in oklab, var(--paint-ink) 45%, transparent); }
 dialog.my-day[open] { animation: rise .22s cubic-bezier(.16, 1, .3, 1); }
+/* While "Your day" is open the page behind it stays put; only the pop-up itself scrolls. */
+html:has(dialog.my-day[open]) { overflow: hidden; overscroll-behavior: none; scrollbar-gutter: stable; }
 .my-day-head { display: flex; align-items: flex-start; gap: 12px; padding: 24px 12px 24px 24px; background: var(--s3, var(--raised)); color: var(--s3t, var(--ink)); }
 .my-day-head > div { flex: 1; min-width: 0; }
 body.paint .my-day-head .x { color: inherit; }
