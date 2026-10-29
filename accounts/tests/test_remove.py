@@ -11,26 +11,44 @@ from chat.models import ChatMessage
 from checklists.models import Checklist
 from events.models import Event
 
-from .forms import InviteMemberForm, SignUpForm
-from .models import Membership, Workspace
-from .services import accept_invitation, invite_member, make_invite_token
+from ..forms import InviteMemberForm, SignUpForm
+from ..models import Membership, Workspace
+from ..services import accept_invitation, invite_member, make_invite_token
 
 
 class RemoveMemberTests(TestCase):
-    """The primary admin can take someone out of the family, and their email is free again."""
+    """The primary admin can take someone out of the family, and their email is free
+    again.
+    """
 
     def setUp(self):
         User = get_user_model()
-        self.admin = User.objects.create_user(username="Parent1", password="TestPassword123!")
-        self.workspace = Workspace.objects.create(name="Reyes family", primary_admin=self.admin)
+        self.admin = User.objects.create_user(
+            username="Parent1", password="TestPassword123!"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Reyes family", primary_admin=self.admin
+        )
         Membership.objects.create(
-            workspace=self.workspace, user=self.admin, role=Membership.Role.PARENT, invited_by=self.admin,
+            workspace=self.workspace,
+            user=self.admin,
+            role=Membership.Role.PARENT,
+            invited_by=self.admin,
         )
         self.client.force_login(self.admin)
 
-    def invite(self, email="kid@example.com", role=Membership.Role.KID, workspace=None, admin=None):
+    def invite(
+        self,
+        email="kid@example.com",
+        role=Membership.Role.KID,
+        workspace=None,
+        admin=None,
+    ):
         return invite_member(
-            workspace=workspace or self.workspace, invited_by=admin or self.admin, email=email, role=role,
+            workspace=workspace or self.workspace,
+            invited_by=admin or self.admin,
+            email=email,
+            role=role,
         )
 
     def joined_kid(self, email="kid@example.com"):
@@ -43,26 +61,41 @@ class RemoveMemberTests(TestCase):
     def remove_url(self, membership, workspace=None):
         return reverse(
             "accounts:remove_member",
-            kwargs={"workspace_id": (workspace or self.workspace).id, "membership_id": membership.pk},
+            kwargs={
+                "workspace_id": (workspace or self.workspace).id,
+                "membership_id": membership.pk,
+            },
         )
 
     def members_url(self):
-        return reverse("accounts:manage_members", kwargs={"workspace_id": self.workspace.id})
+        return reverse(
+            "accounts:manage_members", kwargs={"workspace_id": self.workspace.id}
+        )
 
     def test_removing_a_kid_who_made_plans_and_chatted_frees_their_email(self):
         kid = self.joined_kid()
         start = timezone.now() + timedelta(days=1)
         event = Event.objects.create(
-            title="Soccer", starts_at=start, ends_at=start + timedelta(hours=1),
-            timezone_name="America/New_York", workspace=self.workspace, created_by=kid.user,
+            title="Soccer",
+            starts_at=start,
+            ends_at=start + timedelta(hours=1),
+            timezone_name="America/New_York",
+            workspace=self.workspace,
+            created_by=kid.user,
         )
-        checklist = Checklist.objects.create(title="Soccer bag", workspace=self.workspace, created_by=kid.user)
-        ChatMessage.objects.create(workspace=self.workspace, sender=kid.user, content="Hi")
+        checklist = Checklist.objects.create(
+            title="Soccer bag", workspace=self.workspace, created_by=kid.user
+        )
+        ChatMessage.objects.create(
+            workspace=self.workspace, sender=kid.user, content="Hi"
+        )
 
         response = self.client.post(self.remove_url(kid), follow=True)
 
         self.assertContains(response, "is no longer in Reyes family")
-        self.assertFalse(get_user_model().objects.filter(email__iexact="kid@example.com").exists())
+        self.assertFalse(
+            get_user_model().objects.filter(email__iexact="kid@example.com").exists()
+        )
         self.assertFalse(Membership.objects.filter(pk=kid.pk).exists())
         event.refresh_from_db()
         checklist.refresh_from_db()
@@ -70,12 +103,18 @@ class RemoveMemberTests(TestCase):
         self.assertEqual(checklist.created_by, self.admin)
         self.assertFalse(ChatMessage.objects.filter(content="Hi").exists())
 
-        signup = SignUpForm(data={
-            "username": "mateo", "email": "KID@example.com",
-            "password1": "AnotherPass123!", "password2": "AnotherPass123!",
-        })
+        signup = SignUpForm(
+            data={
+                "username": "mateo",
+                "email": "KID@example.com",
+                "password1": "AnotherPass123!",
+                "password2": "AnotherPass123!",
+            }
+        )
         self.assertTrue(signup.is_valid(), signup.errors)
-        invite = InviteMemberForm(data={"email": "kid@example.com", "role": "kid"}, workspace=self.workspace)
+        invite = InviteMemberForm(
+            data={"email": "kid@example.com", "role": "kid"}, workspace=self.workspace
+        )
         self.assertTrue(invite.is_valid(), invite.errors)
 
     def test_removed_member_is_signed_out_and_their_invite_link_stops_working(self):
@@ -89,7 +128,9 @@ class RemoveMemberTests(TestCase):
         response = kid_client.get(reverse("accounts:dashboard"))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response["Location"])
-        response = kid_client.get(reverse("accounts:accept_invite", kwargs={"token": token}))
+        response = kid_client.get(
+            reverse("accounts:accept_invite", kwargs={"token": token})
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_removing_a_pending_invite_frees_the_email(self):
@@ -99,21 +140,35 @@ class RemoveMemberTests(TestCase):
 
         self.client.post(self.remove_url(pending))
 
-        self.assertFalse(get_user_model().objects.filter(email="mateo@example.com").exists())
-        invite = InviteMemberForm(data={"email": "mateo@example.com", "role": "parent"}, workspace=self.workspace)
+        self.assertFalse(
+            get_user_model().objects.filter(email="mateo@example.com").exists()
+        )
+        invite = InviteMemberForm(
+            data={"email": "mateo@example.com", "role": "parent"},
+            workspace=self.workspace,
+        )
         self.assertTrue(invite.is_valid(), invite.errors)
 
     def test_their_google_calendar_is_revoked_and_its_copied_events_go(self):
         kid = self.joined_kid()
         connection = CalendarConnection.objects.create(
-            user=kid.user, workspace=self.workspace, provider=CalendarConnection.Provider.GOOGLE,
-            access_token="ya29.access", refresh_token="1//refresh",
+            user=kid.user,
+            workspace=self.workspace,
+            provider=CalendarConnection.Provider.GOOGLE,
+            access_token="ya29.access",
+            refresh_token="1//refresh",
         )
         start = timezone.now() + timedelta(days=1)
         Event.objects.create(
-            title="Dentist", starts_at=start, ends_at=start + timedelta(hours=1),
-            timezone_name="America/New_York", workspace=self.workspace, created_by=kid.user,
-            source=Event.Source.GOOGLE, calendar_connection=connection, external_id="g1",
+            title="Dentist",
+            starts_at=start,
+            ends_at=start + timedelta(hours=1),
+            timezone_name="America/New_York",
+            workspace=self.workspace,
+            created_by=kid.user,
+            source=Event.Source.GOOGLE,
+            calendar_connection=connection,
+            external_id="g1",
         )
 
         with patch("accounts.services.google.revoke", return_value=True) as revoke:
@@ -156,9 +211,15 @@ class RemoveMemberTests(TestCase):
 
     def test_a_member_of_another_family_is_untouched(self):
         User = get_user_model()
-        other_admin = User.objects.create_user(username="Parent9", password="TestPassword123!")
-        other_family = Workspace.objects.create(name="Other family", primary_admin=other_admin)
-        stranger = self.invite("stranger@example.com", workspace=other_family, admin=other_admin)
+        other_admin = User.objects.create_user(
+            username="Parent9", password="TestPassword123!"
+        )
+        other_family = Workspace.objects.create(
+            name="Other family", primary_admin=other_admin
+        )
+        stranger = self.invite(
+            "stranger@example.com", workspace=other_family, admin=other_admin
+        )
 
         response = self.client.post(self.remove_url(stranger), follow=True)
 
@@ -181,4 +242,4 @@ class RemoveMemberTests(TestCase):
 
         self.assertContains(response, self.remove_url(kid))
         self.assertNotContains(response, self.remove_url(own))
-        self.assertContains(response, "data-confirm-title=\"Remove ")
+        self.assertContains(response, 'data-confirm-title="Remove ')

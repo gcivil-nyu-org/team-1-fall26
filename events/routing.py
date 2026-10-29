@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 import requests
 
-
 OSRM_BASE_URL = "https://router.project-osrm.org"
 VALHALLA_BASE_URL = "https://valhalla1.openstreetmap.de"
 OTP_GRAPHQL_URL = os.environ.get(
@@ -127,6 +126,7 @@ def estimate_valhalla_seconds(start, end, mode):
 
     return summary.get("time")
 
+
 def estimate_transit_seconds(start, end, departure_time=None):
     """
     Estimate a public-transit journey using the local OpenTripPlanner server.
@@ -186,11 +186,7 @@ def estimate_transit_seconds(start, end, departure_time=None):
     if result.get("errors"):
         return None
 
-    itineraries = (
-        result.get("data", {})
-        .get("plan", {})
-        .get("itineraries", [])
-    )
+    itineraries = result.get("data", {}).get("plan", {}).get("itineraries", [])
 
     valid_durations = []
 
@@ -198,7 +194,8 @@ def estimate_transit_seconds(start, end, departure_time=None):
         legs = itinerary.get("legs", [])
 
         has_transit = any(
-            leg.get("mode") in {
+            leg.get("mode")
+            in {
                 "SUBWAY",
                 "BUS",
                 "RAIL",
@@ -214,6 +211,7 @@ def estimate_transit_seconds(start, end, departure_time=None):
             valid_durations.append(duration)
 
     return min(valid_durations) if valid_durations else None
+
 
 def estimate_travel_time(first_event, second_event, transport_mode):
     """

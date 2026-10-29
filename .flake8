@@ -1,0 +1,7 @@
+[flake8]
+# Match black's line length; E203 and W503 conflict with black's formatting.
+max-line-length = 88
+extend-ignore = E203, W503
+# palette.py writes CSS from long template strings; wrapping them would change the CSS.
+per-file-ignores = docs/design/palette.py:E501,F541
+exclude = .git, .venv, __pycache__, */migrations/*, staticfiles, transit-routing

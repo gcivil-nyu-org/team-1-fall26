@@ -1,4 +1,3 @@
-
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -59,17 +58,21 @@ class HouseholdChatConsumer(AsyncJsonWebsocketConsumer):
             return
 
         if not isinstance(content, dict):
-            await self.send_json({
-                "type": "error",
-                "message": "Invalid message format.",
-            })
+            await self.send_json(
+                {
+                    "type": "error",
+                    "message": "Invalid message format.",
+                }
+            )
             return
 
         if content.get("type") != "chat_message":
-            await self.send_json({
-                "type": "error",
-                "message": "Unsupported message type.",
-            })
+            await self.send_json(
+                {
+                    "type": "error",
+                    "message": "Unsupported message type.",
+                }
+            )
             return
 
         try:
@@ -78,10 +81,12 @@ class HouseholdChatConsumer(AsyncJsonWebsocketConsumer):
                 content.get("event_label", ""),
             )
         except ValidationError as exc:
-            await self.send_json({
-                "type": "error",
-                "message": "; ".join(exc.messages),
-            })
+            await self.send_json(
+                {
+                    "type": "error",
+                    "message": "; ".join(exc.messages),
+                }
+            )
             return
         except PermissionDenied:
             await self.close(code=4403)
@@ -100,10 +105,12 @@ class HouseholdChatConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4403)
             return
 
-        await self.send_json({
-            "type": "chat_message",
-            **event["message"],
-        })
+        await self.send_json(
+            {
+                "type": "chat_message",
+                **event["message"],
+            }
+        )
 
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):

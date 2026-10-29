@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
-from .routing import RouteEstimate, estimate_travel_time
+from ..routing import RouteEstimate, estimate_travel_time
 
 
 class TravelRoutingTests(SimpleTestCase):

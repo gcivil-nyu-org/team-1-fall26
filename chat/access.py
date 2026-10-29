@@ -1,4 +1,3 @@
-
 from django.db.models import Q
 
 from accounts.models import Workspace
@@ -23,7 +22,4 @@ def can_access_chat(user, workspace):
     if workspace is None:
         return False
 
-    return accessible_workspaces(user).filter(
-        pk=workspace.pk
-    ).exists()
-
+    return accessible_workspaces(user).filter(pk=workspace.pk).exists()

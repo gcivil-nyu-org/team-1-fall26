@@ -8,8 +8,8 @@ from django.utils import timezone as django_timezone
 from accounts.models import Membership, Workspace
 from calendars.models import CalendarConnection
 
-from .access import family_events
-from .models import Event
+from ..access import family_events
+from ..models import Event
 
 
 class KidEventVisibilityTests(TestCase):
@@ -19,9 +19,13 @@ class KidEventVisibilityTests(TestCase):
     def setUpTestData(cls):
         User = get_user_model()
         cls.admin = User.objects.create_user(username="Ana", password="FamilyTest2026!")
-        cls.parent = User.objects.create_user(username="Mateo", password="FamilyTest2026!")
+        cls.parent = User.objects.create_user(
+            username="Mateo", password="FamilyTest2026!"
+        )
         cls.kid = User.objects.create_user(username="Lucia", password="FamilyTest2026!")
-        cls.kid2 = User.objects.create_user(username="Tomas", password="FamilyTest2026!")
+        cls.kid2 = User.objects.create_user(
+            username="Tomas", password="FamilyTest2026!"
+        )
         cls.workspace = Workspace.objects.create(name="Reyes", primary_admin=cls.admin)
         for user, role in (
             (cls.parent, Membership.Role.PARENT),
@@ -29,8 +33,11 @@ class KidEventVisibilityTests(TestCase):
             (cls.kid2, Membership.Role.KID),
         ):
             Membership.objects.create(
-                workspace=cls.workspace, user=user, role=role,
-                invited_by=cls.admin, accepted_at=django_timezone.now(),
+                workspace=cls.workspace,
+                user=user,
+                role=role,
+                invited_by=cls.admin,
+                accepted_at=django_timezone.now(),
             )
 
         soon = django_timezone.now() + timedelta(hours=2)
@@ -40,18 +47,28 @@ class KidEventVisibilityTests(TestCase):
         cls.parents_only = cls.event("Date night", soon, people=[cls.admin, cls.parent])
         cls.sibling_only = cls.event("Piano lesson", soon, people=[cls.kid2])
         connection = CalendarConnection.objects.create(
-            user=cls.parent, workspace=cls.workspace, provider=CalendarConnection.Provider.GOOGLE,
+            user=cls.parent,
+            workspace=cls.workspace,
+            provider=CalendarConnection.Provider.GOOGLE,
         )
         cls.parent_import = cls.event(
-            "Work meeting", soon, created_by=cls.parent, source=Event.Source.GOOGLE,
-            calendar_connection=connection, external_id="work-1",
+            "Work meeting",
+            soon,
+            created_by=cls.parent,
+            source=Event.Source.GOOGLE,
+            calendar_connection=connection,
+            external_id="work-1",
         )
 
     @classmethod
     def event(cls, title, starts_at, people=(), created_by=None, **fields):
         event = Event.objects.create(
-            created_by=created_by or cls.admin, workspace=cls.workspace, title=title,
-            starts_at=starts_at, ends_at=starts_at + timedelta(hours=1), **fields,
+            created_by=created_by or cls.admin,
+            workspace=cls.workspace,
+            title=title,
+            starts_at=starts_at,
+            ends_at=starts_at + timedelta(hours=1),
+            **fields,
         )
         event.participants.set(people)
         return event
@@ -71,8 +88,12 @@ class KidEventVisibilityTests(TestCase):
 
     def test_parents_still_see_every_family_event(self):
         everything = {
-            "Family dinner", "Soccer practice", "Zoo trip",
-            "Date night", "Piano lesson", "Work meeting",
+            "Family dinner",
+            "Soccer practice",
+            "Zoo trip",
+            "Date night",
+            "Piano lesson",
+            "Work meeting",
         }
         self.assertSetEqual(self.titles(self.admin), everything)
         self.assertSetEqual(self.titles(self.parent), everything)
@@ -90,7 +111,8 @@ class KidEventVisibilityTests(TestCase):
         self.client.force_login(self.kid)
 
         response = self.client.get(
-            reverse("events:workspace_list", args=[self.workspace.pk]) + "?view=upcoming"
+            reverse("events:workspace_list", args=[self.workspace.pk])
+            + "?view=upcoming"
         )
 
         self.assertContains(response, "Soccer practice")
@@ -118,8 +140,12 @@ class KidEventVisibilityTests(TestCase):
         self.assertContains(response, "My day")
         self.assertContains(response, ">Previous<")
         self.assertContains(response, ">Next<")
-        rail_titles = {item["event"].title for item in response.context["rail"]["items"]}
-        self.assertLessEqual(rail_titles, {"Family dinner", "Soccer practice", "Zoo trip"})
+        rail_titles = {
+            item["event"].title for item in response.context["rail"]["items"]
+        }
+        self.assertLessEqual(
+            rail_titles, {"Family dinner", "Soccer practice", "Zoo trip"}
+        )
 
     def test_kid_timeline_is_hidden_on_other_weeks(self):
         self.client.force_login(self.kid)

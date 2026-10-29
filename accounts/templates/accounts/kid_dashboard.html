@@ -12,7 +12,10 @@
                     {% with next=tomorrow_chip.items.0 %}{% if tomorrow_chip %}{% if next %}Tomorrow: {{ next.event.title }}{% if next.all_day %}, all day{% elif not next.starts_earlier %} at {{ next.event.starts_at|clock }}{% endif %}.{% else %}Tomorrow is free too.{% endif %}{% endif %}{% endwith %}
                 </p>
             </div>
-            <p class="kid-date">{{ today|date:"l" }}<strong>{{ today|date:"j" }}</strong>{{ today|date:"F" }}</p>
+            <div class="kid-hero-side">
+                <p class="kid-date">{{ today|date:"l" }}<strong>{{ today|date:"j" }}</strong>{{ today|date:"F" }}</p>
+                <button class="btn my-day-open" type="button" aria-haspopup="dialog" aria-controls="my-day" data-open-my-day hidden>Your day</button>
+            </div>
         </section>
 
         <h2>Coming up</h2>
@@ -78,4 +81,5 @@
         <h2>Checklists</h2>
         <p class="kid-more"><a href="{% url 'checklists:list' workspace.pk %}">Open the family checklists</a> to see what needs doing and tick things off.</p>
     </div>
+    {% include "accounts/_my_day.html" %}
 {% endblock %}

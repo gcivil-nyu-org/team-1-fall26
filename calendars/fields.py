@@ -9,11 +9,15 @@ from django.db import models
 @lru_cache
 def _fernet_for(keys):
     if not keys:
-        raise ImproperlyConfigured("Set FIELD_ENCRYPTION_KEYS to store calendar tokens.")
+        raise ImproperlyConfigured(
+            "Set FIELD_ENCRYPTION_KEYS to store calendar tokens."
+        )
     try:
         return MultiFernet([Fernet(key) for key in keys])
     except (TypeError, ValueError) as error:
-        raise ImproperlyConfigured("FIELD_ENCRYPTION_KEYS must contain valid Fernet keys.") from error
+        raise ImproperlyConfigured(
+            "FIELD_ENCRYPTION_KEYS must contain valid Fernet keys."
+        ) from error
 
 
 def get_fernet():

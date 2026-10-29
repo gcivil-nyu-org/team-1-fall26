@@ -6,13 +6,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('events', '0007_event_timezone_default'),
+        ("events", "0007_event_timezone_default"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='event',
-            name='transport_mode',
-            field=models.CharField(choices=[('driving', 'Car'), ('transit', 'Subway / Bus'), ('walking', 'Walking'), ('cycling', 'Cycling')], default='transit', max_length=20),
+            model_name="event",
+            name="transport_mode",
+            field=models.CharField(
+                choices=[
+                    ("driving", "Car"),
+                    ("transit", "Subway / Bus"),
+                    ("walking", "Walking"),
+                    ("cycling", "Cycling"),
+                ],
+                default="transit",
+                max_length=20,
+            ),
         ),
     ]

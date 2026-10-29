@@ -17,10 +17,10 @@ from django.urls import reverse
 from accounts.models import Workspace
 from events.models import Event
 
-from . import google
-from .models import CalendarConnection
-from .sync import SyncResult, sync_connection
-from .views import SESSION_KEY
+from .. import google
+from ..models import CalendarConnection
+from ..sync import SyncResult, sync_connection
+from ..views import SESSION_KEY
 
 TEST_KEY = Fernet.generate_key().decode()
 
@@ -28,13 +28,19 @@ TEST_KEY = Fernet.generate_key().decode()
 class CalendarConnectionTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="caregiver")
-        self.workspace = Workspace.objects.create(name="Our family", primary_admin=self.user)
+        self.workspace = Workspace.objects.create(
+            name="Our family", primary_admin=self.user
+        )
 
     def test_one_connection_per_provider_per_user(self):
-        CalendarConnection.objects.create(user=self.user, provider=CalendarConnection.Provider.GOOGLE)
+        CalendarConnection.objects.create(
+            user=self.user, provider=CalendarConnection.Provider.GOOGLE
+        )
 
         with self.assertRaises(IntegrityError):
-            CalendarConnection.objects.create(user=self.user, provider=CalendarConnection.Provider.GOOGLE)
+            CalendarConnection.objects.create(
+                user=self.user, provider=CalendarConnection.Provider.GOOGLE
+            )
 
     def test_defaults_to_primary_calendar(self):
         connection = CalendarConnection.objects.create(
@@ -51,7 +57,9 @@ class CalendarConnectionTests(TestCase):
 class ImportedEventTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="caregiver")
-        self.workspace = Workspace.objects.create(name="Our family", primary_admin=self.user)
+        self.workspace = Workspace.objects.create(
+            name="Our family", primary_admin=self.user
+        )
         self.connection = CalendarConnection.objects.create(
             user=self.user,
             workspace=self.workspace,
@@ -140,7 +148,8 @@ class TokenEncryptionTests(TestCase):
     def raw_tokens(self):
         with db_connection.cursor() as cursor:
             cursor.execute(
-                "SELECT access_token, refresh_token FROM calendars_calendarconnection WHERE id = %s",
+                "SELECT access_token, refresh_token FROM calendars_calendarconnection"
+                " WHERE id = %s",
                 [self.connection.pk],
             )
             return cursor.fetchone()
@@ -182,7 +191,9 @@ class TokenEncryptionTests(TestCase):
     def test_missing_or_invalid_key_stops_production_startup(self):
         config = apps.get_app_config("calendars")
         for keys in ([], ["not-a-fernet-key"]):
-            with self.subTest(keys=keys), override_settings(DEBUG=False, FIELD_ENCRYPTION_KEYS=keys):
+            with self.subTest(keys=keys), override_settings(
+                DEBUG=False, FIELD_ENCRYPTION_KEYS=keys
+            ):
                 with self.assertRaises(ImproperlyConfigured):
                     config.ready()
 
@@ -201,8 +212,12 @@ class GoogleConnectionViewTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="caregiver")
         self.other_user = get_user_model().objects.create_user(username="neighbour")
-        self.workspace = Workspace.objects.create(name="Our family", primary_admin=self.user)
-        self.workspace_url = reverse("accounts:workspace_detail", args=[self.workspace.pk])
+        self.workspace = Workspace.objects.create(
+            name="Our family", primary_admin=self.user
+        )
+        self.workspace_url = reverse(
+            "accounts:workspace_detail", args=[self.workspace.pk]
+        )
         self.client.force_login(self.user)
 
     def credentials(self, **overrides):
@@ -217,11 +232,19 @@ class GoogleConnectionViewTests(TestCase):
 
     def start_connection(self):
         with patch("calendars.views.google.authorization_url") as authorization_url:
-            authorization_url.return_value = ("https://accounts.google.com/consent", "state-123", "verifier")
-            response = self.client.post(reverse("calendars:google_connect", args=[self.workspace.pk]))
+            authorization_url.return_value = (
+                "https://accounts.google.com/consent",
+                "state-123",
+                "verifier",
+            )
+            response = self.client.post(
+                reverse("calendars:google_connect", args=[self.workspace.pk])
+            )
         return response, authorization_url
 
-    def callback(self, query, credentials=None, email="caregiver@example.com", error=None):
+    def callback(
+        self, query, credentials=None, email="caregiver@example.com", error=None
+    ):
         with patch("calendars.views.google.exchange_code") as exchange_code, patch(
             "calendars.views.sync_connection", return_value=SyncResult()
         ):
@@ -236,11 +259,21 @@ class GoogleConnectionViewTests(TestCase):
     def test_connect_redirects_to_google_and_remembers_the_request(self):
         response, authorization_url = self.start_connection()
 
-        self.assertRedirects(response, "https://accounts.google.com/consent", fetch_redirect_response=False)
-        authorization_url.assert_called_once_with("http://testserver/calendars/google/callback/")
+        self.assertRedirects(
+            response,
+            "https://accounts.google.com/consent",
+            fetch_redirect_response=False,
+        )
+        authorization_url.assert_called_once_with(
+            "http://testserver/calendars/google/callback/"
+        )
         self.assertEqual(
             self.client.session[SESSION_KEY],
-            {"state": "state-123", "code_verifier": "verifier", "workspace_id": str(self.workspace.pk)},
+            {
+                "state": "state-123",
+                "code_verifier": "verifier",
+                "workspace_id": str(self.workspace.pk),
+            },
         )
 
     def test_connect_requires_post_and_workspace_admin(self):
@@ -252,14 +285,21 @@ class GoogleConnectionViewTests(TestCase):
 
     @override_settings(GOOGLE_CLIENT_ID="", GOOGLE_CLIENT_SECRET="")
     def test_connect_explains_when_google_is_not_configured(self):
-        response = self.client.post(reverse("calendars:google_connect", args=[self.workspace.pk]))
+        response = self.client.post(
+            reverse("calendars:google_connect", args=[self.workspace.pk])
+        )
 
         self.assertRedirects(response, self.workspace_url)
-        self.assertIn("Google Calendar isn’t set up on this server yet.", self.message_texts(response))
+        self.assertIn(
+            "Google Calendar isn’t set up on this server yet.",
+            self.message_texts(response),
+        )
 
     def test_callback_saves_encrypted_connection(self):
         self.start_connection()
-        response, exchange_code = self.callback({"state": "state-123", "code": "auth-code"})
+        response, exchange_code = self.callback(
+            {"state": "state-123", "code": "auth-code"}
+        )
 
         self.assertRedirects(response, self.workspace_url)
         exchange_code.assert_called_once_with(
@@ -269,29 +309,48 @@ class GoogleConnectionViewTests(TestCase):
         self.assertEqual(connection.workspace, self.workspace)
         self.assertEqual(connection.account_email, "caregiver@example.com")
         self.assertEqual(connection.refresh_token, "1//refresh")
-        self.assertEqual(connection.token_expires_at, datetime(2026, 10, 20, 18, 0, tzinfo=timezone.utc))
-        self.assertIn("Google Calendar connected for caregiver@example.com.", self.message_texts(response))
+        self.assertEqual(
+            connection.token_expires_at,
+            datetime(2026, 10, 20, 18, 0, tzinfo=timezone.utc),
+        )
+        self.assertIn(
+            "Google Calendar connected for caregiver@example.com.",
+            self.message_texts(response),
+        )
         self.assertNotIn(SESSION_KEY, self.client.session)
 
     def test_reconnecting_updates_the_existing_connection(self):
         for refresh_token in ("1//first", "1//second"):
             self.start_connection()
-            self.callback({"state": "state-123", "code": "auth-code"}, self.credentials(refresh_token=refresh_token))
+            self.callback(
+                {"state": "state-123", "code": "auth-code"},
+                self.credentials(refresh_token=refresh_token),
+            )
 
-        self.assertEqual(CalendarConnection.objects.get(user=self.user).refresh_token, "1//second")
+        self.assertEqual(
+            CalendarConnection.objects.get(user=self.user).refresh_token, "1//second"
+        )
 
     def test_callback_rejects_a_mismatched_state(self):
         self.start_connection()
-        response, exchange_code = self.callback({"state": "forged", "code": "auth-code"})
+        response, exchange_code = self.callback(
+            {"state": "forged", "code": "auth-code"}
+        )
 
-        self.assertRedirects(response, reverse("events:choose_workspace"), fetch_redirect_response=False)
+        self.assertRedirects(
+            response, reverse("events:choose_workspace"), fetch_redirect_response=False
+        )
         exchange_code.assert_not_called()
         self.assertFalse(CalendarConnection.objects.exists())
 
     def test_callback_without_a_started_connection_is_rejected(self):
-        response, exchange_code = self.callback({"state": "state-123", "code": "auth-code"})
+        response, exchange_code = self.callback(
+            {"state": "state-123", "code": "auth-code"}
+        )
 
-        self.assertRedirects(response, reverse("events:choose_workspace"), fetch_redirect_response=False)
+        self.assertRedirects(
+            response, reverse("events:choose_workspace"), fetch_redirect_response=False
+        )
         exchange_code.assert_not_called()
 
     def test_failures_are_explained_and_nothing_is_saved(self):
@@ -309,7 +368,10 @@ class GoogleConnectionViewTests(TestCase):
             "calendar unticked": (
                 {"code": "auth-code"},
                 {"credentials": self.credentials(granted_scopes=google.SCOPES[:2])},
-                "Syncmily needs permission to see your calendar. Connect again and tick the calendar box on Google’s screen.",
+                (
+                    "Syncmily needs permission to see your calendar. Connect again and"
+                    " tick the calendar box on Google’s screen."
+                ),
             ),
             "no refresh token": (
                 {"code": "auth-code"},
@@ -320,7 +382,9 @@ class GoogleConnectionViewTests(TestCase):
         for case, (query, callback_kwargs, message) in cases.items():
             with self.subTest(case=case):
                 self.start_connection()
-                response, _ = self.callback({"state": "state-123", **query}, **callback_kwargs)
+                response, _ = self.callback(
+                    {"state": "state-123", **query}, **callback_kwargs
+                )
 
                 self.assertRedirects(response, self.workspace_url)
                 self.assertIn(message, self.message_texts(response))
@@ -366,7 +430,9 @@ class GoogleConnectionViewTests(TestCase):
             response = self.client.post(reverse("calendars:google_disconnect"))
 
         self.assertFalse(CalendarConnection.objects.exists())
-        self.assertIn("myaccount.google.com/permissions", self.message_texts(response)[0])
+        self.assertIn(
+            "myaccount.google.com/permissions", self.message_texts(response)[0]
+        )
 
     def test_workspace_page_shows_connect_then_disconnect(self):
         response = self.client.get(self.workspace_url)
@@ -384,31 +450,47 @@ class GoogleConnectionViewTests(TestCase):
         self.assertContains(response, "Disconnect Google Calendar")
         self.assertNotContains(response, "1//refresh")
 
-
     def test_switching_accounts_revokes_the_old_one_and_drops_its_events(self):
         old = CalendarConnection.objects.create(
-            user=self.user, workspace=self.workspace, provider=CalendarConnection.Provider.GOOGLE,
-            account_email="old@example.com", refresh_token="1//old",
+            user=self.user,
+            workspace=self.workspace,
+            provider=CalendarConnection.Provider.GOOGLE,
+            account_email="old@example.com",
+            refresh_token="1//old",
         )
         Event.objects.create(
-            created_by=self.user, workspace=self.workspace, title="From the old account",
-            starts_at=datetime(2030, 1, 1, 9, tzinfo=timezone.utc), ends_at=datetime(2030, 1, 1, 10, tzinfo=timezone.utc),
-            source=Event.Source.GOOGLE, calendar_connection=old, external_id="old-event",
+            created_by=self.user,
+            workspace=self.workspace,
+            title="From the old account",
+            starts_at=datetime(2030, 1, 1, 9, tzinfo=timezone.utc),
+            ends_at=datetime(2030, 1, 1, 10, tzinfo=timezone.utc),
+            source=Event.Source.GOOGLE,
+            calendar_connection=old,
+            external_id="old-event",
         )
         self.start_connection()
         with patch("calendars.views.google.revoke", return_value=True) as revoke:
-            self.callback({"state": "state-123", "code": "auth-code"}, self.credentials(refresh_token="1//new"),
-                          email="new@example.com")
+            self.callback(
+                {"state": "state-123", "code": "auth-code"},
+                self.credentials(refresh_token="1//new"),
+                email="new@example.com",
+            )
 
         revoke.assert_called_once_with("1//old")
         connection = CalendarConnection.objects.get(user=self.user)
-        self.assertEqual((connection.account_email, connection.refresh_token), ("new@example.com", "1//new"))
+        self.assertEqual(
+            (connection.account_email, connection.refresh_token),
+            ("new@example.com", "1//new"),
+        )
         self.assertFalse(Event.objects.filter(external_id="old-event").exists())
 
     def test_reconnecting_the_same_account_keeps_its_access(self):
         CalendarConnection.objects.create(
-            user=self.user, workspace=self.workspace, provider=CalendarConnection.Provider.GOOGLE,
-            account_email="caregiver@example.com", refresh_token="1//old",
+            user=self.user,
+            workspace=self.workspace,
+            provider=CalendarConnection.Provider.GOOGLE,
+            account_email="caregiver@example.com",
+            refresh_token="1//old",
         )
         self.start_connection()
         with patch("calendars.views.google.revoke") as revoke:
@@ -417,11 +499,23 @@ class GoogleConnectionViewTests(TestCase):
 
     def test_connect_returns_to_a_local_next_page_only(self):
         schedule = reverse("events:list") + "?view=week"
-        for next_url, expected in ((schedule, schedule), ("https://evil.example/", self.workspace_url)):
+        for next_url, expected in (
+            (schedule, schedule),
+            ("https://evil.example/", self.workspace_url),
+        ):
             with self.subTest(next_url=next_url):
-                with patch("calendars.views.google.authorization_url") as authorization_url:
-                    authorization_url.return_value = ("https://accounts.google.com/consent", "state-123", "verifier")
-                    self.client.post(reverse("calendars:google_connect", args=[self.workspace.pk]), {"next": next_url})
+                with patch(
+                    "calendars.views.google.authorization_url"
+                ) as authorization_url:
+                    authorization_url.return_value = (
+                        "https://accounts.google.com/consent",
+                        "state-123",
+                        "verifier",
+                    )
+                    self.client.post(
+                        reverse("calendars:google_connect", args=[self.workspace.pk]),
+                        {"next": next_url},
+                    )
                 response, _ = self.callback({"state": "state-123", "code": "auth-code"})
                 self.assertRedirects(response, expected, fetch_redirect_response=False)
 
@@ -433,8 +527,11 @@ class GoogleConnectionViewTests(TestCase):
         self.assertContains(response, f'action="{connect}"')
 
         CalendarConnection.objects.create(
-            user=self.user, workspace=self.workspace, provider=CalendarConnection.Provider.GOOGLE,
-            account_email="caregiver@example.com", refresh_token="1//refresh",
+            user=self.user,
+            workspace=self.workspace,
+            provider=CalendarConnection.Provider.GOOGLE,
+            account_email="caregiver@example.com",
+            refresh_token="1//refresh",
         )
         response = self.client.get(schedule)
         self.assertContains(response, "caregiver@example.com")
@@ -446,10 +543,15 @@ class GoogleConnectionViewTests(TestCase):
         response = self.client.get(reverse("events:list"))
         self.assertNotContains(response, "Connect Google Calendar")
 
+
 class GoogleHelperTests(TestCase):
-    @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret")
+    @override_settings(
+        GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret"
+    )
     def test_authorization_url_asks_for_read_only_offline_access_with_pkce(self):
-        url, state, code_verifier = google.authorization_url("https://syncmily.example/calendars/google/callback/")
+        url, state, code_verifier = google.authorization_url(
+            "https://syncmily.example/calendars/google/callback/"
+        )
 
         self.assertTrue(url.startswith("https://accounts.google.com/o/oauth2/auth?"))
         for part in (
@@ -465,7 +567,10 @@ class GoogleHelperTests(TestCase):
         self.assertGreaterEqual(len(code_verifier), 43)
 
     def test_revoke_reports_network_failure(self):
-        with patch("calendars.google.requests.post", side_effect=google.requests.ConnectionError):
+        with patch(
+            "calendars.google.requests.post",
+            side_effect=google.requests.ConnectionError,
+        ):
             self.assertFalse(google.revoke("1//refresh"))
 
 
@@ -482,7 +587,9 @@ class FakeCalendarService:
 
     def list(self, **kwargs):
         self.list_kwargs.append(kwargs)
-        return SimpleNamespace(execute=lambda: {"timeZone": self.time_zone, "items": self.pages.pop(0)})
+        return SimpleNamespace(
+            execute=lambda: {"timeZone": self.time_zone, "items": self.pages.pop(0)}
+        )
 
     def list_next(self, request, response):
         return self.list() if self.pages else None
@@ -494,7 +601,9 @@ class CalendarSyncTests(TestCase):
 
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="caregiver")
-        self.workspace = Workspace.objects.create(name="Our family", primary_admin=self.user)
+        self.workspace = Workspace.objects.create(
+            name="Our family", primary_admin=self.user
+        )
         self.connection = CalendarConnection.objects.create(
             user=self.user,
             workspace=self.workspace,
@@ -511,8 +620,14 @@ class CalendarSyncTests(TestCase):
             result = sync_connection(self.connection, now=self.now)
         return result, service
 
-    def timed(self, event_id, summary="Soccer practice", start="2026-10-21T15:30:00-04:00",
-              end="2026-10-21T16:30:00-04:00", **extra):
+    def timed(
+        self,
+        event_id,
+        summary="Soccer practice",
+        start="2026-10-21T15:30:00-04:00",
+        end="2026-10-21T16:30:00-04:00",
+        **extra,
+    ):
         return {
             "id": event_id,
             "status": "confirmed",
@@ -523,20 +638,33 @@ class CalendarSyncTests(TestCase):
         }
 
     def test_imports_timed_and_all_day_events_into_the_workspace(self):
-        all_day = {"id": "holiday", "summary": "Thanksgiving", "start": {"date": "2026-11-26"},
-                   "end": {"date": "2026-11-27"}}
-        result, service = self.sync([self.timed("soccer", location="School field")], [all_day])
+        all_day = {
+            "id": "holiday",
+            "summary": "Thanksgiving",
+            "start": {"date": "2026-11-26"},
+            "end": {"date": "2026-11-27"},
+        }
+        result, service = self.sync(
+            [self.timed("soccer", location="School field")], [all_day]
+        )
 
-        self.assertEqual((result.created, result.updated, result.deleted, result.skipped), (2, 0, 0, 0))
+        self.assertEqual(
+            (result.created, result.updated, result.deleted, result.skipped),
+            (2, 0, 0, 0),
+        )
         soccer = Event.objects.get(external_id="soccer")
         self.assertEqual(soccer.workspace, self.workspace)
         self.assertEqual(soccer.created_by, self.user)
         self.assertEqual(soccer.source, Event.Source.GOOGLE)
         self.assertEqual(soccer.location, "School field")
-        self.assertEqual(soccer.starts_at, datetime(2026, 10, 21, 19, 30, tzinfo=timezone.utc))
+        self.assertEqual(
+            soccer.starts_at, datetime(2026, 10, 21, 19, 30, tzinfo=timezone.utc)
+        )
         self.assertEqual(soccer.timezone_name, "America/New_York")
         holiday = Event.objects.get(external_id="holiday")
-        self.assertEqual(holiday.starts_at, datetime(2026, 11, 26, 5, 0, tzinfo=timezone.utc))
+        self.assertEqual(
+            holiday.starts_at, datetime(2026, 11, 26, 5, 0, tzinfo=timezone.utc)
+        )
         self.assertEqual(holiday.ends_at - holiday.starts_at, timedelta(days=1))
 
         first_call = service.list_kwargs[0]
@@ -571,7 +699,13 @@ class CalendarSyncTests(TestCase):
         self.assertFalse(Event.objects.exists())
 
     def test_events_outside_the_window_are_kept(self):
-        self.sync([self.timed("old", start="2026-01-05T10:00:00Z", end="2026-01-05T11:00:00Z")])
+        self.sync(
+            [
+                self.timed(
+                    "old", start="2026-01-05T10:00:00Z", end="2026-01-05T11:00:00Z"
+                )
+            ]
+        )
         self.sync([])
 
         self.assertTrue(Event.objects.filter(external_id="old").exists())
@@ -609,19 +743,33 @@ class CalendarSyncTests(TestCase):
 
         connection = CalendarConnection.objects.get(pk=self.connection.pk)
         self.assertEqual(connection.access_token, "ya29.new")
-        self.assertEqual(connection.token_expires_at, datetime(2026, 10, 20, 14, 0, tzinfo=timezone.utc))
+        self.assertEqual(
+            connection.token_expires_at,
+            datetime(2026, 10, 20, 14, 0, tzinfo=timezone.utc),
+        )
 
     def test_sync_now_button_reports_results_and_failures(self):
         self.client.force_login(self.user)
         url = reverse("calendars:google_sync")
         workspace_url = reverse("accounts:workspace_detail", args=[self.workspace.pk])
         cases = {
-            "success": ({"return_value": SyncResult()}, "Google Calendar events imported: 0 added"),
-            "revoked": ({"side_effect": RefreshError("revoked")}, "Disconnect and connect Google Calendar again."),
-            "api error": ({"side_effect": ValueError("boom")}, "We couldn’t import your Google Calendar events."),
+            "success": (
+                {"return_value": SyncResult()},
+                "Google Calendar events imported: 0 added",
+            ),
+            "revoked": (
+                {"side_effect": RefreshError("revoked")},
+                "Disconnect and connect Google Calendar again.",
+            ),
+            "api error": (
+                {"side_effect": ValueError("boom")},
+                "We couldn’t import your Google Calendar events.",
+            ),
         }
         for case, (behaviour, message) in cases.items():
-            with self.subTest(case=case), patch("calendars.views.sync_connection", **behaviour):
+            with self.subTest(case=case), patch(
+                "calendars.views.sync_connection", **behaviour
+            ):
                 response = self.client.post(url)
 
                 self.assertRedirects(response, workspace_url)
@@ -634,7 +782,8 @@ class CalendarSyncTests(TestCase):
 
         response = self.client.get(
             reverse("events:workspace_list", args=[self.workspace.pk]),
-            # The day view shows the event whatever today's date is ("upcoming" depends on the clock).
+            # The day view shows the event whatever today's date is ("upcoming" depends
+            # on the clock).
             {"view": "day", "date": "2026-10-21", "timezone": "America/New_York"},
         )
 
@@ -643,7 +792,10 @@ class CalendarSyncTests(TestCase):
 
     def test_sync_command_reports_each_connection(self):
         out = StringIO()
-        with patch("calendars.management.commands.sync_calendars.sync_connection", return_value=SyncResult()):
+        with patch(
+            "calendars.management.commands.sync_calendars.sync_connection",
+            return_value=SyncResult(),
+        ):
             call_command("sync_calendars", stdout=out)
 
         self.assertIn(f"Connection {self.connection.pk}: 0 added", out.getvalue())

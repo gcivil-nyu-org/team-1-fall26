@@ -1,4 +1,3 @@
-
 from django import forms
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
@@ -34,16 +33,15 @@ class ChecklistForm(forms.ModelForm):
         self.fields["event"].empty_label = "No event"
         # "Soccer, Wed 28 Oct": several plans can share a title.
         self.fields["event"].label_from_instance = lambda event: (
-            f"{event.title}, {date_format(timezone.localtime(event.starts_at), 'D j M Y')}"
+            f"{event.title},"
+            f" {date_format(timezone.localtime(event.starts_at), 'D j M Y')}"
         )
 
     def clean_title(self):
         title = self.cleaned_data["title"].strip()
 
         if not title:
-            raise forms.ValidationError(
-                "Checklist title cannot be empty."
-            )
+            raise forms.ValidationError("Checklist title cannot be empty.")
 
         return title
 
@@ -64,8 +62,6 @@ class ChecklistItemForm(forms.ModelForm):
         description = self.cleaned_data["description"].strip()
 
         if not description:
-            raise forms.ValidationError(
-                "Checklist item cannot be empty."
-            )
+            raise forms.ValidationError("Checklist item cannot be empty.")
 
         return description

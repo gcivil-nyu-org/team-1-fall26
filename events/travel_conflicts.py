@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 
 from .models import Event
@@ -33,15 +32,11 @@ def find_travel_checks(event, participants):
         ).exclude(pk=event.pk)
 
         previous_event = (
-            events.filter(ends_at__lte=event.starts_at)
-            .order_by("-ends_at")
-            .first()
+            events.filter(ends_at__lte=event.starts_at).order_by("-ends_at").first()
         )
 
         next_event = (
-            events.filter(starts_at__gte=event.ends_at)
-            .order_by("starts_at")
-            .first()
+            events.filter(starts_at__gte=event.ends_at).order_by("starts_at").first()
         )
 
         for first, second in (

@@ -6,8 +6,9 @@ from calendars.models import CalendarConnection
 
 class Command(BaseCommand):
     help = (
-        "Re-encrypt stored calendar tokens with the first key in FIELD_ENCRYPTION_KEYS. "
-        "Run it after adding a new key to the front of the list, then remove the old key."
+        "Re-encrypt stored calendar tokens with the first key in FIELD_ENCRYPTION_KEYS."
+        " Run it after adding a new key to the front of the list, then remove the old"
+        " key."
     )
 
     def handle(self, *args, **options):
@@ -17,4 +18,8 @@ class Command(BaseCommand):
                 # Loading decrypts with any key; saving encrypts with the newest one.
                 connection.save(update_fields=["access_token", "refresh_token"])
                 count += 1
-        self.stdout.write(self.style.SUCCESS(f"Re-encrypted tokens for {count} calendar connection(s)."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Re-encrypted tokens for {count} calendar connection(s)."
+            )
+        )

@@ -50,7 +50,10 @@ def workspace_chat(request, workspace_id):
         .order_by("starts_at", "pk")[:4]
     )
     for event in coming_up:
-        event.people = [members.get(person_.pk, {"user": person_}) for person_ in event.participants.all()]
+        event.people = [
+            members.get(person_.pk, {"user": person_})
+            for person_ in event.participants.all()
+        ]
 
     return render(
         request,

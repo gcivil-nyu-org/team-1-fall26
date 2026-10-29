@@ -8,6 +8,7 @@
     <div class="head">
         <h1>{{ workspace.name }} week</h1>
         <span class="span">{{ week_start|date:"D j M" }} to {{ week_last|date:"D j M" }}</span>
+        <button class="btn my-day-open" type="button" aria-haspopup="dialog" aria-controls="my-day" data-open-my-day hidden>Your day</button>
         {% if is_primary_admin %}<a class="btn btn-quiet" href="{% url 'accounts:manage_members' workspace.pk %}">Add a family member</a>{% endif %}
         <nav class="seg" aria-label="Change week">
             <a href="?week={{ previous_week }}">Previous</a>
@@ -64,4 +65,5 @@
             {% if can_create_events %}<a class="row" href="{% url 'checklists:create' workspace.pk %}"><div class="grow">New checklist</div></a>{% endif %}
         </aside>
     </div>
+    {% include "accounts/_my_day.html" %}
 {% endblock %}

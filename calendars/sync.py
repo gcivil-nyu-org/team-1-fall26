@@ -30,7 +30,11 @@ def _credentials(connection):
     return Credentials(
         token=connection.access_token or None,
         # google-auth compares expiry as naive UTC and refreshes the token when due.
-        expiry=expiry.astimezone(datetime_timezone.utc).replace(tzinfo=None) if expiry else None,
+        expiry=(
+            expiry.astimezone(datetime_timezone.utc).replace(tzinfo=None)
+            if expiry
+            else None
+        ),
         refresh_token=connection.refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=settings.GOOGLE_CLIENT_ID,
@@ -53,12 +57,17 @@ def _zone(name, fallback):
 def _event_times(item, calendar_timezone):
     """Return (starts_at, ends_at, timezone_name) for a Google event, or None."""
     start, end = item.get("start", {}), item.get("end", {})
-    zone, zone_name = _zone(start.get("timeZone") or calendar_timezone, settings.TIME_ZONE)
+    zone, zone_name = _zone(
+        start.get("timeZone") or calendar_timezone, settings.TIME_ZONE
+    )
     if "dateTime" in start and "dateTime" in end:
         starts_at = datetime.fromisoformat(start["dateTime"])
         ends_at = datetime.fromisoformat(end["dateTime"])
-        # Google omits the UTC offset when timeZone is given: read the wall time in that zone.
-        end_zone = _zone(end.get("timeZone"), zone_name)[0] if end.get("timeZone") else zone
+        # Google omits the UTC offset when timeZone is given: read the wall time in that
+        # zone.
+        end_zone = (
+            _zone(end.get("timeZone"), zone_name)[0] if end.get("timeZone") else zone
+        )
         if starts_at.tzinfo is None:
             starts_at = starts_at.replace(tzinfo=zone)
         if ends_at.tzinfo is None:

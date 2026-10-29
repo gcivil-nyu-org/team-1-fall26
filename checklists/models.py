@@ -1,4 +1,3 @@
-
 import uuid
 
 from django.conf import settings
@@ -38,7 +37,6 @@ class Checklist(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
     def clean(self):
         super().clean()
 
@@ -55,13 +53,10 @@ class Checklist(models.Model):
                 pk=self.event_id,
                 workspace_id=self.workspace_id,
             ).exists():
-                errors["event"] = (
-                    "The event must belong to this workspace."
-                )
+                errors["event"] = "The event must belong to this workspace."
 
         if errors:
             raise ValidationError(errors)
-
 
     def __str__(self):
         return self.title

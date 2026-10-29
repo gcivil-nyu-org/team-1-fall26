@@ -1,4 +1,3 @@
-
 from datetime import datetime, time, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo, available_timezones
@@ -27,21 +26,13 @@ class EventTimezoneForm(forms.Form):
         self.fields["timezone"].initial = timezone.get_current_timezone_name()
 
     def clean_timezone(self):
-        return (
-            self.cleaned_data["timezone"]
-            or timezone.get_current_timezone_name()
-        )
+        return self.cleaned_data["timezone"] or timezone.get_current_timezone_name()
 
 
 class EventWorkspaceForm(EventTimezoneForm):
-    workspace = forms.ModelChoiceField(
-        queryset=Workspace.objects.none()
-    )
+    workspace = forms.ModelChoiceField(queryset=Workspace.objects.none())
 
-    date = forms.DateField(
-        required=False,
-        widget=forms.HiddenInput
-    )
+    date = forms.DateField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
@@ -75,9 +66,8 @@ class EventScheduleForm(EventTimezoneForm):
 
         selected_timezone = ZoneInfo(cleaned_data["timezone"])
 
-        selected_date = (
-            cleaned_data.get("date")
-            or timezone.localdate(timezone=selected_timezone)
+        selected_date = cleaned_data.get("date") or timezone.localdate(
+            timezone=selected_timezone
         )
 
         view = cleaned_data.get("view") or "day"
@@ -105,12 +95,8 @@ class EventScheduleForm(EventTimezoneForm):
             datetime_field = forms.DateTimeField()
 
             with timezone.override(selected_timezone):
-                starts_at = datetime_field.clean(
-                    datetime.combine(start_date, time.min)
-                )
-                ends_at = datetime_field.clean(
-                    datetime.combine(end_date, time.min)
-                )
+                starts_at = datetime_field.clean(datetime.combine(start_date, time.min))
+                ends_at = datetime_field.clean(datetime.combine(end_date, time.min))
 
         except (OverflowError, forms.ValidationError):
             self.add_error(
@@ -160,7 +146,13 @@ class EventForm(EventTimezoneForm):
 
     title = forms.CharField(
         max_length=200,
-        widget=forms.TextInput(attrs={"placeholder": "Swim lesson, dentist, carpool…", "autocomplete": "off", "data-autofocus": ""}),
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Swim lesson, dentist, carpool…",
+                "autocomplete": "off",
+                "data-autofocus": "",
+            }
+        ),
     )
 
     date = forms.DateField(
@@ -236,11 +228,7 @@ class EventForm(EventTimezoneForm):
     def __init__(self, *args, user=None, workspace=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.user = (
-            user
-            if user is not None and user.is_authenticated
-            else None
-        )
+        self.user = user if user is not None and user.is_authenticated else None
 
         self.workspace = workspace
 
@@ -249,9 +237,7 @@ class EventForm(EventTimezoneForm):
             self.fields.update(driver_form.fields)
             self.order_fields(self.field_order)
 
-        self.fields["participants"].queryset = event_participants(
-            workspace
-        )
+        self.fields["participants"].queryset = event_participants(workspace)
 
         self.event = None
 
@@ -259,11 +245,7 @@ class EventForm(EventTimezoneForm):
             {
                 "id": str(uuid4()),
                 "user": self.user.pk if self.user else None,
-                "workspace": (
-                    str(workspace.pk)
-                    if workspace
-                    else None
-                ),
+                "workspace": str(workspace.pk) if workspace else None,
             },
             salt="events.create",
         )
@@ -293,10 +275,8 @@ class EventForm(EventTimezoneForm):
 
                 try:
                     with timezone.override(ZoneInfo(timezone_name)):
-                        cleaned_data[timestamp_field] = (
-                            datetime_field.clean(
-                                datetime.combine(day, event_time)
-                            )
+                        cleaned_data[timestamp_field] = datetime_field.clean(
+                            datetime.combine(day, event_time)
                         )
 
                 except forms.ValidationError as error:
@@ -326,9 +306,7 @@ class EventForm(EventTimezoneForm):
             )
 
         # Coordinates must not be stored without a location.
-        if not location and (
-            latitude is not None or longitude is not None
-        ):
+        if not location and (latitude is not None or longitude is not None):
             self.add_error(
                 "location",
                 "A location is required when coordinates are provided.",
@@ -401,21 +379,17 @@ class EventForm(EventTimezoneForm):
                     conflicting_members = [
                         member.username
                         for member in participants
-                        if conflict.participants.filter(
-                            pk=member.pk
-                        ).exists()
+                        if conflict.participants.filter(pk=member.pk).exists()
                     ]
 
                     member_names = ", ".join(conflicting_members)
 
                     self.add_error(
                         None,
-                        (
-                            f"Scheduling conflict: {member_names} already "
-                            f"has an event called '{conflict.title}' "
-                            "during the selected time. "
-                            "Please choose another time."
-                        ),
+                        f"Scheduling conflict: {member_names} already "
+                        f"has an event called '{conflict.title}' "
+                        "during the selected time. "
+                        "Please choose another time.",
                     )
 
         return cleaned_data
@@ -431,12 +405,16 @@ class EventDriverForm(forms.ModelForm):
             "pickup_driver": "Pickup driver",
         }
         help_texts = {
-            "requires_transport": "Choose drivers for taking family members to and from this event.",
+            "requires_transport": (
+                "Choose drivers for taking family members to and from this event."
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        drivers = event_drivers(self.instance.workspace if self.instance.workspace_id else None)
+        drivers = event_drivers(
+            self.instance.workspace if self.instance.workspace_id else None
+        )
         for field in ("dropoff_driver", "pickup_driver"):
             self.fields[field].queryset = drivers
             self.fields[field].empty_label = "Not assigned"

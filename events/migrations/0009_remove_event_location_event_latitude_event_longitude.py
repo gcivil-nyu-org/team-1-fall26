@@ -6,18 +6,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('events', '0008_event_transport_mode'),
+        ("events", "0008_event_transport_mode"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='event',
-            name='latitude',
-            field=models.FloatField(blank=True, help_text='Latitude of the event location.', null=True),
+            model_name="event",
+            name="latitude",
+            field=models.FloatField(
+                blank=True, help_text="Latitude of the event location.", null=True
+            ),
         ),
         migrations.AddField(
-            model_name='event',
-            name='longitude',
-            field=models.FloatField(blank=True, help_text='Longitude of the event location.', null=True),
+            model_name="event",
+            name="longitude",
+            field=models.FloatField(
+                blank=True, help_text="Longitude of the event location.", null=True
+            ),
         ),
     ]

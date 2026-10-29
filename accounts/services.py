@@ -41,9 +41,13 @@ def next_member_username(role):
     prefix, number = USERNAME_PREFIXES[role]
     taken = {
         username.lower()
-        for username in get_user_model().objects.filter(
-            username__istartswith=prefix,
-        ).values_list("username", flat=True)
+        for username in (
+            get_user_model()
+            .objects.filter(
+                username__istartswith=prefix,
+            )
+            .values_list("username", flat=True)
+        )
     }
 
     while f"{prefix}{number}".lower() in taken:
@@ -100,8 +104,7 @@ def remove_member(*, workspace, removed_by, membership_id):
 
     with transaction.atomic():
         membership = (
-            Membership.objects
-            .select_for_update()
+            Membership.objects.select_for_update()
             .select_related("user")
             .filter(workspace=workspace, pk=membership_id)
             .first()
@@ -133,7 +136,9 @@ def remove_member(*, workspace, removed_by, membership_id):
 
     logger.info(
         "Member %s removed from workspace %s by %s",
-        removed_id, workspace.pk, removed_by.pk,
+        removed_id,
+        workspace.pk,
+        removed_by.pk,
     )
     return name
 
@@ -188,8 +193,7 @@ def get_membership_from_token(token):
         return None
 
     membership = (
-        Membership.objects
-        .select_related("user", "workspace")
+        Membership.objects.select_related("user", "workspace")
         .filter(pk=membership_id)
         .first()
     )
@@ -230,10 +234,7 @@ def get_family_context(user):
     Returns None if the user has no workspace yet.
     """
     membership = (
-        Membership.objects
-        .select_related("workspace")
-        .filter(user=user)
-        .first()
+        Membership.objects.select_related("workspace").filter(user=user).first()
     )
 
     if membership:
@@ -244,10 +245,7 @@ def get_family_context(user):
         }
 
     workspace = (
-        Workspace.objects
-        .filter(primary_admin=user)
-        .order_by("created_at")
-        .first()
+        Workspace.objects.filter(primary_admin=user).order_by("created_at").first()
     )
 
     if workspace:
@@ -269,9 +267,13 @@ def available_username(email):
     base = re.sub(r"[^\w.+-]", "", email.split("@")[0])[:140] or "member"
     taken = {
         username.lower()
-        for username in get_user_model().objects.filter(
-            username__istartswith=base,
-        ).values_list("username", flat=True)
+        for username in (
+            get_user_model()
+            .objects.filter(
+                username__istartswith=base,
+            )
+            .values_list("username", flat=True)
+        )
     }
     candidate, number = base, 1
     while candidate.lower() in taken:
@@ -286,7 +288,9 @@ def user_for_google_account(subject, email):
     sign-in. Never attaches Google to an existing password account with the
     same email: whoever created that account may not own the address.
     """
-    identity = GoogleIdentity.objects.select_related("user").filter(subject=subject).first()
+    identity = (
+        GoogleIdentity.objects.select_related("user").filter(subject=subject).first()
+    )
     if identity:
         return identity.user
 

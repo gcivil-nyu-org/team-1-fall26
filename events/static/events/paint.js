@@ -209,6 +209,76 @@
         });
     });
 
+    // ---- The kid's "Your day" pop-up: opens by itself on the first visit of the day and from the
+    // "Your day" button. Closing it in any way (Got it, the X, Escape) tells the server once, so it
+    // stays closed until tomorrow. Without script the dashboard still shows the same plans. ----
+    ready(function () {
+        var day = document.getElementById("my-day");
+        if (!day || !day.showModal) return;
+        var form = day.querySelector(".my-day-actions");
+        var title = document.getElementById("my-day-title");
+        var opener = document.querySelector("[data-open-my-day]");
+        var returnFocus = null, told = false;
+        function open(from) {
+            returnFocus = from || null;
+            day.showModal();
+            title.focus({ preventScroll: true });
+        }
+        if (opener) {
+            opener.hidden = false;
+            opener.addEventListener("click", function () { open(opener); });
+        }
+        day.querySelector("[data-close]").addEventListener("click", function () { day.close(); });
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            day.close();
+        });
+        day.addEventListener("close", function () {
+            if (!told) {
+                told = true;
+                fetch(form.action, {
+                    method: "POST", body: new FormData(form), credentials: "same-origin",
+                    headers: { "X-Requested-With": "fetch" },
+                }).catch(function () { told = false; });
+            }
+            var target = returnFocus && returnFocus.isConnected ? returnFocus : opener;
+            if (target && !target.hidden) target.focus();
+        });
+        // Parents change how a plan is reached right here. Picking a mode shows Confirm; nothing is
+        // saved until they press it.
+        day.querySelectorAll("form[data-transport-mode]").forEach(function (modeForm) {
+            var select = modeForm.querySelector("select");
+            var confirmButton = modeForm.querySelector("[data-mode-confirm]");
+            var status = modeForm.querySelector("[role='status']");
+            var saved = select.value;
+            confirmButton.hidden = true;
+            select.addEventListener("change", function () {
+                confirmButton.hidden = select.value === saved;
+                status.textContent = "";
+            });
+            modeForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                if (confirmButton.disabled) return;
+                confirmButton.disabled = true;
+                status.textContent = "Saving…";
+                fetch(modeForm.action, {
+                    method: "POST", body: new FormData(modeForm), credentials: "same-origin",
+                    headers: { "X-Requested-With": "fetch" },
+                }).then(function (response) {
+                    if (!response.ok) throw new Error(String(response.status));
+                    saved = select.value;
+                    confirmButton.hidden = true;
+                    status.textContent = "Saved";
+                }).catch(function () {
+                    status.textContent = "Couldn’t save. Try again.";
+                }).finally(function () {
+                    confirmButton.disabled = false;
+                });
+            });
+        });
+        if (day.hasAttribute("data-auto-open")) open(null);
+    });
+
     // ---- The plan finder on the schedule list ----
     ready(function () {
         var input = document.querySelector("[data-find-input]");

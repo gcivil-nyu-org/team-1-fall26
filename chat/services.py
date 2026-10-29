@@ -1,10 +1,8 @@
-
 from django.core.exceptions import PermissionDenied, ValidationError
 
 from accounts.models import Workspace
 from .access import can_access_chat
 from .models import ChatMessage
-
 
 MAX_MESSAGE_LENGTH = 2000
 MAX_EVENT_LABEL_LENGTH = 200
@@ -70,11 +68,7 @@ def get_household_messages(*, user, workspace_id, limit=50):
         workspace_id=workspace_id,
     )
 
-    if (
-        not isinstance(limit, int)
-        or isinstance(limit, bool)
-        or not 1 <= limit <= 100
-    ):
+    if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 100:
         raise ValidationError("Limit must be between 1 and 100.")
 
     messages = (

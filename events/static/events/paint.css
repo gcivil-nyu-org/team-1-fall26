@@ -627,3 +627,58 @@ body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
 .kid-now { position: absolute; left: -8px; right: 0; height: 2px; background: var(--ink); }
 .kid-now span { position: absolute; right: 0; top: -20px; font-size: 12px; font-weight: 600; }
 body.paint .kid .kid-slot { color: var(--s3t, var(--paint-ink)); }
+
+/* ===== Kid view: the "Your day" pop-up, headed in the kid's own colour ===== */
+.kid-hero-side { display: grid; justify-items: center; gap: 12px; }
+@media (max-width: 900px) { .kid-hero-side { justify-items: start; } }
+body.paint .my-day-open { min-height: 44px; padding: 0 20px; font-size: 16px; }
+dialog.my-day { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
+dialog.my-day::backdrop { background: color-mix(in oklab, var(--paint-ink) 45%, transparent); }
+dialog.my-day[open] { animation: rise .22s cubic-bezier(.16, 1, .3, 1); }
+/* While "Your day" is open the page behind it stays put; only the pop-up itself scrolls. */
+html:has(dialog.my-day[open]) { overflow: hidden; overscroll-behavior: none; scrollbar-gutter: stable; }
+.my-day-head { display: flex; align-items: flex-start; gap: 12px; padding: 24px 12px 24px 24px; background: var(--s3, var(--raised)); color: var(--s3t, var(--ink)); }
+.my-day-head > div { flex: 1; min-width: 0; }
+body.paint .my-day-head .x { color: inherit; }
+.paint .my-day-date { margin: 0; font-size: 16px; font-weight: 600; }
+.paint .my-day-head h2 { margin: 4px 0 0; font-size: 30px; line-height: 36px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.paint .my-day-head h2:focus { outline: none; }
+.paint .my-day-lede { margin: 8px 0 0; font-size: 18px; line-height: 26px; }
+.paint .my-day-list { margin: 0; padding: 8px 24px; list-style: none; }
+.my-day-plan { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 18px; line-height: 26px; }
+.my-day-plan:last-child { border-bottom: 0; }
+.my-day-plan.tent { padding-inline: 12px; margin-inline: -12px; outline: 2px dashed var(--line); outline-offset: -4px; border-radius: 8px; }
+.paint .my-day-when { margin: 0; font-size: 16px; font-weight: 600; }
+.my-day-plan b { display: block; font-size: 22px; line-height: 28px; overflow-wrap: anywhere; }
+.my-day-maybe, .my-day-where { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 16px; color: var(--muted); }
+.my-day-maybe { font-weight: 600; }
+.paint .my-day-ride { display: grid; gap: 4px; margin: 10px 0 0; padding: 10px 12px; border-left: 6px solid var(--s3, var(--line)); border-radius: 6px; background: var(--raised); font-size: 16px; line-height: 22px; }
+.my-day-ride div { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; }
+.my-day-ride dt { font-weight: 600; }
+.my-day-ride dd { margin: 0; }
+.my-day-ask { font-weight: 600; }
+.paint .my-day-free { padding: 16px 0; font-size: 18px; }
+/* Parents: their drives, rides with no driver and overlaps first, then who each plan is for. */
+.my-day-summary { display: grid; gap: 8px; margin: 16px 24px 0; padding: 14px 16px; border-radius: 8px; background: var(--raised); font-size: 16px; line-height: 22px; }
+.paint .my-day-summary-title { margin: 0; font-weight: 600; }
+.paint .my-day-drives { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.my-day-at { display: inline-block; min-width: 6.5em; font-weight: 600; }
+.paint .my-day-summary .my-day-flag { margin: 0; }
+.my-day-flag { display: block; width: fit-content; margin-top: 6px; padding: 2px 8px; border-radius: 6px; background: var(--warning-soft); color: var(--warning); font-size: 16px; font-weight: 600; }
+.my-day-who { display: block; margin-top: 2px; font-size: 16px; color: var(--muted); }
+body.paint .my-day-ride label { display: inline; margin: 0; font-size: inherit; line-height: inherit; font-weight: 600; color: inherit; }
+.my-day-ride div:has(select) { align-items: center; }
+.my-day-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.paint .my-day-mode select { min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); font: inherit; }
+body.paint .my-day-mode .btn { min-height: 36px; padding: 0 16px; font-size: 16px; }
+body.paint .my-day-mode .btn[hidden] { display: none; }
+.my-day-saved { color: var(--muted); font-size: 14px; }
+.my-day-saved:empty { display: none; }
+.my-day-actions { display: flex; justify-content: flex-end; padding: 8px 24px 24px; }
+body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 18px; }
+@media (max-width: 560px) {
+  dialog.my-day { width: 100vw; max-width: 100vw; max-height: 92dvh; margin: auto 0 0; border-radius: 12px 12px 0 0; }
+  .my-day-plan { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .my-day-actions .btn { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { dialog.my-day[open] { animation: none; } }
