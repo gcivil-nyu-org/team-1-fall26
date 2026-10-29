@@ -1,0 +1,30 @@
+{% extends "events/_paint_page.html" %}
+{% block title %}Edit item | Syncmily{% endblock %}
+{% block content %}
+    <p class="crumbs"><a href="{% url 'checklists:list' checklist.workspace_id %}">Checklists</a> / <a href="{% url 'checklists:detail' checklist.pk %}">{{ checklist.title }}</a></p>
+    <div class="head">
+        <h1>Edit item</h1>
+    </div>
+    <div class="layout-form">
+    <section class="panel">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="field">
+                <label for="{{ form.description.id_for_label }}">Item</label>
+                {{ form.description }}
+                {{ form.description.errors }}
+            </div>
+            <div class="actions">
+                <a class="btn btn-quiet" href="{% url 'checklists:detail' checklist.pk %}">Cancel</a>
+                <button class="btn" type="submit">Save item</button>
+            </div>
+        </form>
+    </section>
+    <aside class="panel helper" aria-labelledby="item-tips">
+        <h2 id="item-tips">On {{ checklist.title }}</h2>
+        <p class="span">Changes show for everyone in the family. To take the item off the list, use Remove on the list itself.</p>
+        <p class="span"><a href="{% url 'checklists:detail' checklist.pk %}">Back to {{ checklist.title }}</a></p>
+    </aside>
+    </div>
+{% endblock %}

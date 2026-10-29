@@ -1,0 +1,69 @@
+{% extends 'events/_paint_page.html' %}
+{% load tz paint %}
+{% block title %}Week | Syncmily{% endblock %}
+{% block content %}
+    {% if messages %}
+        <div class="flashes">{% for message in messages %}<p class="flash flash-{{ message.tags }}" role="status">{{ message }}</p>{% endfor %}</div>
+    {% endif %}
+    <div class="head">
+        <h1>{{ workspace.name }} week</h1>
+        <span class="span">{{ week_start|date:"D j M" }} to {{ week_last|date:"D j M" }}</span>
+        <button class="btn my-day-open" type="button" aria-haspopup="dialog" aria-controls="my-day" data-open-my-day hidden>Your day</button>
+        {% if is_primary_admin %}<a class="btn btn-quiet" href="{% url 'accounts:manage_members' workspace.pk %}">Add a family member</a>{% endif %}
+        <nav class="seg" aria-label="Change week">
+            <a href="?week={{ previous_week }}">Previous</a>
+            <a href="{% url 'accounts:dashboard' %}" {% if is_this_week %}aria-current="true"{% endif %}>This week</a>
+            <a href="?week={{ next_week }}">Next</a>
+        </nav>
+    </div>
+    <div class="week" data-clock-scope>
+        <div class="week-main">
+            <div class="days" aria-hidden="true"><span></span>{% for day in week.days %}<span{% if day.is_today %} class="is-today"{% endif %}>{{ day.date|date:"D j" }}</span>{% endfor %}</div>
+            <div class="week-cards">
+            {% for row in week.rows %}
+                <section class="card" data-hue="{{ row.hue }}"{% if row.custom_color %} style="--hue:{{ row.custom_color }}"{% endif %} aria-label="{{ row.user|person }}’s week">
+                    <div class="id"><div><b translate="no">{{ row.user|person }}</b><small>{% if row.is_kid %}Kid{% elif row.user.pk == workspace.primary_admin_id %}Parent, admin{% else %}Parent{% endif %}</small></div></div>
+                    {% for chip in row.chips %}
+                        <a class="chip l{{ chip.level }}{% if chip.tentative %} tent{% endif %}" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">
+                            <span class="chip-day">{{ chip.date|date:"D j" }}</span>
+                            {% for item in chip.items %}
+                                <p>{{ item.event.title }}{% if item.event.requires_transport %}{% include "events/_driver_summary.html" with event=item.event %}{% endif %}{% if item.tentative %}<span class="maybe">Not confirmed</span>{% endif %}{% if item.all_day %}<time>All day</time>{% elif item.starts_earlier %}<time>Continues</time>{% else %}<time datetime="{{ item.event.starts_at|date:'c' }}" data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time>{% endif %}</p>
+                            {% empty %}
+                                Free
+                            {% endfor %}
+                            {% if chip.more %}<span class="more">+{{ chip.more }} more</span>{% endif %}
+                        </a>
+                    {% endfor %}
+                </section>
+            {% empty %}
+                <div class="empty"><h2>No one here yet</h2><p>Invite your family to see everyone’s week side by side.</p></div>
+            {% endfor %}
+            </div>
+            <div class="legend" data-hue="{% if week.rows %}{{ week.rows.0.hue }}{% else %}a{% endif %}"><span>Quiet day</span><span class="ramp" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span>Full day. A dashed edge means not confirmed yet.</span></div>
+        </div>
+        <aside class="rail" aria-labelledby="{% if rail %}today-heading{% else %}coming-heading{% endif %}">
+        {% if rail %}
+            <h2 id="today-heading">Today, {{ today|date:"l j" }}</h2>
+            <p class="sub">{% if rail.items %}{{ rail.items|length }} plan{{ rail.items|length|pluralize }} across the family{% else %}Nothing planned today{% endif %}</p>
+            <div class="tl-rail">
+                {% for hour in rail.hours %}<i style="top:{{ hour.top }}%"><span data-clock="{{ hour.hour|stringformat:'02d' }}:00" data-axis>{{ hour.hour|stringformat:"02d" }}:00</span></i>{% endfor %}
+                {% for item in rail.items %}
+                    <a class="ev{% if item.event.is_tentative %} tent{% endif %}" data-hue="{% if item.member %}{{ item.member.hue }}{% else %}a{% endif %}" style="{% if item.member.custom_color %}--hue:{{ item.member.custom_color }};{% endif %}top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}" href="{% url 'events:detail' item.event.pk %}" data-dialog>{{ item.event.title }}{% if item.event.is_tentative %} (not confirmed){% endif %}{% if item.people %}, {% for member in item.people %}{{ member.user|person }}{% if not forloop.last %} and {% endif %}{% endfor %}{% endif %}, <time data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time></a>
+                {% endfor %}
+                {% if rail.now_top is not None %}<div class="now" style="top:{{ rail.now_top }}%"><span class="sr-only">Now</span></div>{% endif %}
+            </div>
+        {% endif %}
+            <h2 id="coming-heading"{% if rail %} class="rail-next"{% endif %}>Coming up</h2>
+            {% for event in upcoming_events %}
+                <a class="row" href="{% url 'events:detail' event.pk %}" data-dialog><div class="grow">{{ event.title }}<small>{{ event.starts_at|date:"D j M" }}, <time data-clock="{{ event.starts_at|date:'H:i' }}">{{ event.starts_at|date:"H:i" }}</time>{% if event.location %} · {{ event.location }}{% endif %}</small></div></a>
+            {% empty %}
+                <p class="sub">Nothing on the calendar yet.</p>
+            {% endfor %}
+            {% get_current_timezone as tz_name %}<p class="note">Times are in {{ tz_name }}. <a href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">Full schedule</a></p>
+            <h2 id="checklists-heading" class="rail-next">Checklists</h2>
+            <a class="row" href="{% url 'checklists:list' workspace.pk %}"><div class="grow">Open the family checklists<small>Chores, groceries and trips, shared with everyone</small></div></a>
+            {% if can_create_events %}<a class="row" href="{% url 'checklists:create' workspace.pk %}"><div class="grow">New checklist</div></a>{% endif %}
+        </aside>
+    </div>
+    {% include "accounts/_my_day.html" %}
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "events/_paint_page.html" %}
+{% load paint %}
+{% block title %}{{ checklist.title }} | Syncmily{% endblock %}
+{% block content %}
+    <p class="crumbs"><a href="{% url 'checklists:list' checklist.workspace.pk %}">Checklists</a> / {{ checklist.title }}</p>
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>{{ checklist.title }}</h1>
+        {% if checklist.event %}<a class="pill" href="{% url 'events:detail' checklist.event.pk %}" data-dialog{% if member %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>For {{ checklist.event.title }}, {{ checklist.event.starts_at|date:"D j M" }}</a>{% endif %}
+        {% if can_manage %}
+            <div class="head-tools">
+                <a class="btn btn-quiet" href="{% url 'checklists:edit' checklist.pk %}">Edit list</a>
+                <form method="post" action="{% url 'checklists:delete' checklist.pk %}" data-confirm="“{{ checklist.title }}” and its {{ total_items }} item{{ total_items|pluralize }} go for everyone in the family." data-confirm-title="Delete this checklist?">
+                    {% csrf_token %}
+                    <button class="btn btn-quiet btn-danger" type="submit">Delete list</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+    <div class="layout-form">
+    <section class="panel checklist" aria-labelledby="items-heading"{% if member %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>
+        <h2 class="sr-only" id="items-heading">Items</h2>
+        {% if not total_items %}<p class="span">Nothing on this list yet.{% if can_manage %} Add the first item below.{% endif %}</p>{% endif %}
+        {% for item in items %}
+            <div class="check-row{% if item.is_completed %} done{% endif %}">
+                <form method="post" action="{% url 'checklists:item_toggle' item.pk %}">
+                    {% csrf_token %}
+                    <button class="box" type="submit" role="checkbox" aria-checked="{% if item.is_completed %}true{% else %}false{% endif %}" aria-label="{{ item.description }}"><span aria-hidden="true"></span></button>
+                </form>
+                <div class="grow">
+                    <b>{{ item.description }}</b>
+                    {% if item.is_completed and item.completed_by %}<small>Done by <span translate="no">{{ item.completed_by|person }}</span>{% if item.completed_at %}, {{ item.completed_at|date:"D j" }}{% endif %}</small>{% endif %}
+                </div>
+                {% if can_manage %}
+                    <div class="row-tools">
+                        <a class="btn btn-quiet btn-small" href="{% url 'checklists:item_edit' item.pk %}" aria-label="Edit {{ item.description }}">Edit</a>
+                        <form method="post" action="{% url 'checklists:item_delete' item.pk %}" data-confirm="“{{ item.description }}” comes off the list for everyone." data-confirm-title="Remove this item?">
+                            {% csrf_token %}
+                            <button class="btn btn-quiet btn-small" type="submit" aria-label="Remove {{ item.description }}">Remove</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        {% if can_manage %}
+            <form class="inline-add" method="post" action="{% url 'checklists:item_add' checklist.pk %}">
+                {% csrf_token %}
+                <label class="sr-only" for="{{ item_form.description.id_for_label }}">New item</label>
+                {{ item_form.description }}
+                <button class="btn" type="submit">Add</button>
+            </form>
+        {% endif %}
+    </section>
+    <aside class="panel helper" aria-labelledby="progress-heading"{% if member %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>
+        <h2 id="progress-heading">Progress</h2>
+        {% if total_items %}
+            {% widthratio completed_items total_items 100 as pct %}
+            <span class="meter meter-big" role="img" aria-label="{{ completed_items }} of {{ total_items }} done, {{ pct }}%"><span class="meter-track"><i style="width: {{ pct }}%"></i></span><span class="pct" aria-hidden="true">{{ pct }}%</span></span>
+            <p class="span">{{ completed_items }} of {{ total_items }} done{% if completed_items == total_items %}. All done!{% endif %}</p>
+        {% else %}
+            <p class="span">Nothing on this list yet.</p>
+        {% endif %}
+        {% if checklist.event %}<p class="span">For <a href="{% url 'events:detail' checklist.event.pk %}" data-dialog>{{ checklist.event.title }}</a>, {{ checklist.event.starts_at|date:"l j F" }}.</p>{% endif %}
+        {% if checklist.created_by %}<p class="span">Made by <span translate="no">{{ checklist.created_by|person }}</span>.</p>{% endif %}
+    </aside>
+    </div>
+{% endblock %}

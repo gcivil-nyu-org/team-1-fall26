@@ -1,0 +1,143 @@
+/* Shared account pages: sign-in, members, profile, dashboards.
+ * Colours are the roles in shell.css (docs/design/colour.md). On pages not yet ported, --ink, --muted and
+ * --line still come from the older pages' tokens. Person-coloured surfaces read --s1..--s5 when the
+ * template sets data-hue, and fall back to the warm neutrals otherwise. */
+.flash-messages { margin: 0 0 24px; }
+.flash { margin: 0 0 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); font-size: 14px; }
+.flash-success { border-color: color-mix(in oklab, var(--success) 35%, var(--card)); background: var(--success-soft); }
+.flash-warning { border-color: color-mix(in oklab, var(--warning) 35%, var(--card)); background: var(--warning-soft); }
+.flash-error { border-color: color-mix(in oklab, var(--danger) 35%, var(--card)); background: var(--danger-soft); }
+
+.header-account form { margin: 0; }
+.link-button { min-height: 0; padding: 0; border: 0; background: none; color: var(--ink); font-size: 14px; font-weight: 400; text-decoration: underline; text-underline-offset: 4px; }
+.link-button:hover { background: none; color: var(--muted); }
+
+.invite-panel { max-width: 640px; }
+.profile-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+
+.role-picker { border: 0; padding: 0; margin: 0 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.role-picker legend { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+.role-option { position: relative; display: block; margin: 0; padding: 18px 18px 18px 46px; border: 1px solid var(--control); border-radius: 5px; cursor: pointer; font-weight: 400; }
+.role-option input { position: absolute; left: 16px; top: 20px; width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
+.role-option:has(input:checked) { border-color: var(--primary); background: var(--raised); box-shadow: inset 0 0 0 1px var(--primary); }
+.role-title { display: block; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.role-help { display: block; color: var(--muted); font-size: 12px; }
+
+.member-list { list-style: none; padding: 0; margin: 0 0 8px; }
+.member-list li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.member-list li:last-child { border-bottom: 0; }
+.member-name { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; }
+.member-name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.avatar-kid { background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); }
+.status-badge { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
+.status-pending { background: var(--warning-soft); color: var(--warning); }
+.status-active { background: var(--success-soft); color: var(--success); }
+
+.dashboard-event { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 20px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.dashboard-event h3 { margin: 0 0 4px; font-size: 16px; }
+.dashboard-event p { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* Kid dashboard: rounder and bigger than the parent view. Its colour is the kid's own hue when the
+ * page sets data-hue, never a rotating set of pastels. */
+.kid-dashboard { font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif; color: var(--ink); }
+.kid-dashboard a { color: var(--ink); }
+.kid-dashboard h2 { font-size: 24px; margin: 40px 0 18px; }
+.kid-hero { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 36px 40px; border-radius: 28px; background: var(--s2, var(--card)); }
+.kid-hero h1 { font-size: clamp(32px, 4vw, 48px); letter-spacing: -1px; margin-bottom: 8px; }
+.kid-hero p { margin: 0; font-size: 17px; }
+.kid-hello { font-size: 20px !important; font-weight: 700; margin-bottom: 6px !important; }
+.kid-today { flex-shrink: 0; width: 110px; padding: 10px 0 14px; border-radius: 22px; background: var(--card); text-align: center; text-transform: uppercase; font-weight: 700; color: var(--s5, var(--ink)); box-shadow: 0 6px 0 color-mix(in srgb, var(--shadow) 15%, transparent); }
+.kid-today strong { display: block; font-size: 48px; line-height: 1; color: var(--ink); }
+.kid-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.kid-event { padding: 22px; border-radius: 22px; box-shadow: 0 5px 0 color-mix(in srgb, var(--shadow) 12%, transparent); }
+.kid-event h3 { margin: 0 0 8px; font-size: 20px; }
+.kid-event p { margin: 0; }
+.kid-event-day { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px !important; }
+.kid-color-1, .kid-color-2, .kid-color-3, .kid-color-4, .kid-color-5 { background: var(--s1, var(--card)); }
+.kid-empty { padding: 28px; border-radius: 22px; background: var(--s1, var(--raised)); font-size: 18px; font-weight: 700; }
+.kid-family { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 22px; }
+.kid-family li { display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+.kid-bubble { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; background: var(--s1, var(--raised)); color: var(--s5, var(--ink)); border: 4px solid var(--card); box-shadow: 0 4px 0 color-mix(in srgb, var(--shadow) 12%, transparent); }
+
+@media (max-width: 850px) {
+    .profile-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+    .role-picker { grid-template-columns: 1fr; }
+    .kid-hero { flex-direction: column; align-items: start; padding: 28px 24px; }
+    .kid-today { width: 90px; }
+}
+
+/* Sign in with Google, under the password form */
+.google-sign-in { margin-top: 8px; }
+.google-sign-in button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; color: var(--muted); font-size: 12px; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* Two-step sign-in: QR code to scan, and the one-time list of backup codes. The QR code sits on white
+ * paper in every theme so phone cameras read it. */
+.two-step-qr { margin: 20px 0 8px; width: 200px; max-width: 100%; background: var(--fixed-white); padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.two-step-qr svg { display: block; width: 100%; height: auto; }
+.backup-codes { list-style: none; padding: 0; margin: 16px 0 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.backup-codes code { display: block; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; letter-spacing: .04em; text-align: center; }
+.two-step-qr + .helptext { margin-bottom: 24px; }
+
+/* Kid week: one card per day with the kid's own and whole-family plans */
+.kid-week-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; margin: 40px 0 18px; }
+.kid-week-head h2 { margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.kid-week-head h2 small { font-size: 15px; font-weight: 400; color: #6b6178; }
+.kid-week-nav { display: flex; gap: 6px; }
+.kid-week-nav a { min-width: 44px; padding: 8px 14px; border-radius: 999px; background: white; border: 2px solid #ece4f2; color: var(--kid-ink); font-weight: 700; text-align: center; text-decoration: none; }
+.kid-week-nav a:hover { border-color: #c9b8d8; }
+.kid-week-nav a[aria-current] { background: var(--kid-ink); border-color: var(--kid-ink); color: white; }
+.kid-week { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
+.kid-day { --day: #f2ece4; display: flex; flex-direction: column; gap: 8px; min-height: 180px; padding: 12px; border-radius: 20px; background: var(--day); border: 3px solid transparent; }
+.kid-day-1 { --day: #e4f1fb; }
+.kid-day-2 { --day: #fde8ef; }
+.kid-day-3 { --day: #e5f5df; }
+.kid-day-4 { --day: #fff2cf; }
+.kid-day-5 { --day: #ede6fb; }
+.kid-day-6 { --day: #ffe9da; }
+.kid-day-7 { --day: #e0f4f1; }
+.kid-day.is-today { border-color: var(--kid-ink); box-shadow: 0 5px 0 rgba(43, 33, 64, .15); }
+.kid-day-link { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; color: var(--kid-ink); text-decoration: none; }
+.kid-day-name { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.kid-day-date { font-size: 26px; font-weight: 700; line-height: 1; }
+.kid-day-badge { padding: 2px 8px; border-radius: 999px; background: var(--kid-ink); color: white; font-size: 11px; font-weight: 700; }
+.kid-plan { display: block; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .85); color: var(--kid-ink); text-decoration: none; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.kid-plan:hover { background: white; }
+.kid-plan time { display: block; font-size: 12px; font-weight: 700; color: #6b6178; }
+.kid-plan span { display: block; font-weight: 700; }
+.kid-plan small { display: inline-block; margin-top: 4px; padding: 1px 7px; border-radius: 999px; background: var(--day); font-size: 11px; }
+.kid-plan.is-maybe { background: rgba(255, 255, 255, .5); border: 2px dashed #b6a9c4; }
+.kid-free { margin: auto 0 0; color: #6b6178; font-size: 14px; }
+.kid-more { font-size: 13px; font-weight: 700; color: var(--kid-ink); }
+
+@media (max-width: 900px) {
+    .kid-week { grid-template-columns: 1fr; gap: 10px; }
+    .kid-day { min-height: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: start; column-gap: 12px; }
+    .kid-day-link { grid-row: span 9; flex-direction: column; align-items: flex-start; }
+    .kid-day > :not(.kid-day-link) { grid-column: 2; }
+    .kid-free { margin: 0; align-self: center; }
+}
+
+/* Kid timeline: today's plans from 7 AM to midnight */
+.kid-timeline-section h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.kid-timeline-section h2 small { font-size: 15px; font-weight: 400; color: #6b6178; }
+.kid-timeline { padding: 24px 20px 24px 12px; border-radius: 22px; background: white; box-shadow: 0 5px 0 rgba(43, 33, 64, .08); }
+.kid-rail { position: relative; height: 560px; margin-left: 64px; border-left: 3px solid #ece4f2; }
+.kid-rail > i { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed #ece4f2; font-style: normal; }
+.kid-rail > i span { position: absolute; left: -64px; width: 56px; transform: translateY(-9px); text-align: right; font-size: 12px; font-weight: 700; color: #6b6178; }
+.kid-slot { --gap: 6px; position: absolute; left: calc(var(--gap) + (100% - var(--gap)) * var(--col, 0) / var(--cols, 1)); width: calc((100% - var(--gap)) / var(--cols, 1) - var(--gap)); min-height: 26px; padding: 4px 10px; overflow: hidden; border-radius: 12px; background: #e4f1fb; color: var(--kid-ink); text-decoration: none; font-size: 13px; line-height: 1.25; z-index: 1; }
+.kid-slot-b { background: #fde8ef; }
+.kid-slot:hover { filter: brightness(.97); }
+.kid-slot time { font-size: 11px; font-weight: 700; color: #6b6178; margin-right: 6px; }
+.kid-slot span { font-weight: 700; }
+.kid-slot.is-maybe { border: 2px dashed #b6a9c4; }
+.kid-now { position: absolute; left: -3px; right: 0; height: 2px; background: #e2496b; z-index: 2; }
+.kid-now::before { content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: #e2496b; }
+.kid-now span { position: absolute; right: 0; top: -20px; padding: 1px 8px; border-radius: 999px; background: #e2496b; color: white; font-size: 11px; font-weight: 700; }
+@media (max-width: 620px) {
+    .kid-rail { height: 480px; margin-left: 52px; }
+    .kid-rail > i span { left: -52px; width: 46px; font-size: 11px; }
+}

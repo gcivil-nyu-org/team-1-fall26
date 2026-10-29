@@ -1,0 +1,28 @@
+{% extends 'accounts/_auth_page.html' %}
+{% load paint %}
+{% block title %}Join {{ membership.workspace.name }} | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>Join {{ membership.workspace.name }}</h1>
+            <p class="lede"><span translate="no">{{ membership.invited_by|person }}</span> invited you as a {{ membership.get_role_display|lower }}. Choose a password to finish.</p>
+            <div class="facts invite-facts">
+                <div class="row"><div class="grow"><b>Your username</b><small translate="no">{{ membership.user.username }}</small></div></div>
+                <div class="row"><div class="grow"><b>Email</b><small translate="no">{{ membership.user.email }}</small></div></div>
+            </div>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+                <input type="text" name="username" value="{{ membership.user.username }}" autocomplete="username" hidden>
+                <div class="field">
+                    <label for="{{ form.new_password1.id_for_label }}">Choose a password</label>
+                    {{ form.new_password1 }}
+                    {{ form.new_password1.errors }}
+                    <small>At least 8 characters, not all numbers, and not a common password.</small>
+                </div>
+                <div class="field">
+                    <label for="{{ form.new_password2.id_for_label }}">Type it again</label>
+                    {{ form.new_password2 }}
+                    {{ form.new_password2.errors }}
+                </div>
+                <button class="btn btn-wide" type="submit">Join the family</button>
+            </form>
+{% endblock %}

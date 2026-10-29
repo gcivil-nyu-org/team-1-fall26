@@ -1,0 +1,9 @@
+<form class="palette-options" method="post" action="{{ shell.palette_url }}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    {% for value, label in shell.palettes %}
+        <button type="submit" name="palette" value="{{ value }}" aria-pressed="{% if value == shell.palette %}true{% else %}false{% endif %}">
+            <span class="deck-strip" data-deck="{{ value }}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>{{ label }}
+        </button>
+    {% endfor %}
+</form>

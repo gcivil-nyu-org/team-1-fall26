@@ -1,0 +1,23 @@
+{% extends 'events/_paint_page.html' %}
+{% block title %}Your backup codes | Syncmily{% endblock %}
+{% block content %}
+    <div class="head">
+        <h1>Save your backup codes</h1>
+    </div>
+    <div class="layout-form">
+    <section class="panel" aria-labelledby="codes-heading">
+        <h2 class="sr-only" id="codes-heading">Backup codes</h2>
+        <p class="lede">Two-step sign-in is on. If you lose your phone, each code signs you in once. This is the only time they’re shown, so save them somewhere safe, like a password manager.</p>
+        <ul class="codes code" translate="no">{% for code in codes %}<li>{{ code }}</li>{% endfor %}</ul>
+        <div class="actions"><a class="btn" href="{% url 'accounts:profile' %}">I’ve saved them</a></div>
+    </section>
+    <aside class="panel helper" aria-labelledby="keep-heading">
+        <h2 id="keep-heading">Keep them safe</h2>
+        <ol class="tips">
+            <li><span><b>Save them now</b>A password manager is best. A printed copy at home works too.</span></li>
+            <li><span><b>Each code works once</b>Cross a code off after you use it.</span></li>
+            <li><span><b>Running low?</b>Make a new set from Your account. The old codes stop working.</span></li>
+        </ol>
+    </aside>
+    </div>
+{% endblock %}

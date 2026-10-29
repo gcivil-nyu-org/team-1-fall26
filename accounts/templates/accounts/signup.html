@@ -1,0 +1,39 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Create an account | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>Create your account</h1>
+            <p class="lede">Then start your family, or join one from an invite.</p>
+            {% include 'events/_flashes.html' %}
+            {% if google_sign_in %}
+                {% include 'accounts/_google_button.html' %}
+                <div class="or">or choose a username</div>
+            {% endif %}
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+                <div class="field">
+                    <label for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                    {{ form.username.errors }}
+                    <small>Letters, digits and @ . + - _ only. You can change it later.</small>
+                </div>
+                <div class="field">
+                    <label for="{{ form.email.id_for_label }}">Email</label>
+                    {{ form.email }}
+                    {{ form.email.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.password1.id_for_label }}">Password</label>
+                    {{ form.password1 }}
+                    {{ form.password1.errors }}
+                    <small>At least 8 characters, not all numbers, and not a common password.</small>
+                </div>
+                <div class="field">
+                    <label for="{{ form.password2.id_for_label }}">Type it again</label>
+                    {{ form.password2 }}
+                    {{ form.password2.errors }}
+                </div>
+                <button class="btn btn-wide" type="submit">Create account</button>
+            </form>
+            <p class="auth-foot">Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a>. Joining a family? Open the link in your invitation email.</p>
+{% endblock %}

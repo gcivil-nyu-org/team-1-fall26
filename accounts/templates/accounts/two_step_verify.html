@@ -1,0 +1,17 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Enter your code | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>Enter your sign-in code</h1>
+            <p class="lede">Open your authenticator app and type the 6-digit code for Syncmily. Lost your phone? Use one of your backup codes instead.</p>
+            {% include 'events/_flashes.html' %}
+            <form method="post">
+                {% csrf_token %}
+                <div class="field">
+                    <label for="code">Code</label>
+                    <input class="code" id="code" name="code" type="text" inputmode="text" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" maxlength="16" required autofocus{% if error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
+                    {% if error %}<p class="err" id="code-error" role="alert">{{ error }}</p>{% endif %}
+                </div>
+                <button class="btn btn-wide" type="submit">Sign in</button>
+            </form>
+            <p class="auth-foot"><a href="{% url 'accounts:login' %}">Start over</a></p>
+{% endblock %}

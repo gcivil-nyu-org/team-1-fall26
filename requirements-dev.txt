@@ -1,0 +1,5 @@
+# Tools the CI build runs on top of requirements.txt (Sprint 6: black, flake8, coverage, Coveralls).
+black==26.10.1
+flake8==7.5.0
+coverage==7.17.0
+coveralls==4.1.0

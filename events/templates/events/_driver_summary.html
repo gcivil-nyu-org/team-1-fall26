@@ -1,0 +1,1 @@
+{% load paint %}{% if event.requires_transport %}<span class="driver-summary">Drop-off: <span translate="no">{{ event.dropoff_driver|person|default:"Not assigned" }}</span> · Pickup: <span translate="no">{{ event.pickup_driver|person|default:"Not assigned" }}</span></span>{% endif %}

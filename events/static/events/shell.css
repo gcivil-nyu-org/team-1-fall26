@@ -1,0 +1,304 @@
+/* Syncmily shell: the paint-chip design tokens and the app chrome (top bar, phone tab bar, switches).
+ * Colour is data (who); chrome is ink and white.
+ *
+ * Loaded on every page. Pages already moved to the new design add `paint` to <body> and load paint.css.
+ * The older pages still define --ink, --muted, --line and --track on :root, so those names (and the
+ * canvas, --counter) live on `.ui` (the bar and ported page bodies) instead of :root, and dark mode only
+ * applies to ported pages. Selectors in the chrome are prefixed with .bar so they beat the older
+ * global button and link rules. */
+/* Schibsted Grotesk is linked in base.html (a <link> loads in parallel; @import would chain). */
+
+/* Colour tokens. Values come from docs/design/palette.py (OKLCH in, hex out; --write regenerates this region);
+ * docs/design/check_colours.py measures every pair the pages use (WCAG 2.x and APCA) and colour-blind separation,
+ * and fails on a miss. Roles, values and how to add a colour: docs/design/colour.md. Components use the roles,
+ * not the --nNN ramp. */
+
+/* Neutrals: one warm ramp at the canvas hue (OKLCH h 83). The number is the OKLCH lightness. */
+:root {
+  --n100:#ffffff; --n98:#fbf7f0; --n96:#f6f1e9; --n92:#ece3d4; --n80:#c2bdb5; --n56:#78746c;
+  --n47:#5e5a53; --n31:#33302b; --n27:#292622; --n23:#1f1d19; --n20:#191714; --n18:#13110f;
+}
+
+/* Fan decks: eight hue ramps each, step 1 (palest) to step 5 (deepest). Members get a..h in family order.
+ * The family's deck (Workspace.palette) is set as data-deck on <body> on every page; Saturday market
+ * ("primaries") is the default, Morning garden ("garden") and Crayon box ("bold") are the options.
+ * Each colour keeps its natural lightness, and --x1t..--x5t give the text each step carries
+ * (--paint-ink or --on-paint-deep). Neighbouring members stay 10+ CIEDE2000 apart at steps 3-4
+ * for protan, deutan and tritan vision. */
+:root, [data-deck="primaries"] {
+  --a1:#eff4fe; --a2:#d2e0fd; --a3:#91b3fd; --a4:#436ed8; --a5:#3253a7;   /* Harbor blue */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#e3faed; --b2:#b1f1ce; --b3:#55f1ac; --b4:#2b845c; --b5:#1e6445;   /* Jade */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fef3d3; --c2:#fcdd7e; --c3:#facc1f; --c4:#f89d19; --c5:#a7490d;   /* Sunflower */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#fef0ed; --d2:#fdd5ce; --d3:#fd9886; --d4:#c94634; --d5:#9a3325;   /* Tomato */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#ddfafa; --e2:#9ef1f1; --e3:#55eaec; --e4:#2a8081; --e5:#1e6061;   /* Lagoon */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--on-paint-deep); --e5t:var(--on-paint-deep);
+  --f1:#f7f0fe; --f2:#e9d7fd; --f3:#d09efd; --f4:#9457c5; --f5:#704096;   /* Grape */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#feeff2; --g2:#fdd3dc; --g3:#fd91af; --g4:#c5426f; --g5:#963053;   /* Berry */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#edf8e3; --h2:#cfebb2; --h3:#ade660; --h4:#7acc5b; --h5:#267d30;   /* Lime */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--paint-ink); --h5t:var(--on-paint-deep);
+  --a-name:"Harbor blue"; --b-name:"Jade"; --c-name:"Sunflower"; --d-name:"Tomato"; --e-name:"Lagoon"; --f-name:"Grape"; --g-name:"Berry"; --h-name:"Lime";
+}
+[data-deck="garden"] {
+  --a1:#eff9e8; --a2:#d4ecc3; --a3:#b0e388; --a4:#80cb65; --a5:#327b38;   /* Sage */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--paint-ink); --a5t:var(--on-paint-deep);
+  --b1:#fef0fc; --b2:#fbd5f7; --b3:#e698df; --b4:#a952a4; --b5:#803d7c;   /* Plum */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#fef4e3; --c2:#fbdfae; --c3:#f2be5b; --c4:#f5a133; --c5:#a14e20;   /* Ochre */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--paint-ink); --c5t:var(--on-paint-deep);
+  --d1:#e4fbfa; --d2:#b4f0f0; --d3:#55eaec; --d4:#2a8081; --d5:#1e6061;   /* Teal */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#f6f3fe; --e2:#e5defb; --e3:#bfa8f5; --e4:#8460c8; --e5:#644897;   /* Lavender */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--on-paint-deep); --e5t:var(--on-paint-deep);
+  --f1:#fef2f0; --f2:#fbdbd3; --f3:#f59d88; --f4:#c34e35; --f5:#943a27;   /* Terracotta */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#f1f5fe; --g2:#d8e3fb; --g3:#9ab7f5; --g4:#4870d0; --g5:#36559f;   /* Dusty blue */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#e7fbf1; --h2:#bef0da; --h3:#71ecbe; --h4:#2b8365; --h5:#1e634b;   /* Mint */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--on-paint-deep); --h5t:var(--on-paint-deep);
+  --a-name:"Sage"; --b-name:"Plum"; --c-name:"Ochre"; --d-name:"Teal"; --e-name:"Lavender"; --f-name:"Terracotta"; --g-name:"Dusty blue"; --h-name:"Mint";
+}
+[data-deck="bold"] {
+  --a1:#eaf2fe; --a2:#c9defe; --a3:#82b4ff; --a4:#006ff1; --a5:#0054ba;   /* Cobalt */
+    --a1t:var(--paint-ink); --a2t:var(--paint-ink); --a3t:var(--paint-ink); --a4t:var(--on-paint-deep); --a5t:var(--on-paint-deep);
+  --b1:#feecf3; --b2:#fecce0; --b3:#ff90c2; --b4:#d02185; --b5:#9f1764;   /* Magenta */
+    --b1t:var(--paint-ink); --b2t:var(--paint-ink); --b3t:var(--paint-ink); --b4t:var(--on-paint-deep); --b5t:var(--on-paint-deep);
+  --c1:#dbfbea; --c2:#96f4c6; --c3:#54edae; --c4:#2a825e; --c5:#1d6246;   /* Emerald */
+    --c1t:var(--paint-ink); --c2t:var(--paint-ink); --c3t:var(--paint-ink); --c4t:var(--on-paint-deep); --c5t:var(--on-paint-deep);
+  --d1:#feeee3; --d2:#fed3b3; --d3:#ff9941; --d4:#b15f00; --d5:#884700;   /* Tangerine */
+    --d1t:var(--paint-ink); --d2t:var(--paint-ink); --d3t:var(--paint-ink); --d4t:var(--on-paint-deep); --d5t:var(--on-paint-deep);
+  --e1:#f5effe; --e2:#e4d3fe; --e3:#c9a1ff; --e4:#9549e0; --e5:#7135ab;   /* Violet */
+    --e1t:var(--paint-ink); --e2t:var(--paint-ink); --e3t:var(--paint-ink); --e4t:var(--on-paint-deep); --e5t:var(--on-paint-deep);
+  --f1:#feeee9; --f2:#fed1c3; --f3:#ff987a; --f4:#d23c00; --f5:#a02c00;   /* Red */
+    --f1t:var(--paint-ink); --f2t:var(--paint-ink); --f3t:var(--paint-ink); --f4t:var(--on-paint-deep); --f5t:var(--on-paint-deep);
+  --g1:#dcf8fd; --g2:#9debfa; --g3:#53e0f7; --g4:#2a7e8c; --g5:#1e5f6a;   /* Cyan */
+    --g1t:var(--paint-ink); --g2t:var(--paint-ink); --g3t:var(--paint-ink); --g4t:var(--on-paint-deep); --g5t:var(--on-paint-deep);
+  --h1:#fef2c6; --h2:#feda52; --h3:#f3ca00; --h4:#fb9d00; --h5:#aa4600;   /* Gold */
+    --h1t:var(--paint-ink); --h2t:var(--paint-ink); --h3t:var(--paint-ink); --h4t:var(--paint-ink); --h5t:var(--on-paint-deep);
+  --a-name:"Cobalt"; --b-name:"Magenta"; --c-name:"Emerald"; --d-name:"Tangerine"; --e-name:"Violet"; --f-name:"Red"; --g-name:"Cyan"; --h-name:"Gold";
+}
+
+/* Colour roles. Global, so accounts.css and checklists.css can use them on pages not yet ported. */
+:root {
+  --card:var(--n100); --raised:var(--n96); --control:var(--n56);
+  --primary:var(--n20); --on-primary:var(--n100);
+  --paint-ink:var(--n20); --on-paint-deep:var(--n100); --fixed-white:var(--n100); --fixed-ink:var(--n20);
+  --focus:var(--n20); --selection:var(--n80); --on-selection:var(--n20); --shadow:var(--n18); --backdrop:#13110f66;
+  --danger:#b3261e; --danger-soft:#ffeeeb; --success:#297243; --success-soft:#e9f7ec;
+  --warning:#8d5b11; --warning-soft:#fef2d5; --info:#3063a6; --info-soft:#ebf3ff;
+}
+.ui, body.paint {
+  --counter:var(--n98); --ink:var(--n20); --muted:var(--n47); --line:var(--n92);
+  --track:#ece3d4cc; --track-edge:#ffffff80; --glass-tint:#ffffff59; --glass-glow:#ffffff;
+  --radius:4px; --radius-control:6px;
+  --font:"Schibsted Grotesk", system-ui, sans-serif;
+}
+body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
+
+/* Dark: ported pages only. The theme switch sets data-theme (theme_boot.js, before first paint); with
+ * scripts off the OS setting applies. Both blocks hold the same values (check_colours.py compares them).
+ * Chips keep their paint, so a member's colour is the same at night; quiet chips (step 1) dim into the card. */
+[data-theme="dark"] body.paint, [data-theme="dark"] body.paint .ui {
+  --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
+  --ink:var(--n98); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+  --primary:var(--n98); --on-primary:var(--n18); --accent:var(--n98);
+  --paint-ink:var(--n20); --on-paint-deep:var(--n100);
+  --focus:var(--n98); --selection:var(--n31); --on-selection:var(--n98); --backdrop:#000000a3;
+  --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
+  --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
+  --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
+}
+[data-theme="dark"] body.paint[data-deck="primaries"] { --a1:#252e41; --b1:#233126; --c1:#452b1c; --d1:#42261e; --e1:#23302d; --f1:#35293c; --g1:#412529; --h1:#273821; }
+[data-theme="dark"] body.paint[data-deck="garden"] { --a1:#283723; --b1:#3a2835; --c1:#442c1e; --d1:#23302d; --e1:#322b3c; --f1:#41271f; --g1:#262e3f; --h1:#233127; }
+[data-theme="dark"] body.paint[data-deck="bold"] { --a1:#1f2f46; --b1:#44222e; --c1:#233126; --d1:#3d2a1a; --e1:#352842; --f1:#442519; --g1:#233030; --h1:#462b1b; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.paint, :root:not([data-theme="light"]) body.paint .ui {
+    --counter:var(--n18); --card:var(--n23); --raised:var(--n27);
+    --ink:var(--n98); --muted:var(--n80); --line:var(--n31); --control:var(--n56);
+    --primary:var(--n98); --on-primary:var(--n18); --accent:var(--n98);
+    --paint-ink:var(--n20); --on-paint-deep:var(--n100);
+    --focus:var(--n98); --selection:var(--n31); --on-selection:var(--n98); --backdrop:#000000a3;
+    --danger:#ffa098; --danger-soft:#3c201c; --success:#82d399; --success-soft:#192f1f;
+    --warning:#ebc070; --warning-soft:#352812; --info:#95c1fb; --info-soft:#1c2a3c;
+    --track:#292622cc; --track-edge:#ffffff14; --glass-tint:#ffffff1f; --glass-glow:#ffffff59;
+  }
+  :root:not([data-theme="light"]) body.paint[data-deck="primaries"] { --a1:#252e41; --b1:#233126; --c1:#452b1c; --d1:#42261e; --e1:#23302d; --f1:#35293c; --g1:#412529; --h1:#273821; }
+  :root:not([data-theme="light"]) body.paint[data-deck="garden"] { --a1:#283723; --b1:#3a2835; --c1:#442c1e; --d1:#23302d; --e1:#322b3c; --f1:#41271f; --g1:#262e3f; --h1:#233127; }
+  :root:not([data-theme="light"]) body.paint[data-deck="bold"] { --a1:#1f2f46; --b1:#44222e; --c1:#233126; --d1:#3d2a1a; --e1:#352842; --f1:#442519; --g1:#233030; --h1:#462b1b; }
+}
+/* On the root so scrollbars, form controls and the overscroll area follow the theme too. */
+:root:has(body.paint) { color-scheme: light; --counter:var(--n98); }
+:root[data-theme="dark"]:has(body.paint) { color-scheme: dark; --counter:var(--n18); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):has(body.paint) { color-scheme: dark; --counter:var(--n18); } }
+
+/* Member hue: set data-hue on any element and use --s1..--s5 (and --name, the colour's name) inside it. */
+[data-hue="a"] { --name:var(--a-name); --s1:var(--a1); --s1t:var(--a1t); --s2:var(--a2); --s2t:var(--a2t); --s3:var(--a3); --s3t:var(--a3t); --s4:var(--a4); --s4t:var(--a4t); --s5:var(--a5); --s5t:var(--a5t); }
+[data-hue="b"] { --name:var(--b-name); --s1:var(--b1); --s1t:var(--b1t); --s2:var(--b2); --s2t:var(--b2t); --s3:var(--b3); --s3t:var(--b3t); --s4:var(--b4); --s4t:var(--b4t); --s5:var(--b5); --s5t:var(--b5t); }
+[data-hue="c"] { --name:var(--c-name); --s1:var(--c1); --s1t:var(--c1t); --s2:var(--c2); --s2t:var(--c2t); --s3:var(--c3); --s3t:var(--c3t); --s4:var(--c4); --s4t:var(--c4t); --s5:var(--c5); --s5t:var(--c5t); }
+[data-hue="d"] { --name:var(--d-name); --s1:var(--d1); --s1t:var(--d1t); --s2:var(--d2); --s2t:var(--d2t); --s3:var(--d3); --s3t:var(--d3t); --s4:var(--d4); --s4t:var(--d4t); --s5:var(--d5); --s5t:var(--d5t); }
+[data-hue="e"] { --name:var(--e-name); --s1:var(--e1); --s1t:var(--e1t); --s2:var(--e2); --s2t:var(--e2t); --s3:var(--e3); --s3t:var(--e3t); --s4:var(--e4); --s4t:var(--e4t); --s5:var(--e5); --s5t:var(--e5t); }
+[data-hue="f"] { --name:var(--f-name); --s1:var(--f1); --s1t:var(--f1t); --s2:var(--f2); --s2t:var(--f2t); --s3:var(--f3); --s3t:var(--f3t); --s4:var(--f4); --s4t:var(--f4t); --s5:var(--f5); --s5t:var(--f5t); }
+[data-hue="g"] { --name:var(--g-name); --s1:var(--g1); --s1t:var(--g1t); --s2:var(--g2); --s2t:var(--g2t); --s3:var(--g3); --s3t:var(--g3t); --s4:var(--g4); --s4t:var(--g4t); --s5:var(--g5); --s5t:var(--g5t); }
+[data-hue="h"] { --name:var(--h-name); --s1:var(--h1); --s1t:var(--h1t); --s2:var(--h2); --s2t:var(--h2t); --s3:var(--h3); --s3t:var(--h3t); --s4:var(--h4); --s4t:var(--h4t); --s5:var(--h5); --s5t:var(--h5t); }
+/* A colour a parent picked (style="--hue:#rrggbb") is redrawn at the decks' step lightness, chroma capped
+ * at what every hue reaches in sRGB, so any pick keeps the contrast the decks pass. Browsers without
+ * relative colour syntax show the member's deck hue instead. */
+@supports (color: oklch(from red l c h)) {
+  [data-hue][style*="--hue"] {
+    --s1:oklch(from var(--hue) .955 min(c, .021) h); --s2:oklch(from var(--hue) .875 min(c, .06) h);
+    --s3:oklch(from var(--hue) .775 min(c, .113) h); --s4:oklch(from var(--hue) .545 min(c, .091) h);
+    --s5:oklch(from var(--hue) .435 min(c, .074) h);
+    --s1t:var(--paint-ink); --s2t:var(--paint-ink); --s3t:var(--paint-ink);
+    --s4t:var(--on-paint-deep); --s5t:var(--on-paint-deep);
+  }
+  [data-theme="dark"] body.paint [data-hue][style*="--hue"] { --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) body.paint [data-hue][style*="--hue"] { --s1:color-mix(in oklab, var(--s5) 30%, var(--card)); }
+  }
+}
+/* End of colour tokens. */
+
+.sr-only { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: 16px; top: -48px; z-index: 20; background: var(--primary); color: var(--on-primary); padding: 8px 12px; border-radius: var(--radius-control); font: 600 14px/20px var(--font); }
+.skip:focus { top: 8px; }
+
+/* Top bar */
+.bar { position: sticky; top: 0; z-index: 10; box-sizing: border-box; height: 60px; display: flex; align-items: center; gap: 32px; padding: 0 32px; background: var(--card); border-bottom: 1px solid var(--line); color: var(--ink); font: 400 14px/20px var(--font); -webkit-font-smoothing: antialiased; }
+.bar * { box-sizing: border-box; }
+.bar a, .bar a:hover { color: inherit; }
+.bar :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+.bar .mark { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; text-decoration: none; }
+.bar .nav { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--track); border: 1px solid var(--track-edge); box-shadow: inset 0 1px 2px #1a1c1b0d; }
+.bar .nav a { padding: 6px 12px; border-radius: var(--radius-control); color: var(--muted); text-decoration: none; }
+.bar .nav a:hover { color: var(--ink); background: var(--raised); }
+.bar .nav a[aria-current="page"] { color: var(--ink); font-weight: 600; view-transition-name: nav-pill; }
+.bar .bar-end { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.bar .me { display: flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; }
+.bar .me-name { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui .dot, body.paint .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; background: var(--s4, var(--ink)); color: var(--s4t, #fff); flex-shrink: 0; }
+.bar .sign-out { margin: 0; }
+
+/* Buttons (shared with ported pages) */
+.ui .btn, body.paint .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 0; height: 36px; padding: 0 16px; border-radius: var(--radius-control); border: 1px solid var(--primary); background: var(--primary); color: var(--on-primary); font: 600 14px/20px var(--font); text-decoration: none; cursor: pointer; box-shadow: none; transition: transform .12s ease-out, opacity .12s; }
+.ui .btn:hover, body.paint .btn:hover { opacity: .88; background: var(--primary); border-color: var(--primary); color: var(--on-primary); box-shadow: none; }
+.ui .btn:active, body.paint .btn:active { transform: scale(.98); }
+.ui .btn-quiet, body.paint .btn-quiet, .ui .btn-quiet:hover, body.paint .btn-quiet:hover { background: transparent; color: var(--ink); border-color: var(--control); }
+.ui .btn-quiet:hover, body.paint .btn-quiet:hover { background: var(--raised); opacity: 1; }
+.ui .btn svg, body.paint .btn svg { width: 16px; height: 16px; }
+
+/* Liquid glass (archisvaze/liquid-glass layer model, MIT; liquid_glass.js sizes --lg-specular per pill):
+ * a soft outer shadow on the pill, inner glow + tint + specular rim on ::before, backdrop on ::after. */
+.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb {
+  position: relative; isolation: isolate; background: transparent; border: 1px solid transparent;
+  box-shadow: 0 4px 14px #1a1c1b1f, 0 1px 2px #1a1c1b14;
+}
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::before,
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+}
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::before {
+  z-index: -1; box-shadow: inset 0 0 20px -5px var(--glass-glow); background: var(--lg-specular, none) center / 100% 100% no-repeat, var(--glass-tint);
+}
+:is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::after {
+  z-index: -2; -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: var(--lg-backdrop, blur(3px) saturate(150%));
+}
+
+/* Switches: role="switch"; the glass thumb slides with a transform. */
+.bar .switch { display: grid; place-items: center; min-width: 44px; min-height: 44px; height: auto; gap: 0; padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; cursor: pointer; border-radius: 999px; }
+.bar .switch:hover, .bar .switch:active { background: none; box-shadow: none; transform: none; }
+.bar .switch .track { position: relative; display: flex; align-items: center; justify-content: space-between; width: 60px; height: 32px; padding: 0 9px; border-radius: 999px; background: var(--track); border: 1px solid var(--track-edge); box-shadow: inset 0 1px 2px #1a1c1b1a; color: var(--muted); }
+.bar .switch svg { position: relative; z-index: 1; width: 14px; height: 14px; }
+/* Icons sit exactly on the thumb's two resting centres (thumb: left 3px, 24px wide, slides 28px). */
+.bar .theme-switch svg { position: absolute; top: 50%; margin-top: -7px; }
+.bar .theme-switch .ico-sun { left: 8px; }
+.bar .theme-switch .ico-moon { left: 36px; transform: translate(.45px, .15px); } /* the crescent's ink sits left of its box */
+.bar .switch .glass-thumb { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 999px; transition: transform .26s cubic-bezier(.2, .8, .2, 1); }
+.bar .switch[aria-checked="true"] .glass-thumb { transform: translateX(28px); }
+.bar .theme-switch[aria-checked="false"] .ico-sun, .bar .theme-switch[aria-checked="true"] .ico-moon { color: var(--ink); }
+.bar .switch:hover .track { background: color-mix(in oklab, var(--track) 80%, var(--ink) 8%); }
+/* The 12h/24h switch keeps one look in light and dark: an opaque light track and thumb. */
+.bar .clock-switch .track, .bar .clock-switch:hover .track { width: 76px; padding: 0 3px; justify-content: flex-start; gap: 2px; background: #e3e7e4; border-color: #d3d8d5; box-shadow: inset 0 1px 2px rgb(26 28 27 / .1); }
+.bar .clock-switch .glass-thumb { width: 34px; box-shadow: 0 2px 8px rgb(26 28 27 / .18), 0 1px 2px rgb(26 28 27 / .12); }
+.bar .clock-switch .glass-thumb::before { box-shadow: inset 0 0 20px -5px #fff; background: var(--lg-specular, none) center / 100% 100% no-repeat, #f6f7f6; }
+.bar .clock-switch .glass-thumb::after { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bar .clock-switch .lbl { position: relative; z-index: 1; flex: 0 0 34px; text-align: center; line-height: 24px; font-size: 11px; font-weight: 600; color: #4b504d; }
+.bar .clock-switch[aria-checked="false"] .lbl:first-child, .bar .clock-switch[aria-checked="true"] .lbl:nth-child(2) { color: #181a19; }
+.bar .clock-switch[aria-checked="true"] .glass-thumb { transform: translateX(36px); } /* 34px label + 2px gap */
+
+/* Account menu */
+.bar .account { position: relative; margin: 0; padding: 0; border: 0; font-size: inherit; color: inherit; } /* the older pages style every <details> */
+.bar .account summary { list-style: none; cursor: pointer; border-radius: 999px; }
+.bar .account summary::-webkit-details-marker { display: none; }
+.bar .acct-menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 8px); min-width: 200px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); display: grid; gap: 2px; }
+.bar .acct-menu a, .bar .acct-menu button { display: block; width: 100%; min-height: 0; height: auto; padding: 8px 10px; border: 0; border-radius: var(--radius-control); background: none; box-shadow: none; color: var(--ink); font: 500 14px/20px var(--font); text-align: left; text-decoration: none; cursor: pointer; }
+.bar .acct-menu a:hover, .bar .acct-menu button:hover { background: var(--raised); color: var(--ink); box-shadow: none; }
+
+/* Colors tab: the family's paint deck, tucked into the bar. Four swatches show the current deck. */
+.deck-strip { display: inline-flex; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.deck-strip i { width: 6px; height: 14px; }
+.deck-strip i:nth-child(1) { background: var(--a3); } .deck-strip i:nth-child(2) { background: var(--b3); }
+.deck-strip i:nth-child(3) { background: var(--c3); } .deck-strip i:nth-child(4) { background: var(--d3); }
+.bar .palette-tab { position: relative; margin: 0; padding: 0; border: 0; font-size: inherit; color: inherit; }
+.bar .palette-tab summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: var(--radius-control); color: var(--muted); font-size: 13px; cursor: pointer; }
+.bar .palette-tab summary::-webkit-details-marker { display: none; }
+.bar .palette-tab summary:hover, .bar .palette-tab[open] summary { color: var(--ink); background: var(--raised); }
+.bar .palette-menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 8px); min-width: 200px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.bar .palette-menu p, .bar .acct-palette p { margin: 4px 10px 6px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.bar .palette-options { display: grid; gap: 2px; margin: 0; }
+.bar .palette-options button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 0; height: auto; padding: 8px 10px; border: 0; border-radius: var(--radius-control); background: none; box-shadow: none; color: var(--ink); font: 500 14px/20px var(--font); text-align: left; cursor: pointer; }
+.bar .palette-options button:hover { background: var(--raised); color: var(--ink); box-shadow: none; transform: none; }
+.bar .palette-options button[aria-pressed="true"] { font-weight: 600; }
+.bar .palette-options button[aria-pressed="true"]::after { content: "✓"; margin-left: auto; }
+.bar .acct-palette { display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+@media (max-width: 1100px) { .bar .palette-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
+/* Phones: the bar is full, so the deck choice moves into the account menu. */
+@media (max-width: 560px) { .bar .palette-tab { display: none; } .bar .acct-palette { display: block; } }
+
+/* Page loads: the selected pills slide into place, everything else cross-fades. */
+@view-transition { navigation: auto; }
+::view-transition-group(nav-pill), ::view-transition-group(seg-pill) { animation-duration: .26s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .16s; }
+@media (prefers-reduced-transparency: reduce) {
+  :is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::after { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :is(.bar .nav a[aria-current], .seg [aria-current], .bar .switch .glass-thumb)::before { background: var(--card); }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .ui .btn, body.paint .btn, .bar .switch .glass-thumb { transition: none; }
+}
+
+/* Phone: the same nav becomes a tab bar fixed to the bottom of the screen. */
+.bar .nav-short { display: none; }
+@media (max-width: 900px) {
+  .bar { gap: 8px; padding: 0 16px; }
+  .bar .bar-end { gap: 4px; }
+  .bar .btn { white-space: nowrap; padding: 0 12px; }
+  .bar .me .me-name { display: none; }
+  .bar .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 0 0 env(safe-area-inset-bottom); border: 0; border-top: 1px solid var(--line); border-radius: 0; background: var(--card); box-shadow: none; font-size: 12px; font-weight: 500; }
+  .bar .nav a { padding: 12px 0 16px; border-radius: 0; text-align: center; }
+  .bar .nav a:hover { background: none; }
+  .bar .nav a[aria-current="page"] { font-weight: 600; box-shadow: none; view-transition-name: none; }
+  .bar .nav a[aria-current="page"]::before, .bar .nav a[aria-current="page"]::after { content: none; }
+  .bar .nav-long { display: none; }
+  .bar .nav-short { display: inline; }
+  body { padding-bottom: 64px; }
+}
+/* Phones: 44px targets for the bar's own controls (the avatar menu, the mark, Add event, menu rows). */
+@media (max-width: 900px) {
+  .bar .mark { min-width: 44px; min-height: 44px; }
+  .bar .account summary.me { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
+  .bar .btn.add-btn { height: 44px; }
+  .bar .acct-menu a, .bar .acct-menu button, .bar .palette-options button { min-height: 44px; }
+}
+/* Only the narrowest phones drop the wordmark: icon + switches + add + avatar need ~390px. */
+@media (max-width: 440px) { .bar .mark .mark-text { display: none; } }
+/* "Add event" keeps its label until the bar runs out of room; below that it is an icon button. */
+@media (max-width: 560px) {
+  .bar .add-btn { width: 44px; padding: 0; }
+  .bar .add-btn .btn-label { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

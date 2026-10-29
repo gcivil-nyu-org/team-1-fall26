@@ -1,0 +1,99 @@
+# Security checks on every pull request, on pushes to develop/main, and weekly
+# (new advisories appear even when the code doesn't change).
+# Actions are pinned to commit SHAs and tools to exact versions so a compromised
+# tag upstream can't change what runs here.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+  schedule:
+    - cron: "0 13 * * 1"  # Mondays 09:00 New York
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependencies:
+    name: Known-vulnerable dependencies (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.14"
+      - run: pip install pip-audit==2.10.1
+      - run: pip-audit -r requirements.txt --require-hashes
+
+  code:
+    name: Code scan (Semgrep)
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep:1.182.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      # Test files hold deliberately fake tokens; gitleaks below still scans them for real secrets.
+      # The CSRF-token rule is excluded: Django's CsrfViewMiddleware rejects any POST without a
+      # token, so a missing tag breaks the form instead of opening a hole.
+      - run: >-
+          semgrep scan --error --metrics off
+          --config p/django --config p/python --config p/owasp-top-ten --config p/secrets
+          --exclude 'tests' --exclude staticfiles
+          --exclude-rule python.django.security.django-no-csrf-token.django-no-csrf-token
+
+  secrets:
+    name: Secrets in git history (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks 8.30.1 (checksum verified)
+        run: |
+          curl -sSfL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+      - run: ./gitleaks git . --redact --no-banner --exit-code 1
+
+  django:
+    name: Django deploy check and tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: syncmily
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_DB: syncmily
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.14"
+      - run: pip install --require-hashes -r requirements.txt
+      # Throwaway keys made fresh each run (never the production ones), masked in the log.
+      - name: Generate throwaway keys
+        run: |
+          secret="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          fernet="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+          echo "::add-mask::$secret"
+          echo "::add-mask::$fernet"
+          echo "DJANGO_SECRET_KEY=$secret" >> "$GITHUB_ENV"
+          echo "FIELD_ENCRYPTION_KEYS=$fernet" >> "$GITHUB_ENV"
+      - name: Production settings pass Django's deployment checklist
+        run: DJANGO_DEBUG=false DJANGO_HTTPS=true DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend DJANGO_DEFAULT_FROM_EMAIL=no-reply@syncmily.app python manage.py check --deploy --fail-level WARNING
+      - name: Tests (including chat and cross-household isolation)
+        run: python manage.py test

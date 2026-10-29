@@ -1,0 +1,163 @@
+{% extends 'events/_paint_page.html' %}
+{% load static tz paint %}
+{% block title %}Add event | Syncmily{% endblock %}
+{% block scripts %}<script src="{% static 'events/location_autocomplete.js' %}?v=3" defer></script>{% endblock %}
+{% block content %}
+    <div class="head" data-sheet-hide>
+        <h1>Add event</h1>
+        {% if workspace %}<span class="span">{{ workspace.name }}</span>{% endif %}
+    </div>
+    <div class="layout-form">
+    <form class="panel event-form" data-event-form id="event-form" method="post" action="{{ create_url }}">
+        {% csrf_token %}
+        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+        {% if form.errors %}
+            <div class="form-error" role="alert" id="event-errors">
+                <p><b>{% if form.non_field_errors %}This event wasn’t saved.{% else %}Check the details marked below.{% endif %}</b></p>
+                {{ form.non_field_errors }}
+                {% if form.latitude.errors or form.longitude.errors %}<p>Pick the place again from the suggestions.</p>{% endif %}
+            </div>
+        {% endif %}
+        {% if not can_save %}
+            <p class="notice">You can try this form here. To save an event, choose a family where you’re a parent.</p>
+        {% endif %}
+
+        <div class="field">
+            <label for="{{ form.title.id_for_label }}">What</label>
+            {{ form.title }}
+            {{ form.title.errors }}
+        </div>
+
+        {% if workspace %}
+            <fieldset class="who-pick" aria-describedby="who-help">
+                <legend id="participants-heading">Who’s going</legend>
+                <div class="who-list">
+                    {% for choice in form.participants %}
+                        {% with member=choice.data.value|member:members %}
+                        <label{% if member.hue %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>{{ choice.tag }}<span class="sw" aria-hidden="true"></span><span translate="no">{% if member %}{{ member.user|person }}{% else %}{{ choice.choice_label }}{% endif %}</span></label>
+                        {% endwith %}
+                    {% empty %}
+                        <p class="span">No family members can be picked yet.</p>
+                    {% endfor %}
+                </div>
+                <small id="who-help">Everyone in {{ workspace.name }} can see it. Pick nobody for a whole-family plan.</small>
+                {{ form.participants.errors }}
+            </fieldset>
+        {% endif %}
+
+        <div class="grid3">
+            <div class="field">
+                <label for="{{ form.date.id_for_label }}">Day</label>
+                {{ form.date }}
+                {{ form.date.errors }}
+            </div>
+            <div class="field">
+                <label for="{{ form.start_time.id_for_label }}">Starts</label>
+                {{ form.start_time }}
+                {{ form.start_time.errors }}
+            </div>
+            <div class="field">
+                <label for="{{ form.end_time.id_for_label }}">Ends</label>
+                {{ form.end_time }}
+                {{ form.end_time.errors }}
+            </div>
+        </div>
+        <div class="grid2">
+            <div class="field">
+                <label for="{{ form.end_date.id_for_label }}">Ends on a later day <span class="opt">optional</span></label>
+                {{ form.end_date }}
+                {{ form.end_date.errors }}
+            </div>
+            <div class="field">
+                <label for="{{ form.timezone.id_for_label }}">Time zone</label>
+                {{ form.timezone }}
+                {{ form.timezone.errors }}
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="{{ form.location.id_for_label }}">Where <span class="opt">optional</span></label>
+            {{ form.location }}
+            {{ form.location.errors }}
+        </div>
+        <div class="grid2">
+            <div class="field">
+                <label for="{{ form.transport_mode.id_for_label }}">Getting there</label>
+                {{ form.transport_mode }}
+                <small>Used to check there’s time to travel between plans.</small>
+                {{ form.transport_mode.errors }}
+            </div>
+            <div class="field check-field">
+                <div class="check">
+                    {{ form.is_tentative }}
+                    <label for="{{ form.is_tentative.id_for_label }}">Not confirmed yet<small>It shows with a dashed edge until it’s settled.</small></label>
+                </div>
+                {{ form.is_tentative.errors }}
+            </div>
+        </div>
+        {% if form.requires_transport %}
+            <div class="field check-field">
+                <div class="check">
+                    {{ form.requires_transport }}
+                    <label for="{{ form.requires_transport.id_for_label }}">Someone needs a ride<small>Choose who drives family members there and back.</small></label>
+                </div>
+                {{ form.requires_transport.errors }}
+            </div>
+            <div class="grid2">
+                <div class="field">
+                    <label for="{{ form.dropoff_driver.id_for_label }}">Drop-off driver <span class="opt">optional</span></label>
+                    {{ form.dropoff_driver }}
+                    {{ form.dropoff_driver.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.pickup_driver.id_for_label }}">Pickup driver <span class="opt">optional</span></label>
+                    {{ form.pickup_driver }}
+                    {{ form.pickup_driver.errors }}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if event_details %}
+            {% timezone timezone_name %}
+            <section class="review" id="event-review" aria-labelledby="review-heading">
+                <h2 id="review-heading">Review your event</h2>
+                <p class="span" role="status">{% if form.errors %}Not saved yet. Fix the details above, then check again.{% else %}Looks right? Add it, or change anything above.{% endif %}</p>
+                <div class="facts">
+                    <div class="row"><div class="grow"><b>{{ event_details.title }}</b><small>{{ event_details.starts_at|date:"l j F" }}, {{ event_details.starts_at|clock }} to {% if event_details.starts_at|date:"Y-m-d" != event_details.ends_at|date:"Y-m-d" %}{{ event_details.ends_at|date:"D j M" }}, {% endif %}{{ event_details.ends_at|clock }} ({{ timezone_name }})</small></div></div>
+                    <div class="row"><div class="grow"><b>Who’s going</b><small translate="no">{% for participant in form.cleaned_data.participants %}{{ participant|person }}{% if not forloop.last %}, {% endif %}{% empty %}Whole family{% endfor %}</small></div></div>
+                    <div class="row"><div class="grow"><b>Where</b><small>{{ event_details.location|default:"No place set" }}{% if event_details.location %}, {{ event_details.get_transport_mode_display|lower }}{% endif %}</small></div></div>
+                    <div class="row"><div class="grow"><b>Drivers</b><small>{% if event_details.requires_transport %}{% include "events/_driver_summary.html" with event=event_details %}{% else %}No transportation requested{% endif %}</small></div></div>
+                    <div class="row"><div class="grow"><b>Status</b><small>{% if event_details.is_tentative %}Not confirmed yet{% else %}Confirmed{% endif %}</small></div></div>
+                </div>
+                {% if travel_checks %}
+                    <h3 class="review-sub">Time to travel between plans</h3>
+                    {% for check in travel_checks %}
+                        <div class="travel travel-{{ check.status }}" role="status">
+                            <b>{% if check.status == "insufficient" %}Not enough time to get there{% elif check.status == "sufficient" %}There’s time to get there{% else %}Travel time not checked{% endif %}</b>
+                            <p><span translate="no">{{ check.participant|person }}</span> goes from {{ check.previous_event.title }}{% if check.previous_event.location %} ({{ check.previous_event.location }}){% endif %} to {{ check.next_event.title }}{% if check.next_event.location %} ({{ check.next_event.location }}){% endif %}, with {{ check.available_minutes }} minute{{ check.available_minutes|pluralize }} between them{% if check.estimated_minutes is not None %}. The trip takes about {{ check.estimated_minutes }} minute{{ check.estimated_minutes|pluralize }} by {{ event_details.get_transport_mode_display|lower }}{% endif %}.</p>
+                            <p class="span">{% if check.status == "insufficient" %}Change the time or how they’ll get there.{% elif check.status == "sufficient" %}Leave a little extra for traffic and delays.{% else %}We couldn’t estimate this trip. Check it before saving.{% endif %}</p>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </section>
+            {% endtimezone %}
+        {% endif %}
+
+        <p class="sr-only" data-review-notice role="status"></p>
+        <div class="actions">
+            <a class="link-quiet" href="{{ create_url }}" data-dialog>Start over</a>
+            <button class="btn btn-quiet" type="submit" name="action" value="preview">Check details</button>
+            {% if can_save %}<button class="btn" type="submit" name="action" value="save">Add event</button>{% endif %}
+        </div>
+    </form>
+    <aside class="panel helper" aria-labelledby="event-tips" data-sheet-hide>
+        <h2 id="event-tips">Good to know</h2>
+        <ol class="tips">
+            <li><span><b>Who’s going</b>Kids see the plans they’re in and whole-family plans.</span></li>
+            <li><span><b>Not sure yet?</b>Tick Not confirmed yet. The plan shows with a dashed edge until it’s settled.</span></li>
+            <li><span><b>Getting there</b>Pick how you’re travelling, and Syncmily warns you when there isn’t time to get between plans.</span></li>
+            <li><span><b>Rides</b>Tick Someone needs a ride to choose who drives there and back. Only adults in the family can drive.</span></li>
+        </ol>
+    </aside>
+    </div>
+{% endblock %}

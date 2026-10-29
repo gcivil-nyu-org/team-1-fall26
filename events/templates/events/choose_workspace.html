@@ -1,0 +1,46 @@
+{% extends 'events/_paint_page.html' %}
+{% block title %}Choose a family | Syncmily{% endblock %}
+{% block content %}
+    <div class="head" data-sheet-hide>
+        <h1>Which family is this for?</h1>
+    </div>
+    <div class="layout-form">
+    <section class="panel">
+        {% if form.workspace.field.queryset %}
+            <form method="get" action="{% url 'events:choose_workspace' %}">
+                {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+                {{ form.date.errors }}
+                <div class="field">
+                    <label for="{{ form.workspace.id_for_label }}">Family</label>
+                    {{ form.workspace }}
+                    {{ form.workspace.errors }}
+                    <small>You can add events to families where you’re a parent.</small>
+                </div>
+                <div class="field">
+                    <label for="{{ form.timezone.id_for_label }}">Time zone</label>
+                    {{ form.timezone }}
+                    {{ form.timezone.errors }}
+                    <small>The event and its schedule use this time zone.</small>
+                </div>
+                <div class="actions">
+                    <a class="btn btn-quiet" href="{% url 'events:list' %}?view=upcoming">Cancel</a>
+                    <button class="btn" type="submit">Continue</button>
+                </div>
+            </form>
+        {% else %}
+            <h2>No family to add events to yet</h2>
+            <p class="lede">You need to be a primary admin or an accepted parent in a family to add events. Start your own, or ask a parent to invite you.</p>
+            <div class="actions start"><a class="btn" href="{% url 'accounts:create_workspace' %}">Start a family</a></div>
+        {% endif %}
+    </section>
+    {% if form.workspace.field.queryset %}
+    <aside class="panel helper" aria-labelledby="why-heading">
+        <h2 id="why-heading">Why we ask</h2>
+        <ol class="tips">
+            <li><span><b>You’re in more than one family</b>The event goes on that family’s week, and its members can see it.</span></li>
+            <li><span><b>Time zone</b>The event and its schedule use this time zone.</span></li>
+        </ol>
+    </aside>
+    {% endif %}
+    </div>
+{% endblock %}

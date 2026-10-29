@@ -1,0 +1,65 @@
+{% extends 'events/_paint_page.html' %}
+{% load paint %}
+{% block title %}{{ workspace.name }} | Syncmily{% endblock %}
+{% block content %}
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>{{ workspace.name }}</h1>
+        <span class="span">{{ family|length }} member{{ family|length|pluralize }}{% if pending %}, {{ pending|length }} invited{% endif %}</span>
+        <div class="head-tools">
+            <a class="btn btn-quiet" href="{% url 'events:workspace_list' workspace.pk %}?view=upcoming">See what’s coming up</a>
+        </div>
+    </div>
+    <div class="split">
+        <div class="stack">
+            <section class="panel" aria-labelledby="members-heading">
+                <h2 id="members-heading" class="sr-only">Members</h2>
+                {% include 'accounts/_family_rows.html' %}
+            </section>
+            {% if color_members %}
+                <section class="panel" aria-labelledby="colours-heading">
+                    <h2 id="colours-heading">Colours</h2>
+                    <p class="span">Each person keeps one colour across the week and the day. You can pick your own and your kids’.</p>
+                    <form class="colours colours-panel" method="post" action="{% url 'events:member_colors' workspace.pk %}" data-colours>
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        {% for member in color_members %}
+                            <label class="colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
+                                <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}"{% if not member.custom_color %} data-deck{% endif %}>
+                                <span translate="no">{% if member.user == request.user %}You{% else %}{{ member.user|person }}{% endif %}</span>
+                            </label>
+                        {% endfor %}
+                        <button class="btn btn-quiet" type="submit">Save colours</button>
+                    </form>
+                </section>
+            {% endif %}
+            <section class="panel" aria-labelledby="google-calendar-heading">
+                <h2 id="google-calendar-heading">Google Calendar</h2>
+                {% if calendar_connection %}
+                    <p class="span">Connected{% if calendar_connection.account_email %} as {{ calendar_connection.account_email }}{% endif %}.{% if calendar_connection.workspace and calendar_connection.workspace != workspace %} Events go to <a href="{% url 'accounts:workspace_detail' calendar_connection.workspace_id %}">{{ calendar_connection.workspace.name }}</a>.{% endif %} {% if calendar_connection.last_synced_at %}Last imported {{ calendar_connection.last_synced_at|timesince }} ago.{% else %}Not imported yet.{% endif %}</p>
+                    <div class="actions start">
+                        <form method="post" action="{% url 'calendars:google_sync' %}">{% csrf_token %}<button class="btn" type="submit">Import events now</button></form>
+                        <form method="post" action="{% url 'calendars:google_disconnect' %}" data-confirm="Plans imported from Google Calendar leave the schedule. You can connect again later." data-confirm-title="Disconnect Google Calendar?">{% csrf_token %}<button class="btn btn-quiet" type="submit">Disconnect Google Calendar</button></form>
+                    </div>
+                {% else %}
+                    <p class="span">Bring the events already in your Google Calendar into the family schedule. Syncmily only asks to read your calendar.</p>
+                    <form class="actions start" method="post" action="{% url 'calendars:google_connect' workspace.pk %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Connect Google Calendar</button></form>
+                {% endif %}
+            </section>
+        </div>
+        <aside class="stack">
+            <section class="panel" aria-labelledby="invite-heading">
+                <h2 id="invite-heading">Invite someone</h2>
+                <p class="span lede-s">They get an email with a link to join {{ workspace.name }}.</p>
+                {% include 'accounts/_invite_form.html' with form=invite_form %}
+            </section>
+            <section class="panel" aria-labelledby="more-heading">
+                <h2 id="more-heading">More for the family</h2>
+                <a class="row" href="{% url 'checklists:list' workspace.pk %}"><span class="grow"><b>Checklists</b><small>Chores, groceries and trips, shared with everyone</small></span></a>
+                <a class="row" href="{% url 'events:workspace_list' workspace.pk %}?view=day"><span class="grow"><b>Today, hour by hour</b><small>The day view, one column per person</small></span></a>
+                <a class="row" href="{% url 'accounts:create_workspace' %}"><span class="grow"><b>Start another family</b><small>For a second household with its own schedule</small></span></a>
+                <p class="note">Created {{ workspace.created_at|date:"j F Y" }}. Family ID <span class="code" translate="no">{{ workspace.id }}</span></p>
+            </section>
+        </aside>
+    </div>
+{% endblock %}

@@ -1,0 +1,25 @@
+[tool.black]
+line-length = 88
+extend-exclude = '''
+/(
+  \.venv
+  | staticfiles
+  | transit-routing
+)/
+'''
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    ".venv/*",
+    "manage.py",
+    "syncmily/settings.py",
+    "syncmily/wsgi.py",
+    "syncmily/asgi.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

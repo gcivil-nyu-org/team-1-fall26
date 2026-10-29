@@ -1,0 +1,28 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Sign in | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>Sign in to your family</h1>
+            <p class="lede">See this week’s plans for everyone at home.</p>
+            {% include 'events/_flashes.html' %}
+            {% if google_sign_in %}
+                {% include 'accounts/_google_button.html' %}
+                <div class="or">or use your username</div>
+            {% endif %}
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                <div class="field">
+                    <label for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                    {{ form.username.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.password.id_for_label }}">Password</label>
+                    {{ form.password }}
+                    {{ form.password.errors }}
+                </div>
+                <input type="hidden" name="next" value="{{ next }}">
+                <button class="btn btn-wide" type="submit">Sign in</button>
+            </form>
+            <p class="auth-foot">New here? <a href="{% url 'accounts:signup' %}">Create a family</a>. Invited? Open the link in your invitation email.</p>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'events/_paint_page.html' %}
+{% block title %}Start a family | Syncmily{% endblock %}
+{% block content %}
+    <div class="head">
+        <h1>Start a family</h1>
+    </div>
+    <div class="layout-form">
+    <section class="panel" aria-labelledby="workspace-heading">
+        <h2 id="workspace-heading" class="sr-only">Name your family</h2>
+        <p class="lede">You’ll be its admin. Next you can invite parents and kids, and add the first plans.</p>
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="field">
+                <label for="{{ form.name.id_for_label }}">Family name</label>
+                {{ form.name }}
+                {{ form.name.errors }}
+                <small>What everyone will recognise, like The Rivera family or Home.</small>
+            </div>
+            <div class="actions">
+                <a class="btn btn-quiet" href="{% url 'events:choose_workspace' %}">Not now</a>
+                <button class="btn" type="submit">Start the family</button>
+            </div>
+        </form>
+    </section>
+    <aside class="panel helper" aria-labelledby="next-heading">
+        <h2 id="next-heading">What happens next</h2>
+        <ol class="tips">
+            <li><span><b>Invite the family</b>Add parents and kids from Family. Each gets an email to join.</span></li>
+            <li><span><b>Add the first plans</b>Everyone sees them on the family week.</span></li>
+            <li><span><b>Connect Google Calendar</b>Optional. Your Google events show up next to the family’s.</span></li>
+        </ol>
+    </aside>
+    </div>
+{% endblock %}

@@ -1,0 +1,74 @@
+# Sprint 6 CI/CD. Every push to develop or main and every pull request runs black, flake8,
+# the unit tests under coverage.py, and reports coverage to Coveralls. A daily cron job on
+# main is set in the Travis repository settings. Green builds deploy:
+#   main    -> production  (Elastic Beanstalk syncmily-env)
+#   develop -> integration (the env named in EB_INTEGRATION_ENV, once the team creates it)
+# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and COVERALLS_REPO_TOKEN live in the Travis
+# repository settings (hidden), never in this file.
+language: python
+os: linux
+dist: noble
+python:
+  - "3.14"
+
+services:
+  - postgresql
+
+branches:
+  only:
+    - develop
+    - main
+
+env:
+  global:
+    - POSTGRES_DB=syncmily
+    - POSTGRES_USER=postgres
+    - POSTGRES_HOST=localhost
+    - POSTGRES_PORT=5432
+
+install:
+  - pip install --require-hashes -r requirements.txt
+  - pip install -r requirements-dev.txt
+
+before_script:
+  - psql -c "CREATE DATABASE syncmily;" -U postgres
+  # Throwaway keys made fresh each build (never the production ones), not printed.
+  - export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+  - export FIELD_ENCRYPTION_KEYS="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+
+script:
+  - black --check .
+  - flake8 .
+  - coverage run manage.py test
+  - coverage report
+
+after_success:
+  - coveralls
+
+deploy:
+  - provider: elasticbeanstalk
+    edge: true
+    region: us-east-1
+    app: Syncmily
+    env: syncmily-env
+    bucket: elasticbeanstalk-us-east-1-431251892869
+    bucket_path: travis
+    wait_until_deployed: true
+    on:
+      branch: main
+  - provider: elasticbeanstalk
+    edge: true
+    region: us-east-1
+    app: Syncmily
+    env: $EB_INTEGRATION_ENV
+    bucket: elasticbeanstalk-us-east-1-431251892869
+    bucket_path: travis
+    wait_until_deployed: true
+    on:
+      branch: develop
+      condition: -n "$EB_INTEGRATION_ENV"
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always

@@ -1,0 +1,36 @@
+{% extends 'events/_paint_page.html' %}
+{% block title %}Turn on two-step sign-in | Syncmily{% endblock %}
+{% block content %}
+    <p class="crumbs"><a href="{% url 'accounts:profile' %}">Your account</a> / Two-step sign-in</p>
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>Turn on two-step sign-in</h1>
+    </div>
+    <div class="layout-form">
+    <section class="panel" aria-labelledby="setup-steps">
+        <h2 class="sr-only" id="setup-steps">Three steps</h2>
+        <ol class="steps">
+            <li><b>Open an authenticator app</b><small>Google Authenticator, Microsoft Authenticator, 1Password or any app that shows 6-digit codes.</small></li>
+            <li><b>Scan the QR code</b><small>Or type the setup key if you can’t scan.</small></li>
+            <li><b>Type the 6-digit code it shows</b><small>That confirms your app is set up.</small></li>
+        </ol>
+        <form class="setup-form" method="post">
+            {% csrf_token %}
+            <div class="field">
+                <label for="code">6-digit code from your app</label>
+                <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required{% if error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
+                {% if error %}<p class="err" id="code-error" role="alert">{{ error }}</p>{% endif %}
+            </div>
+            <div class="actions">
+                <a class="btn btn-quiet" href="{% url 'accounts:profile' %}">Cancel</a>
+                <button class="btn" type="submit">Turn on</button>
+            </div>
+        </form>
+    </section>
+    <aside class="panel helper" aria-labelledby="scan-heading">
+        <h2 id="scan-heading">Scan with your phone</h2>
+        <figure class="qr" aria-label="QR code for your authenticator app">{{ qr_svg|safe }}</figure>
+        <p class="span">Can’t scan? Type this setup key in the app:<br><code class="code" translate="no">{{ secret }}</code></p>
+    </aside>
+    </div>
+{% endblock %}

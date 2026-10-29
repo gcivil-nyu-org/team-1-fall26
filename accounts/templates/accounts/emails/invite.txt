@@ -1,0 +1,11 @@
+{% autoescape off %}{{ membership.invited_by.username }} added you to {{ membership.workspace.name }} on Syncmily as a {{ membership.get_role_display|lower }}.
+
+Choose your password here. The link works for 7 days:
+{{ accept_url }}
+
+Your username is {{ membership.user.username }}. You can change it after you sign in.
+
+If you weren't expecting this, you can ignore this email.
+
+Syncmily
+{% endautoescape %}

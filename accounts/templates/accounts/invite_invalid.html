@@ -1,0 +1,7 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Invitation not valid | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>This invite link doesn’t work</h1>
+            <p class="lede">It may have expired (invites last 7 days) or been used already. Ask the person who invited you to send a new one, and it will bring you straight to the family.</p>
+            <a class="btn btn-quiet btn-wide" href="{% url 'accounts:login' %}">Go to sign in</a>
+{% endblock %}

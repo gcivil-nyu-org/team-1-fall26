@@ -1,0 +1,40 @@
+{% extends "events/_paint_page.html" %}
+{% block title %}{% if editing %}Edit {{ checklist.title }}{% else %}New checklist{% endif %} | Syncmily{% endblock %}
+{% block content %}
+    <p class="crumbs"><a href="{% url 'checklists:list' workspace.pk %}">Checklists</a>{% if editing %} / <a href="{% url 'checklists:detail' checklist.pk %}">{{ checklist.title }}</a>{% endif %}</p>
+    <div class="head">
+        <h1>{% if editing %}Edit checklist{% else %}New checklist{% endif %}</h1>
+    </div>
+    <div class="layout-form">
+    <section class="panel">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="field">
+                <label for="{{ form.title.id_for_label }}">Name</label>
+                {{ form.title }}
+                {{ form.title.errors }}
+                <small>A name everyone will recognise, like Packing for Boston.</small>
+            </div>
+            <div class="field">
+                <label for="{{ form.event.id_for_label }}">For an event <span class="opt">optional</span></label>
+                {{ form.event }}
+                {{ form.event.errors }}
+                <small>A list linked to an event takes that event’s colour.</small>
+            </div>
+            <div class="actions">
+                <a class="btn btn-quiet" href="{% if editing %}{% url 'checklists:detail' checklist.pk %}{% else %}{% url 'checklists:list' workspace.pk %}{% endif %}">Cancel</a>
+                <button class="btn" type="submit">{% if editing %}Save changes{% else %}Create list{% endif %}</button>
+            </div>
+        </form>
+    </section>
+    <aside class="panel helper" aria-labelledby="list-tips">
+        <h2 id="list-tips">How lists work</h2>
+        <ol class="tips">
+            <li><span><b>Everyone can tick</b>Anyone in the family can mark items done. Parents add and change them.</span></li>
+            <li><span><b>Link it to a plan</b>A list for an event takes the colour of the first person going.</span></li>
+            <li><span><b>See progress</b>The checklists page shows how much of each list is done.</span></li>
+        </ol>
+    </aside>
+    </div>
+{% endblock %}
