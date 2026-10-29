@@ -77,6 +77,7 @@ urlpatterns = [
         name="google_login_callback",
     ),
     path("workspaces/<uuid:workspace_id>/palette/", views.set_palette, name="set_palette"),
+    path("workspaces/<uuid:workspace_id>/my-palette/", views.set_my_palette, name="set_my_palette"),
     path("login/", views.SignInView.as_view(), name="login"),
     path("login/verify/", two_step.verify, name="two_step_verify"),
     path("two-step/setup/", two_step.setup, name="two_step_setup"),

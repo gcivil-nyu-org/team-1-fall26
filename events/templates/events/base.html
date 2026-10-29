@@ -45,7 +45,7 @@
             {% if shell.palette_url %}
                 <details class="palette-tab">
                     <summary><span class="deck-strip" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="palette-label">Colors</span></summary>
-                    <div class="palette-menu"><p>Family colors</p>{% include 'events/_palette_options.html' %}</div>
+                    <div class="palette-menu"><p>{{ shell.palette_title }}</p>{% include 'events/_palette_options.html' %}</div>
                 </details>
             {% endif %}
             {% block switches %}{% endblock %}
@@ -59,7 +59,7 @@
                     </summary>
                     <div class="acct-menu">
                         <a href="{% url 'accounts:profile' %}">Profile &amp; settings</a>
-                        {% if shell.palette_url %}<div class="acct-palette"><p>Family colors</p>{% include 'events/_palette_options.html' %}</div>{% endif %}
+                        {% if shell.palette_url %}<div class="acct-palette"><p>{{ shell.palette_title }}</p>{% include 'events/_palette_options.html' %}</div>{% endif %}
                         <form class="sign-out" method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
                     </div>
                 </details>

@@ -268,14 +268,41 @@ class PaletteTests(TestCase):
         self.assertContains(page, 'data-deck="garden"')
         self.assertContains(page, 'value="garden" aria-pressed="true"', count=2)  # bar tab + phone menu
 
-    def test_kids_see_the_deck_but_cannot_change_it(self):
+    def test_kids_see_the_family_deck_but_cannot_change_it(self):
         self.workspace.palette = "bold"
         self.workspace.save()
         self.client.force_login(self.kid)
         page = self.client.get(reverse("accounts:dashboard"))
         self.assertContains(page, 'data-deck="bold"')
-        self.assertNotContains(page, "palette-options")
+        self.assertContains(page, "My colors")
+        self.assertNotContains(page, "Family colors")
         self.assertEqual(self.client.post(self.url, {"palette": "garden"}).status_code, 404)
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.palette, "bold")
+
+    def test_a_kid_picks_a_preset_for_their_own_screens_only(self):
+        my_url = reverse("accounts:set_my_palette", args=[self.workspace.pk])
+        self.client.force_login(self.kid)
+        response = self.client.post(my_url, {"palette": "garden", "next": "/events/?view=day"})
+        self.assertRedirects(response, "/events/?view=day", fetch_redirect_response=False)
+        page = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(page, 'data-deck="garden"')
+        self.assertContains(page, 'value="garden" aria-pressed="true"', count=2)  # bar tab + phone menu
+
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.palette, "primaries")
+        self.client.force_login(self.parent)
+        self.assertContains(self.client.get(reverse("accounts:dashboard")), 'data-deck="primaries"')
+
+    def test_only_kids_can_pick_their_own_preset(self):
+        my_url = reverse("accounts:set_my_palette", args=[self.workspace.pk])
+        for user in (self.parent, self.outsider):
+            self.client.force_login(user)
+            self.assertEqual(self.client.post(my_url, {"palette": "garden"}).status_code, 404)
+        self.client.force_login(self.kid)
+        self.assertEqual(self.client.post(my_url, {"palette": "neon"}).status_code, 400)
+        self.assertEqual(self.client.get(my_url).status_code, 405)
+        self.assertEqual(Membership.objects.get(user=self.kid).palette, "")
 
     def test_other_families_cannot_change_it(self):
         self.client.force_login(self.outsider)

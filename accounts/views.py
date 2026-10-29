@@ -663,6 +663,27 @@ def set_palette(request, workspace_id):
     if workspace.palette != palette:
         workspace.palette = palette
         workspace.save(update_fields=["palette"])
+    return _back_to_page(request)
+
+
+@login_required
+@require_POST
+def set_my_palette(request, workspace_id):
+    """A kid picks one of the family presets for their own screens; everyone else keeps the family's."""
+    kid = get_object_or_404(
+        Membership, workspace_id=workspace_id, user=request.user,
+        role=Membership.Role.KID, accepted_at__isnull=False,
+    )
+    palette = request.POST.get("palette", "")
+    if palette not in Workspace.Palette.values:
+        return HttpResponseBadRequest("Choose Saturday market, Morning garden or Crayon box.")
+    if kid.palette != palette:
+        kid.palette = palette
+        kid.save(update_fields=["palette"])
+    return _back_to_page(request)
+
+
+def _back_to_page(request):
     next_url = request.POST.get("next", "")
     if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}, request.is_secure()):
         next_url = reverse("accounts:dashboard")

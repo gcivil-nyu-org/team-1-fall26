@@ -69,6 +69,15 @@ class Membership(models.Model):
     # The local day a kid last closed their "Your day" briefing; it opens again the next day.
     briefing_seen_on = models.DateField(null=True, blank=True)
 
+    # A kid's own pick of the family presets, for their screens only; blank follows the family's.
+    palette = models.CharField(
+        max_length=16,
+        choices=Workspace.Palette.choices,
+        blank=True,
+        default="",
+        db_default="",
+    )
+
     class Meta:
         ordering = ["role", "invited_at"]
 
