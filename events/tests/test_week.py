@@ -9,9 +9,9 @@ from django.utils import timezone as django_timezone
 
 from accounts.models import MemberColor, Membership, Workspace
 
-from .models import Event
-from .timeline import DECK_HUES, family_members
-from .week import build_week, chip_level, week_start_for
+from ..models import Event
+from ..timeline import DECK_HUES, family_members
+from ..week import build_week, chip_level, week_start_for
 
 NEW_YORK = ZoneInfo("America/New_York")
 
@@ -226,14 +226,14 @@ class WeekPageTests(TestCase):
 
 class RailColumnTests(TestCase):
     def test_plans_that_collide_on_screen_share_the_width(self):
-        from .week import place_side_by_side
+        from ..week import place_side_by_side
         # 15:15-15:45 then 15:45-16:30: back to back in time, but the first is drawn 24px tall.
         items = [{"top": 48.529, "height": 2.941}, {"top": 51.471, "height": 4.412}, {"top": 80.0, "height": 5.0}]
         place_side_by_side(items)
         self.assertEqual([(item["column"], item["columns"]) for item in items], [(0, 2), (1, 2), (0, 1)])
 
     def test_a_long_plan_and_a_short_one_inside_it_split_once(self):
-        from .week import place_side_by_side
+        from ..week import place_side_by_side
         items = [{"top": 10, "height": 30}, {"top": 15, "height": 5}, {"top": 25, "height": 5}]
         place_side_by_side(items)
         self.assertEqual([(item["column"], item["columns"]) for item in items], [(0, 2), (1, 2), (1, 2)])

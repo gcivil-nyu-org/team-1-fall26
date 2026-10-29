@@ -10,9 +10,9 @@ from django.utils import timezone as django_timezone
 
 from accounts.models import Membership, Workspace
 
-from . import routing
-from .models import Event
-from .travel_conflicts import find_travel_checks
+from .. import routing
+from ..models import Event
+from ..travel_conflicts import find_travel_checks
 
 NEW_YORK = ZoneInfo("America/New_York")
 

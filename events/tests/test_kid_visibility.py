@@ -8,8 +8,8 @@ from django.utils import timezone as django_timezone
 from accounts.models import Membership, Workspace
 from calendars.models import CalendarConnection
 
-from .access import family_events
-from .models import Event
+from ..access import family_events
+from ..models import Event
 
 
 class KidEventVisibilityTests(TestCase):

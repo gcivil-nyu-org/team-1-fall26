@@ -8,7 +8,7 @@ from django.utils import timezone
 from accounts.models import Membership, Workspace
 from syncmily.asgi import application
 
-from .services import create_message, get_household_messages
+from ..services import create_message, get_household_messages
 
 
 def make_household(admin_name, member_name=None):

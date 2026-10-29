@@ -12,11 +12,11 @@ from django.utils import timezone
 from accounts.models import Membership, Workspace
 from calendars.models import CalendarConnection
 from calendars.sync import sync_connection
-from calendars.tests import FakeCalendarService
+from calendars.tests.test_core import FakeCalendarService
 
-from .access import event_drivers
-from .forms import EventDriverForm
-from .models import Event
+from ..access import event_drivers
+from ..forms import EventDriverForm
+from ..models import Event
 
 
 class DriverAssignmentTests(TestCase):

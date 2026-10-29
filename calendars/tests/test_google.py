@@ -3,7 +3,7 @@ from unittest import mock
 import requests
 from django.test import SimpleTestCase, override_settings
 
-from . import google
+from .. import google
 
 
 @override_settings(GOOGLE_CLIENT_ID="test-client", GOOGLE_CLIENT_SECRET="test-secret")

@@ -12,8 +12,8 @@ from django.utils import timezone as django_timezone
 from accounts.models import Workspace
 from calendars.models import CalendarConnection
 
-from .forms import EventForm
-from .models import Event
+from ..forms import EventForm
+from ..models import Event
 
 NEW_YORK = ZoneInfo("America/New_York")
 UTC = timezone.utc

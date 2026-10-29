@@ -17,10 +17,10 @@ from django.urls import reverse
 from accounts.models import Workspace
 from events.models import Event
 
-from . import google
-from .models import CalendarConnection
-from .sync import SyncResult, sync_connection
-from .views import SESSION_KEY
+from .. import google
+from ..models import CalendarConnection
+from ..sync import SyncResult, sync_connection
+from ..views import SESSION_KEY
 
 TEST_KEY = Fernet.generate_key().decode()
 

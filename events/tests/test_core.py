@@ -13,8 +13,8 @@ from django.utils import timezone as django_timezone
 from accounts.models import Membership, Workspace
 from accounts.services import invite_member, make_invite_token
 
-from .forms import EventForm, EventScheduleForm
-from .models import Event
+from ..forms import EventForm, EventScheduleForm
+from ..models import Event
 
 
 class EventFormTests(SimpleTestCase):

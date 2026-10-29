@@ -11,9 +11,9 @@ from chat.models import ChatMessage
 from checklists.models import Checklist
 from events.models import Event
 
-from .forms import InviteMemberForm, SignUpForm
-from .models import Membership, Workspace
-from .services import accept_invitation, invite_member, make_invite_token
+from ..forms import InviteMemberForm, SignUpForm
+from ..models import Membership, Workspace
+from ..services import accept_invitation, invite_member, make_invite_token
 
 
 class RemoveMemberTests(TestCase):

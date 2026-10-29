@@ -7,8 +7,8 @@ from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Membership, Workspace
-from .services import (
+from ..models import Membership, Workspace
+from ..services import (
     accept_invitation,
     invite_member,
     make_invite_token,

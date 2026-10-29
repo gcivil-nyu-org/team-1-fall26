@@ -8,7 +8,7 @@ from django.utils import timezone
 from accounts.models import Membership, Workspace
 from events.models import Event
 
-from .models import Checklist, ChecklistItem
+from ..models import Checklist, ChecklistItem
 
 class ChecklistTests(TestCase):
 

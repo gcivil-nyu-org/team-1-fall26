@@ -9,8 +9,8 @@ from django.utils import timezone as django_timezone
 from accounts.models import MemberColor, Membership, Workspace
 from calendars.models import CalendarConnection
 
-from .models import Event
-from .timeline import contrast_ratio, text_color_for
+from ..models import Event
+from ..timeline import contrast_ratio, text_color_for
 
 NEW_YORK = ZoneInfo("America/New_York")
 

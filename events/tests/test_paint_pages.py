@@ -15,9 +15,9 @@ from django.utils import timezone
 
 from accounts.models import Membership, Workspace
 
-from .day import vertical_day
-from .models import Event
-from .timeline import build_day_timeline, family_members
+from ..day import vertical_day
+from ..models import Event
+from ..timeline import build_day_timeline, family_members
 
 NEW_YORK = ZoneInfo("America/New_York")
 

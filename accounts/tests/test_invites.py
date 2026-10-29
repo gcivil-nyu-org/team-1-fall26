@@ -8,8 +8,8 @@ from django.core.checks import run_checks
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import Membership, Workspace
-from .services import (
+from ..models import Membership, Workspace
+from ..services import (
     INVITE_SALT,
     INVITES_PER_HOUR,
     invite_member,

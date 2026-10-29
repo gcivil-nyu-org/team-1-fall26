@@ -8,7 +8,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts.models import BriefingSeen, Membership, Workspace
-from accounts.tests_kid_day import MORNING, NEW_YORK, WEDNESDAY, at, frozen
+from accounts.tests.test_kid_day import MORNING, NEW_YORK, WEDNESDAY, at, frozen
 from events.briefing import build_family_briefing
 from events.models import Event
 

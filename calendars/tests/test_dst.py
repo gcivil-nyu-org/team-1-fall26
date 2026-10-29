@@ -10,10 +10,10 @@ from django.test import TestCase, override_settings
 from accounts.models import Workspace
 from events.models import Event
 
-from . import google
-from .models import CalendarConnection
-from .sync import FUTURE_DAYS, PAST_DAYS, sync_connection
-from .tests import TEST_KEY, FakeCalendarService
+from .. import google
+from ..models import CalendarConnection
+from ..sync import FUTURE_DAYS, PAST_DAYS, sync_connection
+from .test_core import TEST_KEY, FakeCalendarService
 
 NEW_YORK = ZoneInfo("America/New_York")
 UTC = timezone.utc
