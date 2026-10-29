@@ -1,4 +1,3 @@
-
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
@@ -20,7 +19,7 @@ from .models import Checklist, ChecklistItem
 
 
 def _event_member(event, members):
-    """The family member whose colour a list linked to this event is drawn in, or None."""
+    """The family member whose colour a list linked to this event uses, or None."""
     if event is None:
         return None
     people = list(event.participants.all())
@@ -30,6 +29,7 @@ def _event_member(event, members):
 # ---------------------------------------------------------
 # 1. List all checklists for a family workspace
 # ---------------------------------------------------------
+
 
 @login_required
 def checklist_list(request, workspace_id):
@@ -48,9 +48,7 @@ def checklist_list(request, workspace_id):
         .order_by("-created_at")
     )
 
-    can_manage = caregiver_workspaces(request.user).filter(
-        pk=workspace.pk
-    ).exists()
+    can_manage = caregiver_workspaces(request.user).filter(pk=workspace.pk).exists()
 
     # A list linked to an event takes the colour of that event's first person.
     members = {member["user"].pk: member for member in family_members([workspace])}
@@ -72,6 +70,7 @@ def checklist_list(request, workspace_id):
 # ---------------------------------------------------------
 # 2. Create a new checklist
 # ---------------------------------------------------------
+
 
 @login_required
 def checklist_create(request, workspace_id):
@@ -116,6 +115,7 @@ def checklist_create(request, workspace_id):
 # 3. View checklist details and completion progress
 # ---------------------------------------------------------
 
+
 @login_required
 def checklist_detail(request, checklist_id):
     checklist = get_viewable_checklist(
@@ -123,26 +123,20 @@ def checklist_detail(request, checklist_id):
         checklist_id,
     )
 
-    items = checklist.items.select_related(
-        "completed_by"
-    ).all()
+    items = checklist.items.select_related("completed_by").all()
 
     total_items = items.count()
-    completed_items = items.filter(
-        is_completed=True
-    ).count()
+    completed_items = items.filter(is_completed=True).count()
 
-    progress = (
-        round((completed_items / total_items) * 100)
-        if total_items > 0
-        else 0
+    progress = round((completed_items / total_items) * 100) if total_items > 0 else 0
+
+    can_manage = (
+        caregiver_workspaces(request.user).filter(pk=checklist.workspace_id).exists()
     )
 
-    can_manage = caregiver_workspaces(request.user).filter(
-        pk=checklist.workspace_id
-    ).exists()
-
-    members = {member["user"].pk: member for member in family_members([checklist.workspace])}
+    members = {
+        member["user"].pk: member for member in family_members([checklist.workspace])
+    }
 
     return render(
         request,
@@ -163,6 +157,7 @@ def checklist_detail(request, checklist_id):
 # ---------------------------------------------------------
 # 4. Edit an existing checklist
 # ---------------------------------------------------------
+
 
 @login_required
 def checklist_edit(request, checklist_id):
@@ -210,6 +205,7 @@ def checklist_edit(request, checklist_id):
 # 5. Delete a checklist
 # ---------------------------------------------------------
 
+
 @login_required
 @require_POST
 def checklist_delete(request, checklist_id):
@@ -232,6 +228,7 @@ def checklist_delete(request, checklist_id):
 # 6. Add a new checklist item
 # ---------------------------------------------------------
 
+
 @login_required
 @require_POST
 def item_add(request, checklist_id):
@@ -245,27 +242,19 @@ def item_add(request, checklist_id):
     if form.is_valid():
         with transaction.atomic():
             # Serialize item creation for this checklist.
-            Checklist.objects.select_for_update().get(
-                pk=checklist.pk
-            )
+            Checklist.objects.select_for_update().get(pk=checklist.pk)
 
             item = form.save(commit=False)
             item.checklist = checklist
 
             last_position = (
-                ChecklistItem.objects.filter(
-                    checklist=checklist
-                )
+                ChecklistItem.objects.filter(checklist=checklist)
                 .order_by("-position")
                 .values_list("position", flat=True)
                 .first()
             )
 
-            item.position = (
-                last_position + 1
-                if last_position is not None
-                else 0
-            )
+            item.position = last_position + 1 if last_position is not None else 0
 
             item.save()
 
@@ -278,6 +267,7 @@ def item_add(request, checklist_id):
 # ---------------------------------------------------------
 # 7. Edit a checklist item
 # ---------------------------------------------------------
+
 
 @login_required
 def item_edit(request, item_id):
@@ -322,6 +312,7 @@ def item_edit(request, item_id):
 # 8. Delete a checklist item
 # ---------------------------------------------------------
 
+
 @login_required
 @require_POST
 def item_delete(request, item_id):
@@ -346,6 +337,7 @@ def item_delete(request, item_id):
 # ---------------------------------------------------------
 # 9. Mark an item complete or incomplete
 # ---------------------------------------------------------
+
 
 @login_required
 @require_POST

@@ -1,4 +1,6 @@
-"""Small display helpers for the paint-chip pages: people by first name, and calm day labels."""
+"""Small display helpers for the paint-chip pages: people by first name, and calm day
+labels.
+"""
 
 from datetime import timedelta
 
@@ -26,29 +28,39 @@ def initial(user):
 
 @register.filter
 def day_label(moment, fmt="D j M"):
-    """"Today", "Yesterday", "Tomorrow", or the date ("Mon 26 Oct" by default), in the current time zone."""
+    """ "Today", "Yesterday", "Tomorrow", or the date ("Mon 26 Oct" by default), in the
+    current time zone.
+    """
     if not moment:
         return ""
     day = timezone.localtime(moment).date() if hasattr(moment, "hour") else moment
     today = timezone.localdate()
-    names = {today: "Today", today - timedelta(days=1): "Yesterday", today + timedelta(days=1): "Tomorrow"}
+    names = {
+        today: "Today",
+        today - timedelta(days=1): "Yesterday",
+        today + timedelta(days=1): "Tomorrow",
+    }
     return names.get(day) or date_format(day, fmt)
 
 
 @register.filter(expects_localtime=True)
 def clock(moment):
-    """A <time> that reads "4:00 PM" and that the top bar's 12h/24h switch can rewrite."""
+    """A <time> that reads "4:00 PM"; the top bar's 12h/24h switch can rewrite it."""
     if not moment:
         return ""
     return format_html(
         '<time datetime="{}" data-clock="{}">{}</time>',
-        moment.isoformat(), date_format(moment, "H:i"), date_format(moment, "g:i A"),
+        moment.isoformat(),
+        date_format(moment, "H:i"),
+        date_format(moment, "g:i A"),
     )
 
 
 @register.filter
 def member(value, members):
-    """The family member (hue, picked colour) for a user id, such as a checkbox value, from {pk: member}."""
+    """The family member (hue, picked colour) for a user id, such as a checkbox value,
+    from {pk: member}.
+    """
     key = getattr(value, "value", value)
     try:
         return (members or {}).get(int(str(key)))

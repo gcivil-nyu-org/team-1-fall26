@@ -40,7 +40,9 @@ def _callback_uri(request):
 @login_required
 @require_POST
 def google_connect(request, workspace_id):
-    workspace = get_object_or_404(Workspace, pk=workspace_id, primary_admin=request.user)
+    workspace = get_object_or_404(
+        Workspace, pk=workspace_id, primary_admin=request.user
+    )
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
         messages.error(request, "Google Calendar isn’t set up on this server yet.")
         return redirect("accounts:workspace_detail", workspace_id=workspace.pk)
@@ -62,19 +64,29 @@ def google_connect(request, workspace_id):
 def google_callback(request):
     pending = request.session.pop(SESSION_KEY, None)
     if not pending or request.GET.get("state") != pending["state"]:
-        messages.error(request, "We couldn’t confirm that request from Google. Please try connecting again.")
+        messages.error(
+            request,
+            "We couldn’t confirm that request from Google. Please try connecting"
+            " again.",
+        )
         return redirect("events:choose_workspace")
 
-    workspace = get_object_or_404(Workspace, pk=pending["workspace_id"], primary_admin=request.user)
+    workspace = get_object_or_404(
+        Workspace, pk=pending["workspace_id"], primary_admin=request.user
+    )
     workspace_url = _safe_next(request, pending.get("next")) or reverse(
         "accounts:workspace_detail", args=[workspace.pk]
     )
 
     if request.GET.get("error") == "access_denied":
-        messages.error(request, "Google Calendar wasn’t connected because access was declined.")
+        messages.error(
+            request, "Google Calendar wasn’t connected because access was declined."
+        )
         return redirect(workspace_url)
     if "code" not in request.GET:
-        messages.error(request, "Google couldn’t connect your calendar. Please try again.")
+        messages.error(
+            request, "Google couldn’t connect your calendar. Please try again."
+        )
         return redirect(workspace_url)
 
     try:
@@ -83,19 +95,27 @@ def google_callback(request):
         )
     except Exception as error:
         # Log only the error type: OAuth error messages can echo request details.
-        logger.warning("Google token exchange failed: %s", type(error).__name__)  # nosemgrep: python-logger-credential-disclosure -- logs the exception class name only
-        messages.error(request, "Google couldn’t connect your calendar. Please try again.")
+        # The log line carries the exception class name only, never its message.
+        logger.warning(  # nosemgrep: python-logger-credential-disclosure
+            "Google token exchange failed: %s", type(error).__name__
+        )
+        messages.error(
+            request, "Google couldn’t connect your calendar. Please try again."
+        )
         return redirect(workspace_url)
 
     granted_scopes = list(credentials.granted_scopes or [])
     if google.CALENDAR_SCOPE not in granted_scopes:
         messages.error(
             request,
-            "Syncmily needs permission to see your calendar. Connect again and tick the calendar box on Google’s screen.",
+            "Syncmily needs permission to see your calendar. Connect again and tick the"
+            " calendar box on Google’s screen.",
         )
         return redirect(workspace_url)
     if not credentials.refresh_token:
-        messages.error(request, "Google didn’t allow ongoing access. Please try connecting again.")
+        messages.error(
+            request, "Google didn’t allow ongoing access. Please try connecting again."
+        )
         return redirect(workspace_url)
 
     expires_at = credentials.expiry
@@ -105,9 +125,16 @@ def google_callback(request):
     previous = CalendarConnection.objects.filter(
         user=request.user, provider=CalendarConnection.Provider.GOOGLE
     ).first()
-    if previous and previous.account_email and email and previous.account_email != email:
-        # Switching Google accounts: end the old account's access and drop its imported events.
-        # (Revoking the same account's grant would also cancel the new token, so only do it here.)
+    if (
+        previous
+        and previous.account_email
+        and email
+        and previous.account_email != email
+    ):
+        # Switching Google accounts: end the old account's access and drop its imported
+        # events.
+        # (Revoking the same account's grant would also cancel the new token, so only do
+        # it here.)
         google.revoke(previous.refresh_token or previous.access_token)
         previous.events.all().delete()
 
@@ -125,7 +152,9 @@ def google_callback(request):
             "last_synced_at": None,
         },
     )
-    messages.success(request, f"Google Calendar connected{f' for {email}' if email else ''}.")
+    messages.success(
+        request, f"Google Calendar connected{f' for {email}' if email else ''}."
+    )
     _sync_and_report(request, connection)
     return redirect(workspace_url)
 
@@ -136,11 +165,15 @@ def _sync_and_report(request, connection):
     except RefreshError:
         messages.error(
             request,
-            "Google no longer accepts Syncmily’s access. Disconnect and connect Google Calendar again.",
+            "Google no longer accepts Syncmily’s access. Disconnect and connect Google"
+            " Calendar again.",
         )
     except Exception as error:
         logger.warning("Google Calendar import failed: %s", type(error).__name__)
-        messages.error(request, "We couldn’t import your Google Calendar events. Please try again later.")
+        messages.error(
+            request,
+            "We couldn’t import your Google Calendar events. Please try again later.",
+        )
     else:
         messages.success(request, f"Google Calendar events imported: {result}.")
 
@@ -149,11 +182,15 @@ def _sync_and_report(request, connection):
 @require_POST
 def google_sync(request):
     connection = get_object_or_404(
-        CalendarConnection, user=request.user, provider=CalendarConnection.Provider.GOOGLE
+        CalendarConnection,
+        user=request.user,
+        provider=CalendarConnection.Provider.GOOGLE,
     )
     _sync_and_report(request, connection)
     if connection.workspace_id:
-        return redirect("accounts:workspace_detail", workspace_id=connection.workspace_id)
+        return redirect(
+            "accounts:workspace_detail", workspace_id=connection.workspace_id
+        )
     return redirect("events:choose_workspace")
 
 
@@ -161,7 +198,9 @@ def google_sync(request):
 @require_POST
 def google_disconnect(request):
     connection = get_object_or_404(
-        CalendarConnection, user=request.user, provider=CalendarConnection.Provider.GOOGLE
+        CalendarConnection,
+        user=request.user,
+        provider=CalendarConnection.Provider.GOOGLE,
     )
     workspace_id = connection.workspace_id
     revoked = google.revoke(connection.refresh_token or connection.access_token)

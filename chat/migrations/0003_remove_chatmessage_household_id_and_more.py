@@ -7,18 +7,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0002_membership'),
-        ('chat', '0002_chatmessage_household_id'),
+        ("accounts", "0002_membership"),
+        ("chat", "0002_chatmessage_household_id"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='chatmessage',
-            name='household_id',
+            model_name="chatmessage",
+            name="household_id",
         ),
         migrations.AddField(
-            model_name='chatmessage',
-            name='workspace',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='chat_messages', to='accounts.workspace'),
+            model_name="chatmessage",
+            name="workspace",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="chat_messages",
+                to="accounts.workspace",
+            ),
         ),
     ]

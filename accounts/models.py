@@ -6,7 +6,8 @@ from django.db import models
 
 class Workspace(models.Model):
     class Palette(models.TextChoices):
-        # Stored keys stay as they were so saved families keep their choice; the labels are the
+        # Stored keys stay as they were so saved families keep their choice; the labels
+        # are the
         # names parents see. Saturday market is the default.
         PRIMARIES = "primaries", "Saturday market"
         GARDEN = "garden", "Morning garden"
@@ -39,6 +40,7 @@ class Workspace(models.Model):
     def __str__(self):
         return self.name
 
+
 class Membership(models.Model):
     class Role(models.TextChoices):
         PARENT = "parent", "Parent"
@@ -67,7 +69,8 @@ class Membership(models.Model):
     invited_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
 
-    # A kid's own pick of the family presets, for their screens only; blank follows the family's.
+    # A kid's own pick of the family presets, for their screens only; blank follows the
+    # family's.
     palette = models.CharField(
         max_length=16,
         choices=Workspace.Palette.choices,
@@ -120,9 +123,11 @@ class MemberColor(models.Model):
 
 
 class BriefingSeen(models.Model):
-    """The local day someone last closed their "Your day" briefing; it opens again the next day.
+    """The local day someone last closed their "Your day" briefing; it opens again the
+    next day.
 
-    Kept per user rather than on Membership, because a family's primary admin has no membership.
+    Kept per user rather than on Membership, because a family's primary admin has no
+    membership.
     """
 
     user = models.OneToOneField(

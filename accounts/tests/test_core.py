@@ -1,4 +1,3 @@
-
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -14,7 +13,6 @@ from ..services import (
     make_invite_token,
     next_member_username,
 )
-
 
 NEW_PASSWORD = "BlueKite2026!"
 
@@ -214,9 +212,7 @@ class MemberInvitationTests(TestCase):
         self.invite("c@example.com", Membership.Role.KID)
         self.invite("d@example.com", Membership.Role.PARENT)
 
-        usernames = set(
-            Membership.objects.values_list("user__username", flat=True)
-        )
+        usernames = set(Membership.objects.values_list("user__username", flat=True))
         self.assertEqual(usernames, {"Parent2", "Parent3", "Kid1", "Kid2"})
 
     def test_renamed_member_frees_up_number(self):
@@ -287,7 +283,9 @@ class MemberInvitationTests(TestCase):
             {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD},
         )
 
-        self.assertRedirects(response, reverse("accounts:dashboard"), fetch_redirect_response=False)
+        self.assertRedirects(
+            response, reverse("accounts:dashboard"), fetch_redirect_response=False
+        )
         self.assertEqual(int(self.client.session["_auth_user_id"]), membership.user.pk)
         membership.refresh_from_db()
         self.assertFalse(membership.is_pending)

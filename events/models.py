@@ -16,6 +16,7 @@ class Event(models.Model):
     class Source(models.TextChoices):
         SYNCMILY = "syncmily", "Syncmily"
         GOOGLE = "google", "Google Calendar"
+
     class TransportMode(models.TextChoices):
         DRIVING = "driving", "Car"
         TRANSIT = "transit", "Subway / Bus"
@@ -182,7 +183,9 @@ class Event(models.Model):
                 if driver_id and driver_id not in eligible_ids:
                     errors[field] = "Choose an active adult in this family."
                 elif driver_id and not self.requires_transport:
-                    errors[field] = "Mark transportation as needed before assigning a driver."
+                    errors[field] = (
+                        "Mark transportation as needed before assigning a driver."
+                    )
 
         if errors:
             raise ValidationError(errors)

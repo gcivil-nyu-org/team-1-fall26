@@ -5,7 +5,10 @@ from calendars.sync import sync_connection
 
 
 class Command(BaseCommand):
-    help = "Import Google Calendar events for every connection. Schedule it, e.g. every 15 minutes."
+    help = (
+        "Import Google Calendar events for every connection. Schedule it, e.g. every 15"
+        " minutes."
+    )
 
     def handle(self, *args, **options):
         failures = 0
@@ -15,7 +18,9 @@ class Command(BaseCommand):
                 result = sync_connection(connection)
             except Exception as error:
                 failures += 1
-                self.stderr.write(f"Connection {connection.pk}: failed ({type(error).__name__})")
+                self.stderr.write(
+                    f"Connection {connection.pk}: failed ({type(error).__name__})"
+                )
             else:
                 self.stdout.write(f"Connection {connection.pk}: {result}")
         if failures:

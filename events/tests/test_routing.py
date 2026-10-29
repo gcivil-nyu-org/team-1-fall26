@@ -56,21 +56,37 @@ class ValhallaTests(SimpleTestCase):
     @mock.patch("events.routing.requests.post")
     def test_walking_returns_time(self, post):
         post.return_value = fake_response({"trip": {"summary": {"time": 900}}})
-        self.assertEqual(routing.estimate_valhalla_seconds(place(), place(), "walking"), 900)
+        self.assertEqual(
+            routing.estimate_valhalla_seconds(place(), place(), "walking"), 900
+        )
 
     @mock.patch("events.routing.requests.post")
     def test_transit_needs_a_transit_leg(self, post):
-        walk_only = {"trip": {"summary": {"time": 900}, "legs": [{"maneuvers": [{"travel_type": "foot"}]}]}}
+        walk_only = {
+            "trip": {
+                "summary": {"time": 900},
+                "legs": [{"maneuvers": [{"travel_type": "foot"}]}],
+            }
+        }
         post.return_value = fake_response(walk_only)
-        self.assertIsNone(routing.estimate_valhalla_seconds(place(), place(), "transit"))
+        self.assertIsNone(
+            routing.estimate_valhalla_seconds(place(), place(), "transit")
+        )
 
     @mock.patch("events.routing.requests.post")
     def test_transit_accepts_transit_info_and_travel_type(self, post):
         for maneuver in ({"transit_info": {"x": 1}}, {"travel_type": "metro"}):
             post.return_value = fake_response(
-                {"trip": {"summary": {"time": 1200}, "legs": [{"maneuvers": [maneuver]}]}}
+                {
+                    "trip": {
+                        "summary": {"time": 1200},
+                        "legs": [{"maneuvers": [maneuver]}],
+                    }
+                }
             )
-            self.assertEqual(routing.estimate_valhalla_seconds(place(), place(), "transit"), 1200)
+            self.assertEqual(
+                routing.estimate_valhalla_seconds(place(), place(), "transit"), 1200
+            )
 
 
 class OpenTripPlannerTests(SimpleTestCase):
@@ -94,7 +110,9 @@ class OpenTripPlannerTests(SimpleTestCase):
         departure = datetime(2026, 10, 29, 12, 0, tzinfo=NEW_YORK)
         self.assertIsNone(routing.estimate_transit_seconds(place(), place(), departure))
         variables = post.call_args.kwargs["json"]["variables"]
-        self.assertEqual((variables["date"], variables["time"]), ("2026-10-29", "12:00"))
+        self.assertEqual(
+            (variables["date"], variables["time"]), ("2026-10-29", "12:00")
+        )
 
     @mock.patch("events.routing.requests.post")
     def test_graphql_errors_return_none(self, post):
@@ -104,11 +122,20 @@ class OpenTripPlannerTests(SimpleTestCase):
 
 class EstimateTravelTimeTests(SimpleTestCase):
     def test_unsupported_mode_is_unverified(self):
-        self.assertEqual(routing.estimate_travel_time(place(), place(), "teleport").status, "unverified")
+        self.assertEqual(
+            routing.estimate_travel_time(place(), place(), "teleport").status,
+            "unverified",
+        )
 
     def test_bad_coordinates_are_unverified(self):
-        self.assertEqual(routing.estimate_travel_time(place(lat=None), place(), "driving").status, "unverified")
-        self.assertEqual(routing.estimate_travel_time(place(), place(lon=None), "driving").status, "unverified")
+        self.assertEqual(
+            routing.estimate_travel_time(place(lat=None), place(), "driving").status,
+            "unverified",
+        )
+        self.assertEqual(
+            routing.estimate_travel_time(place(), place(lon=None), "driving").status,
+            "unverified",
+        )
 
     @mock.patch("events.routing.estimate_driving_seconds", return_value=610)
     def test_driving_rounds_up_to_minutes(self, _):
@@ -123,13 +150,21 @@ class EstimateTravelTimeTests(SimpleTestCase):
 
     @mock.patch("events.routing.estimate_transit_seconds", return_value=1200)
     def test_transit_uses_otp(self, _):
-        self.assertEqual(routing.estimate_travel_time(place(), place(), "transit").duration_minutes, 20)
+        self.assertEqual(
+            routing.estimate_travel_time(place(), place(), "transit").duration_minutes,
+            20,
+        )
 
     @mock.patch("events.routing.estimate_driving_seconds", return_value=None)
     def test_missing_duration_is_unverified(self, _):
-        self.assertEqual(routing.estimate_travel_time(place(), place(), "driving").status, "unverified")
+        self.assertEqual(
+            routing.estimate_travel_time(place(), place(), "driving").status,
+            "unverified",
+        )
 
-    @mock.patch("events.routing.estimate_driving_seconds", side_effect=requests.ConnectionError)
+    @mock.patch(
+        "events.routing.estimate_driving_seconds", side_effect=requests.ConnectionError
+    )
     def test_network_failure_is_unverified(self, _):
         result = routing.estimate_travel_time(place(), place(), "driving")
         self.assertEqual((result.duration_minutes, result.status), (None, "unverified"))
@@ -143,23 +178,32 @@ class TravelCheckTests(TestCase):
         cls.kid = User.objects.create_user(username="Lucia")
         cls.workspace = Workspace.objects.create(name="Reyes", primary_admin=cls.admin)
         Membership.objects.create(
-            workspace=cls.workspace, user=cls.kid, role=Membership.Role.KID,
-            invited_by=cls.admin, accepted_at=django_timezone.now(),
+            workspace=cls.workspace,
+            user=cls.kid,
+            role=Membership.Role.KID,
+            invited_by=cls.admin,
+            accepted_at=django_timezone.now(),
         )
         cls.start = datetime(2026, 10, 29, 9, 0, tzinfo=NEW_YORK)
 
     def make(self, title, offset_hours, location="Somewhere", mode="driving"):
         starts = self.start + timedelta(hours=offset_hours)
         event = Event.objects.create(
-            created_by=self.admin, workspace=self.workspace, title=title,
-            starts_at=starts, ends_at=starts + timedelta(minutes=30),
-            location=location, transport_mode=mode,
+            created_by=self.admin,
+            workspace=self.workspace,
+            title=title,
+            starts_at=starts,
+            ends_at=starts + timedelta(minutes=30),
+            location=location,
+            transport_mode=mode,
         )
         event.participants.set([self.kid])
         return event
 
     def test_event_without_workspace_has_no_checks(self):
-        self.assertEqual(find_travel_checks(SimpleNamespace(workspace_id=None), [self.kid]), [])
+        self.assertEqual(
+            find_travel_checks(SimpleNamespace(workspace_id=None), [self.kid]), []
+        )
 
     @mock.patch("events.travel_conflicts.estimate_travel_time")
     def test_flags_insufficient_and_sufficient_gaps(self, estimate):

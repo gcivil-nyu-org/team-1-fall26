@@ -15,10 +15,14 @@ def make_household(admin_name, member_name=None):
     """A workspace with its primary admin and, optionally, one accepted member."""
     User = get_user_model()
     admin = User.objects.create_user(username=admin_name, password="test-password-123")
-    workspace = Workspace.objects.create(name=f"{admin_name} family", primary_admin=admin)
+    workspace = Workspace.objects.create(
+        name=f"{admin_name} family", primary_admin=admin
+    )
     member = None
     if member_name:
-        member = User.objects.create_user(username=member_name, password="test-password-123")
+        member = User.objects.create_user(
+            username=member_name, password="test-password-123"
+        )
         Membership.objects.create(
             user=member,
             workspace=workspace,
@@ -31,7 +35,9 @@ def make_household(admin_name, member_name=None):
 
 class ChatServiceTests(TestCase):
     def setUp(self):
-        self.workspace, self.user, self.member = make_household("service_admin", "service_kid")
+        self.workspace, self.user, self.member = make_household(
+            "service_admin", "service_kid"
+        )
         self.other_workspace, self.outsider, _ = make_household("other_admin")
 
     def test_create_message(self):
@@ -102,10 +108,14 @@ class ChatServiceTests(TestCase):
 
 
 class HouseholdChatWebSocketTests(TransactionTestCase):
-    """The socket runs in other threads, so the data must be committed for them to see it."""
+    """The socket runs in other threads, so the data must be committed for them to see
+    it.
+    """
 
     def setUp(self):
-        self.workspace, self.admin, self.member = make_household("socket_admin", "socket_kid")
+        self.workspace, self.admin, self.member = make_household(
+            "socket_admin", "socket_kid"
+        )
         _, self.outsider, _ = make_household("socket_outsider")
 
     def connect(self, user):
@@ -149,7 +159,9 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
             )
             communicator.scope["user"] = self.member
             connected, _ = await communicator.connect()
-            await communicator.send_json_to({"type": "chat_message", "content": "Hi family"})
+            await communicator.send_json_to(
+                {"type": "chat_message", "content": "Hi family"}
+            )
             reply = await communicator.receive_json_from()
             await communicator.disconnect()
             return connected, reply

@@ -43,7 +43,7 @@ jobs:
       - run: >-
           semgrep scan --error --metrics off
           --config p/django --config p/python --config p/owasp-top-ten --config p/secrets
-          --exclude 'tests*.py' --exclude staticfiles
+          --exclude 'tests' --exclude staticfiles
           --exclude-rule python.django.security.django-no-csrf-token.django-no-csrf-token
 
   secrets:

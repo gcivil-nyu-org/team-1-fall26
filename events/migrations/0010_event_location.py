@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('events', '0009_remove_event_location_event_latitude_event_longitude'),
+        ("events", "0009_remove_event_location_event_latitude_event_longitude"),
     ]
 
     operations = []

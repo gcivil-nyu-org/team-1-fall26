@@ -76,13 +76,23 @@ urlpatterns = [
         views.google_login_callback,
         name="google_login_callback",
     ),
-    path("workspaces/<uuid:workspace_id>/palette/", views.set_palette, name="set_palette"),
-    path("workspaces/<uuid:workspace_id>/my-palette/", views.set_my_palette, name="set_my_palette"),
+    path(
+        "workspaces/<uuid:workspace_id>/palette/", views.set_palette, name="set_palette"
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/my-palette/",
+        views.set_my_palette,
+        name="set_my_palette",
+    ),
     path("login/", views.SignInView.as_view(), name="login"),
     path("login/verify/", two_step.verify, name="two_step_verify"),
     path("two-step/setup/", two_step.setup, name="two_step_setup"),
     path("two-step/disable/", two_step.disable, name="two_step_disable"),
-    path("two-step/backup-codes/", two_step.new_backup_codes, name="two_step_backup_codes"),
+    path(
+        "two-step/backup-codes/",
+        two_step.new_backup_codes,
+        name="two_step_backup_codes",
+    ),
     path(
         "logout/",
         auth_views.LogoutView.as_view(),

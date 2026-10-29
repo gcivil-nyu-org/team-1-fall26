@@ -9,7 +9,9 @@ PASSWORD = "FamilyTest2026!"
 class LoginLockoutTests(TestCase):
     def setUp(self):
         User = get_user_model()
-        self.parent = User.objects.create_user(username="LockoutParent", password=PASSWORD)
+        self.parent = User.objects.create_user(
+            username="LockoutParent", password=PASSWORD
+        )
         self.kid = User.objects.create_user(username="LockoutKid", password=PASSWORD)
         self.login_url = reverse("accounts:login")
 
@@ -49,19 +51,29 @@ class LoginLockoutTests(TestCase):
 
     def test_same_username_from_another_network_can_still_sign_in(self):
         self.fail(5)
-        self.assertEqual(self.attempt(self.parent.username, PASSWORD, ip="198.51.100.20").status_code, 302)
+        self.assertEqual(
+            self.attempt(
+                self.parent.username, PASSWORD, ip="198.51.100.20"
+            ).status_code,
+            302,
+        )
 
     def test_a_forged_forwarded_for_header_does_not_dodge_the_lockout(self):
         for index in range(5):
-            self.attempt(self.parent.username, "wrong-password", forwarded_for=f"192.0.2.{index}")
-        response = self.attempt(self.parent.username, PASSWORD, forwarded_for="192.0.2.99")
+            self.attempt(
+                self.parent.username, "wrong-password", forwarded_for=f"192.0.2.{index}"
+            )
+        response = self.attempt(
+            self.parent.username, PASSWORD, forwarded_for="192.0.2.99"
+        )
         self.assertEqual(response.status_code, 429)
 
     def test_admin_login_is_protected_too(self):
         admin_login = reverse("admin:login")
         for _ in range(5):
             self.client.post(
-                admin_login, {"username": self.parent.username, "password": "wrong-password"},
+                admin_login,
+                {"username": self.parent.username, "password": "wrong-password"},
                 HTTP_X_FORWARDED_FOR="203.0.113.7",
             )
         response = self.attempt(self.parent.username, PASSWORD)

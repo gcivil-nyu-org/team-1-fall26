@@ -22,11 +22,10 @@ class WorkspaceForm(forms.ModelForm):
         name = self.cleaned_data["name"].strip()
 
         if not name:
-            raise forms.ValidationError(
-                "Workspace name cannot be empty."
-            )
+            raise forms.ValidationError("Workspace name cannot be empty.")
 
         return name
+
 
 class InviteMemberForm(forms.Form):
     email = forms.EmailField(
@@ -48,10 +47,13 @@ class InviteMemberForm(forms.Form):
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
 
-        if email and Membership.objects.filter(
-            workspace=self.workspace,
-            user__email__iexact=email,
-        ).exists():
+        if (
+            email
+            and Membership.objects.filter(
+                workspace=self.workspace,
+                user__email__iexact=email,
+            ).exists()
+        ):
             raise forms.ValidationError(
                 "Someone with this email is already in your workspace."
             )
@@ -79,8 +81,8 @@ class UsernameChangeForm(forms.ModelForm):
         username = self.cleaned_data["username"].strip()
 
         if (
-            get_user_model().objects
-            .filter(username__iexact=username)
+            get_user_model()
+            .objects.filter(username__iexact=username)
             .exclude(pk=self.instance.pk)
             .exists()
         ):

@@ -32,7 +32,9 @@ def _flow(redirect_uri, scopes=SCOPES, **kwargs):
             "token_uri": "https://oauth2.googleapis.com/token",
         }
     }
-    return Flow.from_client_config(client_config, scopes=scopes, redirect_uri=redirect_uri, **kwargs)
+    return Flow.from_client_config(
+        client_config, scopes=scopes, redirect_uri=redirect_uri, **kwargs
+    )
 
 
 def authorization_url(redirect_uri):
@@ -40,16 +42,22 @@ def authorization_url(redirect_uri):
     flow = _flow(redirect_uri)
     # access_type=offline and prompt=consent make Google always send a refresh token;
     # select_account shows the account picker, so people can switch Google accounts.
-    url, state = flow.authorization_url(access_type="offline", prompt="select_account consent")
+    url, state = flow.authorization_url(
+        access_type="offline", prompt="select_account consent"
+    )
     return url, state, flow.code_verifier
 
 
 def exchange_code(redirect_uri, code, code_verifier):
     """Swap the authorization code for credentials and the verified account email."""
-    flow = _flow(redirect_uri, code_verifier=code_verifier, autogenerate_code_verifier=False)
+    flow = _flow(
+        redirect_uri, code_verifier=code_verifier, autogenerate_code_verifier=False
+    )
     flow.fetch_token(code=code)
     credentials = flow.credentials
-    claims = id_token.verify_oauth2_token(credentials.id_token, Request(), settings.GOOGLE_CLIENT_ID)
+    claims = id_token.verify_oauth2_token(
+        credentials.id_token, Request(), settings.GOOGLE_CLIENT_ID
+    )
     return credentials, claims.get("email", "")
 
 
@@ -61,10 +69,19 @@ def login_authorization_url(redirect_uri):
 
 
 def verify_login(redirect_uri, code, code_verifier):
-    """Swap the authorization code for Google's signed ID token and return its checked claims."""
-    flow = _flow(redirect_uri, scopes=LOGIN_SCOPES, code_verifier=code_verifier, autogenerate_code_verifier=False)
+    """Swap the authorization code for Google's signed ID token and return its checked
+    claims.
+    """
+    flow = _flow(
+        redirect_uri,
+        scopes=LOGIN_SCOPES,
+        code_verifier=code_verifier,
+        autogenerate_code_verifier=False,
+    )
     flow.fetch_token(code=code)
-    return id_token.verify_oauth2_token(flow.credentials.id_token, Request(), settings.GOOGLE_CLIENT_ID)
+    return id_token.verify_oauth2_token(
+        flow.credentials.id_token, Request(), settings.GOOGLE_CLIENT_ID
+    )
 
 
 def revoke(token):

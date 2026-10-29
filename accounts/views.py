@@ -1,4 +1,3 @@
-
 import logging
 from datetime import date, timedelta
 
@@ -101,12 +100,12 @@ def workspace_detail(request, workspace_id):
     )
 
     if workspace.primary_admin_id != request.user.pk:
-        raise PermissionDenied(
-            "You do not have permission to access this workspace."
-        )
+        raise PermissionDenied("You do not have permission to access this workspace.")
 
     calendar_connection = (
-        request.user.calendar_connections.filter(provider=CalendarConnection.Provider.GOOGLE)
+        request.user.calendar_connections.filter(
+            provider=CalendarConnection.Provider.GOOGLE
+        )
         .select_related("workspace")
         .first()
     )
@@ -119,7 +118,11 @@ def workspace_detail(request, workspace_id):
             "workspace": workspace,
             "calendar_connection": calendar_connection,
             "family": family,
-            "pending": workspace.memberships.filter(accepted_at__isnull=True).select_related("user"),
+            "pending": (
+                workspace.memberships.filter(accepted_at__isnull=True).select_related(
+                    "user"
+                )
+            ),
             "invite_form": InviteMemberForm(workspace=workspace),
             "color_members": editable_members(request.user, workspace, family),
         },
@@ -149,25 +152,44 @@ def dashboard(request):
         **family,
         "members": members,
         "upcoming_events": upcoming_events,
-        "can_create_events": family_workspaces(
-            request.user, caregivers_only=True,
-        ).filter(pk=workspace.pk).exists(),
-        "can_view_events": family_workspaces(request.user).filter(pk=workspace.pk).exists(),
+        "can_create_events": (
+            family_workspaces(
+                request.user,
+                caregivers_only=True,
+            )
+            .filter(pk=workspace.pk)
+            .exists()
+        ),
+        "can_view_events": (
+            family_workspaces(request.user).filter(pk=workspace.pk).exists()
+        ),
     }
     context.update(_week_context(request, workspace))
     if family["role"] == Membership.Role.KID:
         context.update(_kid_context(request, context))
         return render(request, "accounts/kid_dashboard.html", context)
     context.update(
-        me_row=next((row for row in context["week"]["rows"] if row["user"].pk == request.user.pk), None),
+        me_row=next(
+            (
+                row
+                for row in context["week"]["rows"]
+                if row["user"].pk == request.user.pk
+            ),
+            None,
+        ),
         briefing=_day_briefing(request, workspace, build_family_briefing),
     )
     return render(request, "accounts/parent_dashboard.html", context)
 
 
 def _kid_context(request, context):
-    """The kid's own row of the week, today and tomorrow, and the plans coming up that include them."""
-    row = next((row for row in context["week"]["rows"] if row["user"].pk == request.user.pk), None)
+    """The kid's own row of the week, today and tomorrow, and the plans coming up that
+    include them.
+    """
+    row = next(
+        (row for row in context["week"]["rows"] if row["user"].pk == request.user.pk),
+        None,
+    )
     chips = {chip["date"]: chip for chip in row["chips"]} if row else {}
     today = context["today"]
     # Their own plans and whole-family plans, next three.
@@ -192,8 +214,14 @@ def _kid_context(request, context):
 
 def _day_briefing(request, workspace, build):
     """The "Your day" pop-up, opened by itself on the first visit of each local day."""
-    briefing = build(request.user, workspace, timezone.now(), timezone.get_current_timezone())
-    seen_on = BriefingSeen.objects.filter(user=request.user).values_list("seen_on", flat=True).first()
+    briefing = build(
+        request.user, workspace, timezone.now(), timezone.get_current_timezone()
+    )
+    seen_on = (
+        BriefingSeen.objects.filter(user=request.user)
+        .values_list("seen_on", flat=True)
+        .first()
+    )
     briefing["auto_open"] = seen_on != timezone.localdate()
     return briefing
 
@@ -201,22 +229,29 @@ def _day_briefing(request, workspace, build):
 @login_required
 @require_POST
 def day_seen(request):
-    """Keep today's "Your day" pop-up closed once it has been closed; it opens again tomorrow."""
-    BriefingSeen.objects.update_or_create(user=request.user, defaults={"seen_on": timezone.localdate()})
+    """Keep today's "Your day" pop-up closed once it has been closed; it opens again
+    tomorrow.
+    """
+    BriefingSeen.objects.update_or_create(
+        user=request.user, defaults={"seen_on": timezone.localdate()}
+    )
     if request.headers.get("X-Requested-With") == "fetch":
         return HttpResponse(status=204)
     return redirect("accounts:dashboard")
 
 
 def _week_context(request, workspace):
-    """The paint-chip week for one family: ?week=YYYY-MM-DD picks the week, default this one."""
+    """The paint-chip week for one family: ?week=YYYY-MM-DD picks the week, default this
+    one.
+    """
     tz = timezone.get_current_timezone()
     today = timezone.localdate()
     try:
         chosen = date.fromisoformat(request.GET.get("week", ""))
     except ValueError:
         chosen = today
-    # Far-off dates (0001-01-01) would overflow the previous/next links; nobody plans decades out.
+    # Far-off dates (0001-01-01) would overflow the previous/next links; nobody plans
+    # decades out.
     if abs((chosen - today).days) > WEEK_RANGE_DAYS:
         chosen = today
     week_start = week_start_for(chosen)
@@ -239,11 +274,22 @@ def _week_context(request, workspace):
         "previous_week": (week_start - timedelta(days=7)).isoformat(),
         "next_week": week_end.isoformat(),
         "today": today,
-        "rail": build_today_rail(
-            [event for event in events if event.starts_at.astimezone(tz).date() <= today
-             and event.ends_at.astimezone(tz).date() >= today],
-            members, today, tz, timezone.now(),
-        ) if week_start == week_start_for(today) else None,
+        "rail": (
+            build_today_rail(
+                [
+                    event
+                    for event in events
+                    if event.starts_at.astimezone(tz).date() <= today
+                    and event.ends_at.astimezone(tz).date() >= today
+                ],
+                members,
+                today,
+                tz,
+                timezone.now(),
+            )
+            if week_start == week_start_for(today)
+            else None
+        ),
     }
 
 
@@ -259,9 +305,7 @@ def manage_members(request, workspace_id):
     )
 
     if workspace.primary_admin_id != request.user.pk:
-        raise PermissionDenied(
-            "Only the primary admin can manage members."
-        )
+        raise PermissionDenied("Only the primary admin can manage members.")
 
     if request.method == "POST":
         form = InviteMemberForm(request.POST, workspace=workspace)
@@ -295,9 +339,9 @@ def manage_members(request, workspace_id):
         form = InviteMemberForm(workspace=workspace)
 
     members = list(
-        workspace.memberships
-        .exclude(user_id=workspace.primary_admin_id)
-        .select_related("user")
+        workspace.memberships.exclude(
+            user_id=workspace.primary_admin_id
+        ).select_related("user")
     )
     for member in members:
         if member.is_pending:
@@ -330,8 +374,7 @@ def report_invite(request, membership):
     if not membership.user.email:
         messages.success(
             request,
-            f"{username} is ready. Copy their invite link below and send it "
-            "to them.",
+            f"{username} is ready. Copy their invite link below and send it to them.",
         )
         return
     try:
@@ -345,8 +388,7 @@ def report_invite(request, membership):
     else:
         messages.success(
             request,
-            f"Invite emailed to {membership.user.email}. "
-            f"Their username is {username}.",
+            f"Invite emailed to {membership.user.email}. Their username is {username}.",
         )
 
 
@@ -365,8 +407,7 @@ def resend_invite(request, workspace_id, membership_id):
     if not invites_left(request.user):
         messages.warning(
             request,
-            "You've sent a lot of invites in the last hour. "
-            "Try again a little later.",
+            "You've sent a lot of invites in the last hour. Try again a little later.",
         )
     else:
         report_invite(request, reissue_invite(membership))
@@ -460,7 +501,8 @@ def signup(request):
         login(request, user, backend=DIRECT_LOGIN_BACKEND)
         messages.success(
             request,
-            f"Welcome to Syncmily, {user.username}! Create your family workspace to get started.",
+            f"Welcome to Syncmily, {user.username}! Create your family workspace to get"
+            " started.",
         )
         return redirect("accounts:dashboard")
 
@@ -472,7 +514,9 @@ def signup(request):
 
 
 class SignInView(LoginView):
-    """The password sign-in, which hands off to the code step when two-step sign-in is on."""
+    """The password sign-in, which hands off to the code step when two-step sign-in is
+    on.
+    """
 
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
@@ -483,12 +527,17 @@ class SignInView(LoginView):
         return form
 
     def get_context_data(self, **kwargs):
-        return {**super().get_context_data(**kwargs), "google_sign_in": google_sign_in_enabled()}
+        return {
+            **super().get_context_data(**kwargs),
+            "google_sign_in": google_sign_in_enabled(),
+        }
 
     def form_valid(self, form):
         user = form.get_user()
         if two_step.is_enabled(user):
-            return two_step.begin(self.request, user, user.backend, self.get_success_url())
+            return two_step.begin(
+                self.request, user, user.backend, self.get_success_url()
+            )
         return super().form_valid(form)
 
 
@@ -533,7 +582,9 @@ def google_connect(request):
 @require_POST
 def google_disconnect(request):
     if not request.user.has_usable_password():
-        messages.error(request, "Set a password first, so you can still sign in without Google.")
+        messages.error(
+            request, "Set a password first, so you can still sign in without Google."
+        )
         return redirect("accounts:profile")
 
     GoogleIdentity.objects.filter(user=request.user).delete()
@@ -545,7 +596,9 @@ def google_disconnect(request):
 def google_login_callback(request):
     pending = request.session.pop(GOOGLE_LOGIN_SESSION_KEY, None)
     if not pending or request.GET.get("state") != pending["state"]:
-        messages.error(request, "We couldn’t confirm that sign-in with Google. Please try again.")
+        messages.error(
+            request, "We couldn’t confirm that sign-in with Google. Please try again."
+        )
         return redirect("accounts:login")
     if "code" not in request.GET:
         messages.error(request, "Google sign-in was cancelled.")
@@ -564,21 +617,32 @@ def google_login_callback(request):
 
     connect_user_id = pending.get("connect_user_id")
     if connect_user_id is not None:
-        # Started from the profile page: the password sign-in already proved who this is.
+        # Started from the profile page: the password sign-in already proved who this
+        # is.
         if request.user.pk != connect_user_id:
             messages.error(request, "Sign in again to connect Google to your account.")
             return redirect("accounts:login")
         try:
             connect_google_account(request.user, claims["sub"], claims.get("email", ""))
         except GoogleAccountTaken:
-            messages.error(request, "That Google account already signs in to a different Syncmily account.")
+            messages.error(
+                request,
+                "That Google account already signs in to a different Syncmily account.",
+            )
             return redirect("accounts:profile")
-        messages.success(request, f"Done! You can now sign in with Google ({claims.get('email', '')}).")
+        messages.success(
+            request,
+            f"Done! You can now sign in with Google ({claims.get('email', '')}).",
+        )
         return redirect("accounts:profile")
 
     email = claims.get("email", "")
     if not email or not claims.get("email_verified"):
-        messages.error(request, "Google hasn’t verified that account’s email, so we can’t use it to sign in.")
+        messages.error(
+            request,
+            "Google hasn’t verified that account’s email, so we can’t use it to"
+            " sign in.",
+        )
         return redirect("accounts:login")
 
     try:
@@ -586,13 +650,15 @@ def google_login_callback(request):
     except GoogleEmailInUse:
         messages.error(
             request,
-            f"An account with {email} already exists. Sign in with its username and password, "
-            "then connect Google from your profile.",
+            f"An account with {email} already exists. Sign in with its username and"
+            " password, then connect Google from your profile.",
         )
         return redirect("accounts:login")
 
     if not user.is_active:
-        messages.error(request, "This account isn’t active yet. Confirm your invitation first.")
+        messages.error(
+            request, "This account isn’t active yet. Confirm your invitation first."
+        )
         return redirect("accounts:login")
 
     if two_step.is_enabled(user):
@@ -603,7 +669,8 @@ def google_login_callback(request):
     if is_new:
         messages.success(
             request,
-            f"Welcome to Syncmily, {user.username}! Create your family workspace to get started.",
+            f"Welcome to Syncmily, {user.username}! Create your family workspace to get"
+            " started.",
         )
     return redirect("accounts:dashboard")
 
@@ -614,8 +681,11 @@ def profile(request):
     """
     Let any signed-in user change their username or password.
     """
-    # Accounts made with Google have no password yet, so there's no current one to ask for.
-    PasswordForm = PasswordChangeForm if request.user.has_usable_password() else SetPasswordForm
+    # Accounts made with Google have no password yet, so there's no current one to ask
+    # for.
+    PasswordForm = (
+        PasswordChangeForm if request.user.has_usable_password() else SetPasswordForm
+    )
     username_form = UsernameChangeForm(instance=request.user)
     password_form = PasswordForm(request.user)
     action = request.POST.get("action")
@@ -656,10 +726,14 @@ def profile(request):
 @require_POST
 def set_palette(request, workspace_id):
     """A parent picks the paint deck their family's schedule is drawn in."""
-    workspace = get_object_or_404(family_workspaces(request.user, caregivers_only=True), pk=workspace_id)
+    workspace = get_object_or_404(
+        family_workspaces(request.user, caregivers_only=True), pk=workspace_id
+    )
     palette = request.POST.get("palette", "")
     if palette not in Workspace.Palette.values:
-        return HttpResponseBadRequest("Choose Saturday market, Morning garden or Crayon box.")
+        return HttpResponseBadRequest(
+            "Choose Saturday market, Morning garden or Crayon box."
+        )
     if workspace.palette != palette:
         workspace.palette = palette
         workspace.save(update_fields=["palette"])
@@ -669,14 +743,21 @@ def set_palette(request, workspace_id):
 @login_required
 @require_POST
 def set_my_palette(request, workspace_id):
-    """A kid picks one of the family presets for their own screens; everyone else keeps the family's."""
+    """A kid picks one of the family presets for their own screens; everyone else keeps
+    the family's.
+    """
     kid = get_object_or_404(
-        Membership, workspace_id=workspace_id, user=request.user,
-        role=Membership.Role.KID, accepted_at__isnull=False,
+        Membership,
+        workspace_id=workspace_id,
+        user=request.user,
+        role=Membership.Role.KID,
+        accepted_at__isnull=False,
     )
     palette = request.POST.get("palette", "")
     if palette not in Workspace.Palette.values:
-        return HttpResponseBadRequest("Choose Saturday market, Morning garden or Crayon box.")
+        return HttpResponseBadRequest(
+            "Choose Saturday market, Morning garden or Crayon box."
+        )
     if kid.palette != palette:
         kid.palette = palette
         kid.save(update_fields=["palette"])
@@ -685,7 +766,8 @@ def set_my_palette(request, workspace_id):
 
 def _back_to_page(request):
     next_url = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}, request.is_secure()):
+    if not url_has_allowed_host_and_scheme(
+        next_url, {request.get_host()}, request.is_secure()
+    ):
         next_url = reverse("accounts:dashboard")
     return redirect(next_url)
-

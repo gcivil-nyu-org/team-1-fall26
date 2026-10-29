@@ -10,6 +10,7 @@ from events.models import Event
 
 from ..models import Checklist, ChecklistItem
 
+
 class ChecklistTests(TestCase):
 
     def setUp(self):
@@ -125,7 +126,6 @@ class ChecklistTests(TestCase):
         self.assertIsNone(item.completed_by)
         self.assertIsNone(item.completed_at)
 
-
     def test_parent_can_view_checklist(self):
         checklist = Checklist.objects.create(
             title="Family Packing List",
@@ -133,9 +133,7 @@ class ChecklistTests(TestCase):
             created_by=self.parent,
         )
 
-        response = self.client.get(
-            reverse("checklists:detail", args=[checklist.pk])
-        )
+        response = self.client.get(reverse("checklists:detail", args=[checklist.pk]))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Family Packing List")
@@ -176,14 +174,10 @@ class ChecklistTests(TestCase):
         item.refresh_from_db()
         self.assertEqual(item.description, "Oat milk")
 
-        response = self.client.post(
-            reverse("checklists:item_delete", args=[item.pk])
-        )
+        response = self.client.post(reverse("checklists:item_delete", args=[item.pk]))
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(
-            ChecklistItem.objects.filter(pk=item.pk).exists()
-        )
+        self.assertFalse(ChecklistItem.objects.filter(pk=item.pk).exists())
 
     def test_parent_can_delete_checklist(self):
         checklist = Checklist.objects.create(
@@ -192,14 +186,10 @@ class ChecklistTests(TestCase):
             created_by=self.parent,
         )
 
-        response = self.client.post(
-            reverse("checklists:delete", args=[checklist.pk])
-        )
+        response = self.client.post(reverse("checklists:delete", args=[checklist.pk]))
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(
-            Checklist.objects.filter(pk=checklist.pk).exists()
-        )
+        self.assertFalse(Checklist.objects.filter(pk=checklist.pk).exists())
 
     def test_accepted_kid_can_view_and_complete_items(self):
         User = get_user_model()
@@ -228,14 +218,10 @@ class ChecklistTests(TestCase):
 
         self.client.force_login(kid)
 
-        response = self.client.get(
-            reverse("checklists:detail", args=[checklist.pk])
-        )
+        response = self.client.get(reverse("checklists:detail", args=[checklist.pk]))
         self.assertEqual(response.status_code, 200)
 
-        response = self.client.post(
-            reverse("checklists:item_toggle", args=[item.pk])
-        )
+        response = self.client.post(reverse("checklists:item_toggle", args=[item.pk]))
         self.assertEqual(response.status_code, 302)
 
         item.refresh_from_db()
@@ -295,9 +281,7 @@ class ChecklistTests(TestCase):
 
         self.client.force_login(outsider)
 
-        response = self.client.get(
-            reverse("checklists:detail", args=[checklist.pk])
-        )
+        response = self.client.get(reverse("checklists:detail", args=[checklist.pk]))
 
         self.assertEqual(response.status_code, 404)
 
@@ -338,15 +322,12 @@ class ChecklistTests(TestCase):
             is_completed=False,
         )
 
-        response = self.client.get(
-            reverse("checklists:detail", args=[checklist.pk])
-        )
+        response = self.client.get(reverse("checklists:detail", args=[checklist.pk]))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["progress"], 50)
         self.assertEqual(response.context["completed_items"], 1)
         self.assertEqual(response.context["total_items"], 2)
-
 
     def test_pending_member_cannot_view_checklist(self):
         User = get_user_model()
@@ -371,9 +352,7 @@ class ChecklistTests(TestCase):
 
         self.client.force_login(pending_user)
 
-        response = self.client.get(
-            reverse("checklists:detail", args=[checklist.pk])
-        )
+        response = self.client.get(reverse("checklists:detail", args=[checklist.pk]))
 
         self.assertEqual(response.status_code, 404)
 
@@ -406,11 +385,7 @@ class ChecklistTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(
-            Checklist.objects.filter(
-                title="Invalid Checklist"
-            ).exists()
-        )
+        self.assertFalse(Checklist.objects.filter(title="Invalid Checklist").exists())
 
     def test_kid_cannot_delete_checklist_or_items(self):
         User = get_user_model()
@@ -440,14 +415,10 @@ class ChecklistTests(TestCase):
 
         self.client.force_login(kid)
 
-        response = self.client.post(
-            reverse("checklists:delete", args=[checklist.pk])
-        )
+        response = self.client.post(reverse("checklists:delete", args=[checklist.pk]))
         self.assertEqual(response.status_code, 404)
 
-        response = self.client.post(
-            reverse("checklists:item_delete", args=[item.pk])
-        )
+        response = self.client.post(reverse("checklists:item_delete", args=[item.pk]))
         self.assertEqual(response.status_code, 404)
 
         response = self.client.post(

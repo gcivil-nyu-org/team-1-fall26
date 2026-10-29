@@ -1,13 +1,17 @@
-"""Lay out one week as paint chips: a row per family member, a chip per day, deeper colour = fuller day."""
+"""Lay out one week as paint chips: a row per family member, a chip per day, deeper
+colour = fuller day.
+"""
 
 from datetime import datetime, time, timedelta, timezone as datetime_timezone
 
 from .timeline import lane_user_ids
 
 DAYS_IN_WEEK = 7
-# Chips show a few plans; the rest is counted ("+2 more") so a busy day keeps its height.
+# Chips show a few plans; the rest is counted ("+2 more") so a busy day keeps its
+# height.
 VISIBLE_ITEMS = 2
-# An event filling this much of a day (a trip, a school day) paints the chip at full depth.
+# An event filling this much of a day (a trip, a school day) paints the chip at full
+# depth.
 LONG_EVENT = timedelta(hours=6)
 FULL_LEVEL = 4
 
@@ -35,10 +39,16 @@ RAIL_LAST_HOUR = 24
 
 
 def build_today_rail(events, members, today, tz, now):
-    """Today's timed plans as top/height percentages of 07:00-24:00, coloured by their first member."""
+    """Today's timed plans as top/height percentages of 07:00-24:00, coloured by their
+    first member.
+    """
     day_start, _ = local_day_bounds(today, tz)
-    start = (day_start + timedelta(hours=RAIL_FIRST_HOUR)).astimezone(datetime_timezone.utc)
-    end = (day_start + timedelta(hours=RAIL_LAST_HOUR)).astimezone(datetime_timezone.utc)
+    start = (day_start + timedelta(hours=RAIL_FIRST_HOUR)).astimezone(
+        datetime_timezone.utc
+    )
+    end = (day_start + timedelta(hours=RAIL_LAST_HOUR)).astimezone(
+        datetime_timezone.utc
+    )
     span = (end - start).total_seconds()
 
     def percent(moment):
@@ -52,15 +62,22 @@ def build_today_rail(events, members, today, tz, now):
             continue
         people = [by_id[pk] for pk in lane_user_ids(event, by_id)]
         top = percent(event.starts_at)
-        items.append({
-            "event": event,
-            "people": people,
-            "member": people[0] if people else None,
-            "top": top,
-            "height": round(percent(event.ends_at) - top, 3),
-        })
+        items.append(
+            {
+                "event": event,
+                "people": people,
+                "member": people[0] if people else None,
+                "top": top,
+                "height": round(percent(event.ends_at) - top, 3),
+            }
+        )
     hours = [
-        {"hour": hour % 24, "top": round((hour - RAIL_FIRST_HOUR) / (RAIL_LAST_HOUR - RAIL_FIRST_HOUR) * 100, 3)}
+        {
+            "hour": hour % 24,
+            "top": round(
+                (hour - RAIL_FIRST_HOUR) / (RAIL_LAST_HOUR - RAIL_FIRST_HOUR) * 100, 3
+            ),
+        }
         for hour in range(RAIL_FIRST_HOUR, RAIL_LAST_HOUR, 2)
     ]
     place_side_by_side(items)
@@ -68,13 +85,15 @@ def build_today_rail(events, members, today, tz, now):
     return {"items": items, "hours": hours, "now_top": now_top}
 
 
-# A plan is drawn at least this tall (a 24px tap target on the 612px rail), so short plans
+# A plan is drawn at least this tall (a 24px tap target on the 612px rail), so short
+# plans
 # that touch in time can still collide on screen.
 RAIL_MIN_PERCENT = 4
 
 
 def place_side_by_side(items, min_percent=RAIL_MIN_PERCENT):
-    """Give plans that would overlap on screen their own column, sharing the width in that cluster.
+    """Give plans that would overlap on screen their own column, sharing the width in
+    that cluster.
 
     `min_percent` is the smallest height a plan is drawn at, as a share of the axis.
     """
@@ -86,7 +105,9 @@ def place_side_by_side(items, min_percent=RAIL_MIN_PERCENT):
             clusters.append({"items": [], "column_ends": [], "end": bottom})
         cluster = clusters[-1]
         ends = cluster["column_ends"]
-        column = next((index for index, end in enumerate(ends) if end <= item["top"]), len(ends))
+        column = next(
+            (index for index, end in enumerate(ends) if end <= item["top"]), len(ends)
+        )
         if column == len(ends):
             ends.append(bottom)
         else:
@@ -102,8 +123,10 @@ def place_side_by_side(items, min_percent=RAIL_MIN_PERCENT):
 def build_week(events, members, week_start, tz, today):
     """Rows of seven day chips, one row per member.
 
-    Events without participants (a family dinner) land on every member's chip, matching how a
-    family reads them. `events` should already be limited to the week and prefetch participants.
+    Events without participants (a family dinner) land on every member's chip, matching
+    how a
+    family reads them. `events` should already be limited to the week and prefetch
+    participants.
     """
     days = []
     for offset in range(DAYS_IN_WEEK):
@@ -124,24 +147,38 @@ def build_week(events, members, week_start, tz, today):
                     continue
                 if not (event.starts_at < day["end"] and event.ends_at > day["start"]):
                     continue
-                # Subtract in UTC: datetimes sharing a ZoneInfo ignore DST changes when subtracted.
-                overlap_start = max(event.starts_at, day["start"]).astimezone(datetime_timezone.utc)
-                overlap_end = min(event.ends_at, day["end"]).astimezone(datetime_timezone.utc)
-                items.append({
-                    "event": event,
-                    "all_day": event.starts_at <= day["start"] and event.ends_at >= day["end"],
-                    "starts_earlier": event.starts_at < day["start"],
-                    "is_long": overlap_end - overlap_start >= LONG_EVENT,
-                    "tentative": event.is_tentative,
-                })
-            chips.append({
-                **day,
-                "level": chip_level(items),
-                "items": items[:VISIBLE_ITEMS],
-                "more": max(len(items) - VISIBLE_ITEMS, 0),
-                "count": len(items),
-                # A day whose only plans are unconfirmed gets a dashed edge.
-                "tentative": bool(items) and all(item["tentative"] for item in items),
-            })
+                # Subtract in UTC: datetimes sharing a ZoneInfo ignore DST changes when
+                # subtracted.
+                overlap_start = max(event.starts_at, day["start"]).astimezone(
+                    datetime_timezone.utc
+                )
+                overlap_end = min(event.ends_at, day["end"]).astimezone(
+                    datetime_timezone.utc
+                )
+                items.append(
+                    {
+                        "event": event,
+                        "all_day": (
+                            event.starts_at <= day["start"]
+                            and event.ends_at >= day["end"]
+                        ),
+                        "starts_earlier": event.starts_at < day["start"],
+                        "is_long": overlap_end - overlap_start >= LONG_EVENT,
+                        "tentative": event.is_tentative,
+                    }
+                )
+            chips.append(
+                {
+                    **day,
+                    "level": chip_level(items),
+                    "items": items[:VISIBLE_ITEMS],
+                    "more": max(len(items) - VISIBLE_ITEMS, 0),
+                    "count": len(items),
+                    # A day whose only plans are unconfirmed gets a dashed edge.
+                    "tentative": (
+                        bool(items) and all(item["tentative"] for item in items)
+                    ),
+                }
+            )
         rows.append({**member, "chips": chips})
     return {"days": days, "rows": rows}
