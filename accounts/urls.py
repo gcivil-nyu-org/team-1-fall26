@@ -37,6 +37,11 @@ urlpatterns = [
         name="dashboard",
     ),
     path(
+        "dashboard/my-day/seen/",
+        views.kid_day_seen,
+        name="kid_day_seen",
+    ),
+    path(
         "profile/",
         views.profile,
         name="profile",

@@ -11,7 +11,7 @@ from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError, transaction
 from django.db.models import Q
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -21,6 +21,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from calendars import google
 from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
+from events.briefing import build_kid_briefing
 from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
@@ -171,6 +172,7 @@ def _kid_context(request, context):
         .filter(workspace=context["workspace"], ends_at__gt=timezone.now())
         .filter(Q(participants=request.user) | Q(participants__isnull=True))
         .distinct()
+        .select_related("dropoff_driver", "pickup_driver")
         .order_by("starts_at", "pk")[:3]
     )
     return {
@@ -180,7 +182,30 @@ def _kid_context(request, context):
         "tomorrow_chip": chips.get(today + timedelta(days=1)),
         "kid_upcoming": upcoming,
         "family": family_members([context["workspace"]]),
+        "briefing": _kid_briefing(request, context["workspace"]),
     }
+
+
+def _kid_briefing(request, workspace):
+    """The "Your day" pop-up, opened by itself on the kid's first visit of each local day."""
+    briefing = build_kid_briefing(
+        request.user, workspace, timezone.now(), timezone.get_current_timezone(),
+    )
+    seen_on = Membership.objects.filter(user=request.user).values_list("briefing_seen_on", flat=True).first()
+    briefing["auto_open"] = seen_on != timezone.localdate()
+    return briefing
+
+
+@login_required
+@require_POST
+def kid_day_seen(request):
+    """Keep today's "Your day" pop-up closed once the kid has closed it; it opens again tomorrow."""
+    Membership.objects.filter(user=request.user, role=Membership.Role.KID).update(
+        briefing_seen_on=timezone.localdate(),
+    )
+    if request.headers.get("X-Requested-With") == "fetch":
+        return HttpResponse(status=204)
+    return redirect("accounts:dashboard")
 
 
 def _week_context(request, workspace):

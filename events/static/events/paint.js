@@ -209,6 +209,44 @@
         });
     });
 
+    // ---- The kid's "Your day" pop-up: opens by itself on the first visit of the day and from the
+    // "Your day" button. Closing it in any way (Got it, the X, Escape) tells the server once, so it
+    // stays closed until tomorrow. Without script the dashboard still shows the same plans. ----
+    ready(function () {
+        var day = document.getElementById("my-day");
+        if (!day || !day.showModal) return;
+        var form = day.querySelector("form");
+        var title = document.getElementById("my-day-title");
+        var opener = document.querySelector("[data-open-my-day]");
+        var returnFocus = null, told = false;
+        function open(from) {
+            returnFocus = from || null;
+            day.showModal();
+            title.focus({ preventScroll: true });
+        }
+        if (opener) {
+            opener.hidden = false;
+            opener.addEventListener("click", function () { open(opener); });
+        }
+        day.querySelector("[data-close]").addEventListener("click", function () { day.close(); });
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            day.close();
+        });
+        day.addEventListener("close", function () {
+            if (!told) {
+                told = true;
+                fetch(form.action, {
+                    method: "POST", body: new FormData(form), credentials: "same-origin",
+                    headers: { "X-Requested-With": "fetch" },
+                }).catch(function () { told = false; });
+            }
+            var target = returnFocus && returnFocus.isConnected ? returnFocus : opener;
+            if (target && !target.hidden) target.focus();
+        });
+        if (day.hasAttribute("data-auto-open")) open(null);
+    });
+
     // ---- The plan finder on the schedule list ----
     ready(function () {
         var input = document.querySelector("[data-find-input]");

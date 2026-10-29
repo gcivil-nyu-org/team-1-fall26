@@ -66,6 +66,8 @@ class Membership(models.Model):
 
     invited_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
+    # The local day a kid last closed their "Your day" briefing; it opens again the next day.
+    briefing_seen_on = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ["role", "invited_at"]

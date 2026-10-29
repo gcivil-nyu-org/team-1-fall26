@@ -1,0 +1,41 @@
+{% load paint %}
+{% comment %}
+    The kid's "Your day" pop-up: what is left today (or tomorrow, once today is done) and who drives.
+    paint.js opens it by itself when data-auto-open is set (the first visit of the local day) and
+    from the "Your day" button; closing it in any way posts the form, so it stays closed until tomorrow.
+{% endcomment %}
+<dialog class="my-day" id="my-day" aria-labelledby="my-day-title"{% if me_row %} data-hue="{{ me_row.hue }}"{% if me_row.custom_color %} style="--hue: {{ me_row.custom_color }}"{% endif %}{% endif %}{% if briefing.auto_open %} data-auto-open{% endif %}>
+    <div class="my-day-head">
+        <div>
+            <p class="my-day-date">{% if briefing.is_today %}Today, {% else %}Tomorrow, {% endif %}{{ briefing.day|date:"l j F" }}</p>
+            <h2 id="my-day-title" tabindex="-1">{% if briefing.is_today %}Your day{% else %}Your day tomorrow{% endif %}, <span translate="no">{{ request.user|person }}</span></h2>
+            <p class="my-day-lede">{% with count=briefing.items|length %}{% if briefing.is_today %}{% if count == 1 %}You have 1 plan left today.{% else %}You have {{ count }} plans left today.{% endif %}{% elif briefing.done_today %}You’re all done for today. Here’s tomorrow.{% else %}Today is a free day. Here’s tomorrow.{% endif %}{% endwith %}</p>
+        </div>
+        <button class="x" type="button" data-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
+    </div>
+    <ol class="my-day-list">
+        {% for item in briefing.items %}{% with event=item.event %}
+            <li class="my-day-plan{% if event.is_tentative %} tent{% endif %}">
+                <p class="my-day-when">{% if item.all_day %}All day{% elif item.starts_earlier %}Already started{% else %}{{ event.starts_at|clock }}{% endif %}</p>
+                <div>
+                    <b>{{ event.title }}</b>
+                    {% if event.is_tentative %}<span class="my-day-maybe">Not sure yet</span>{% endif %}
+                    {% if event.location %}<span class="my-day-where"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 14.5s4.5-4.2 4.5-8a4.5 4.5 0 0 0-9 0c0 3.8 4.5 8 4.5 8z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.5" r="1.6" fill="currentColor"/></svg>{{ event.location }}</span>{% endif %}
+                    {% if event.requires_transport %}
+                        <dl class="my-day-ride">
+                            <div><dt>Drop-off</dt><dd>{% if event.dropoff_driver %}{% if event.dropoff_driver == request.user %}You{% else %}<span translate="no">{{ event.dropoff_driver|person }}</span>{% endif %}{% else %}<span class="my-day-ask">Not decided yet, ask a parent</span>{% endif %}</dd></div>
+                            <div><dt>Pickup</dt><dd>{% if event.pickup_driver %}{% if event.pickup_driver == request.user %}You{% else %}<span translate="no">{{ event.pickup_driver|person }}</span>{% endif %}{% else %}<span class="my-day-ask">Not decided yet, ask a parent</span>{% endif %}</dd></div>
+                            <div><dt>Getting there</dt><dd>{{ event.get_transport_mode_display }}</dd></div>
+                        </dl>
+                    {% endif %}
+                </div>
+            </li>
+        {% endwith %}{% empty %}
+            <li class="my-day-free">Nothing planned. Free time!</li>
+        {% endfor %}
+    </ol>
+    <form class="my-day-actions" method="post" action="{% url 'accounts:kid_day_seen' %}">
+        {% csrf_token %}
+        <button class="btn" type="submit">Got it</button>
+    </form>
+</dialog>
