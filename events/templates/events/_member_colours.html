@@ -1,7 +1,7 @@
 {% load paint %}{% comment %}Each family member's colour, inside the header's Colors menu (and the account menu
 on phones), laid out like the deck rows above it: the name, then the current colour. Clicking
 the swatch opens the colour picker; paint.js saves the change at once. Without script, the
-Save button below does it. Shown on the schedule pages, to parents.{% endcomment %}{% if color_members and color_workspace %}
+Save button below does it. Shown on every page, to parents.{% endcomment %}{% with color_members=shell.color_members color_workspace=shell.color_workspace %}{% if color_members and color_workspace %}
 <div class="menu-colours">
     <p>Individual colors</p>
     <form class="member-colours" method="post" action="{% url 'events:member_colors' color_workspace.pk %}" data-colours data-autosave>
@@ -18,4 +18,4 @@ Save button below does it. Shown on the schedule pages, to parents.{% endcomment
         <noscript><button class="btn btn-quiet" type="submit">Save colours</button></noscript>
     </form>
 </div>
-{% endif %}
+{% endif %}{% endwith %}

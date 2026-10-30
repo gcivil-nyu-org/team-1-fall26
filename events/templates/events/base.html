@@ -42,7 +42,7 @@
         </nav>
         {% endif %}
         <div class="bar-end">
-            {% block header_tools %}{% endblock %}
+            {% if shell %}{% include 'events/_date_menu.html' %}{% endif %}
             {% if shell.palette_url %}
                 <details class="palette-tab">
                     <summary><span class="deck-strip" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="palette-label">Colors</span></summary>

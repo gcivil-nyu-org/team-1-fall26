@@ -356,11 +356,12 @@ def event_list(request, workspace_id=None):
     accessible_events = family_events(request.user)
     if workspace:
         accessible_events = accessible_events.filter(workspace=workspace)
-    form = EventScheduleForm(request.GET)
+    form = EventScheduleForm(request.GET, auto_id="date_menu_%s")
     events = Event.objects.none()
     caregiver_workspaces = family_workspaces(request.user, caregivers_only=True)
     context = {
         "form": form,
+        "schedule_form": form,
         "workspace": workspace,
         "timezone_name": timezone.get_current_timezone_name(),
         "can_create": (
