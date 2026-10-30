@@ -25,6 +25,9 @@ env:
     - POSTGRES_USER=postgres
     - POSTGRES_HOST=localhost
     - POSTGRES_PORT=5432
+    # travis-ci.com builds need "travis-pro"; with the default "travis-ci", Coveralls files
+    # push builds under no branch and the develop/main badges stay "unknown".
+    - COVERALLS_SERVICE_NAME=travis-pro
 
 install:
   - pip install --require-hashes -r requirements.txt
