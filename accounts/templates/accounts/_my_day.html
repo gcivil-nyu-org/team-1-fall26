@@ -63,7 +63,7 @@
                 </div>
             </li>
         {% endwith %}{% empty %}
-            <li class="my-day-free">Nothing planned. Free time!</li>
+            <li class="my-day-free">Nothing planned. Free time.</li>
         {% endfor %}
     </ol>
     <form class="my-day-actions" method="post" action="{% url 'accounts:day_seen' %}">

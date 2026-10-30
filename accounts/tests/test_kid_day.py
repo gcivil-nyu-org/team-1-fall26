@@ -222,7 +222,7 @@ class KidDayTests(TestCase):
     def test_a_free_day_says_so(self):
         pop_up = self.pop_up(self.dashboard(MORNING))
         self.assertIn("Today is a free day", pop_up)
-        self.assertIn("Nothing planned. Free time!", pop_up)
+        self.assertIn("Nothing planned. Free time.", pop_up)
 
     def test_all_day_started_earlier_and_not_sure_yet(self):
         self.plan(
