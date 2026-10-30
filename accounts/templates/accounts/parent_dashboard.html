@@ -47,8 +47,6 @@
             <p class="sub">{% if rail.items %}{{ rail.items|length }} plan{{ rail.items|length|pluralize }} across the family{% else %}Nothing planned today{% endif %}</p>
             <div class="tl-rail">
                 {% for hour in rail.hours %}<i style="top:{{ hour.top }}%"><span data-clock="{{ hour.hour|stringformat:'02d' }}:00" data-axis>{{ hour.hour|stringformat:"02d" }}:00</span></i>{% endfor %}
-                {# The rail ends at midnight: label the bottom edge so the evening is closed off. #}
-                <i style="top:100%"><span data-clock="00:00" data-axis>00:00</span></i>
                 {% for item in rail.items %}
                     <a class="ev{% if item.event.is_tentative %} tent{% endif %}" data-hue="{% if item.member %}{{ item.member.hue }}{% else %}a{% endif %}" style="{% if item.member.custom_color %}--hue:{{ item.member.custom_color }};{% endif %}top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}" href="{% url 'events:detail' item.event.pk %}" data-dialog>{{ item.event.title }}{% if item.event.is_tentative %} (not confirmed){% endif %}{% if item.people %}, {% for member in item.people %}{{ member.user|person }}{% if not forloop.last %} and {% endif %}{% endfor %}{% endif %}, <time data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time></a>
                 {% endfor %}

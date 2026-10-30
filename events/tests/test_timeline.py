@@ -223,18 +223,22 @@ class DayTimelineTests(TestCase):
         self.assertEqual(self.lane(reloaded, self.kid)["color"], "#ffb74d")
         self.assertEqual(self.lane(reloaded, self.admin)["color"], "#c62828")
 
-    def test_colour_editor_offers_only_self_and_kids(self):
+    def test_colour_editor_offers_every_family_member(self):
         members = self.day("2026-10-23").context["color_members"]
         self.assertEqual(
-            [member["user"] for member in members], [self.parent, self.kid]
+            [member["user"] for member in members],
+            [self.parent, self.admin, self.kid],
         )
 
-    def test_parent_cannot_change_another_parents_colour(self):
+    def test_parent_can_change_another_parents_colour(self):
         response = self.client.post(
-            self.colors_url, {f"color-{self.admin.pk}": "#000000"}
+            self.colors_url, {f"color-{self.admin.pk}": "#123456"}
         )
-        self.assertEqual(response.status_code, 403)
-        self.assertFalse(MemberColor.objects.exists())
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            MemberColor.objects.get(user=self.admin, workspace=self.workspace).color,
+            "#123456",
+        )
 
     def test_kid_cannot_change_colours(self):
         self.client.force_login(self.kid)

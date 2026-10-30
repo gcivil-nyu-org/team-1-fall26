@@ -6,19 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffffff">
     <title>{% block title %}Syncmily{% endblock %}</title>
-    <script src="{% static 'events/theme_boot.js' %}?v=1"></script>
+    <script src="{% asset 'events/theme_boot.js' %}"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&amp;display=swap">
     {% comment %}Every page now extends _paint_page.html. The legacy_* blocks stay empty for templates that
     still override them; the old stylesheets, interface.js and its planner dialog are no longer loaded.{% endcomment %}
     {% block legacy_css %}{% endblock %}
-    <link rel="stylesheet" href="{% static 'events/shell.css' %}?v=6">
-    <link rel="stylesheet" href="{% static 'events/drivers.css' %}?v=3">
+    <link rel="stylesheet" href="{% asset 'events/shell.css' %}">
+    <link rel="stylesheet" href="{% asset 'events/drivers.css' %}">
     {% block page_css %}{% endblock %}
 
-    <script src="{% static 'events/shell.js' %}?v=2" defer></script>
-    <script src="{% static 'events/liquid_glass.js' %}?v=2" defer></script>
+    <script src="{% asset 'events/shell.js' %}" defer></script>
+    <script src="{% asset 'events/liquid_glass.js' %}" defer></script>
     {% block legacy_js %}{% endblock %}
     {% block shell_js %}{% endblock %}
 
@@ -42,7 +42,7 @@
         </nav>
         {% endif %}
         <div class="bar-end">
-            {% block header_tools %}{% endblock %}
+            {% if shell %}{% include 'events/_date_menu.html' %}{% endif %}
             {% if shell.palette_url %}
                 <details class="palette-tab">
                     <summary><span class="deck-strip" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="palette-label">Colors</span></summary>
@@ -65,7 +65,6 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button type="submit">{% if shell.calendar_connection %}Switch calendar account{% else %}Connect Google Calendar{% endif %}</button>
-                                {% if shell.calendar_connection.account_email %}<p class="acct-note" translate="no">{{ shell.calendar_connection.account_email }}</p>{% endif %}
                             </form>
                         {% endif %}
                         {% if shell.palette_url %}<div class="acct-palette"><p>{{ shell.palette_title }}</p>{% include 'events/_palette_options.html' %}{% include 'events/_member_colours.html' %}</div>{% endif %}

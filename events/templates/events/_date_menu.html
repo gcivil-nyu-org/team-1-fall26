@@ -1,0 +1,27 @@
+{% load tz %}{% comment %}The date and time zone picker in the header, on every page. It opens the family's
+schedule at the chosen date; on the schedule itself it keeps the current choices and opens
+when they are invalid.{% endcomment %}{% get_current_timezone as current_tz %}{% with date_form=schedule_form|default:shell.schedule_form %}
+<details class="date-tab"{% if date_form.errors %} open{% endif %}>
+    <summary><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="date-label">Change date or time zone</span></summary>
+    <div class="palette-menu date-menu">
+        <form class="date-form" method="get" action="{{ shell.schedule_url }}">
+            <div class="field">
+                <label for="{{ date_form.date.id_for_label }}">Date</label>
+                {{ date_form.date }}
+                {{ date_form.date.errors }}
+            </div>
+            <div class="field">
+                <label for="{{ date_form.timezone.id_for_label }}">Time zone</label>
+                {{ date_form.timezone }}
+                {{ date_form.timezone.errors }}
+            </div>
+            <div class="field">
+                <label for="{{ date_form.view.id_for_label }}">Show</label>
+                {{ date_form.view }}
+            </div>
+            <button class="btn" type="submit">Show</button>
+        </form>
+        <p>Times are shown in {% firstof timezone_name current_tz %}.</p>
+    </div>
+</details>
+{% endwith %}

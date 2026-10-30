@@ -356,11 +356,12 @@ def event_list(request, workspace_id=None):
     accessible_events = family_events(request.user)
     if workspace:
         accessible_events = accessible_events.filter(workspace=workspace)
-    form = EventScheduleForm(request.GET)
+    form = EventScheduleForm(request.GET, auto_id="date_menu_%s")
     events = Event.objects.none()
     caregiver_workspaces = family_workspaces(request.user, caregivers_only=True)
     context = {
         "form": form,
+        "schedule_form": form,
         "workspace": workspace,
         "timezone_name": timezone.get_current_timezone_name(),
         "can_create": (
@@ -465,7 +466,7 @@ def _add_people(page, workspace, user):
 @login_required(login_url="accounts:login")
 @require_POST
 def member_colors(request, workspace_id):
-    """Let a parent save their own schedule colour and their kids' colours."""
+    """Let a parent save any family member's schedule colour."""
     workspace = get_object_or_404(family_workspaces(request.user), pk=workspace_id)
     allowed = {
         str(member["user"].pk)
@@ -481,9 +482,7 @@ def member_colors(request, workspace_id):
             continue
         user_id = key.removeprefix("color-")
         if user_id not in allowed:
-            raise PermissionDenied(
-                "You can change only your own colour and your kids' colours."
-            )
+            raise PermissionDenied("You can change only your own family's colours.")
         if not HEX_COLOR.fullmatch(value):
             return HttpResponseBadRequest("Choose a colour like #c62828.")
         changes[user_id] = value.lower()

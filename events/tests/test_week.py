@@ -228,6 +228,27 @@ class WeekPageTests(TestCase):
         self.assertContains(response, "?week=2026-10-19")
         self.assertContains(response, "?week=2026-11-02")
 
+    def test_date_picker_is_on_the_week_page_and_opens_the_schedule(self):
+        response = self.client.get(self.url)
+        schedule = reverse("events:workspace_list", args=[self.workspace.pk])
+        self.assertContains(response, 'class="date-tab"')
+        self.assertContains(response, f'method="get" action="{schedule}"')
+        self.assertContains(response, 'id="date_menu_timezone"')
+
+    def test_individual_colors_are_in_the_header_on_the_week_page(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "Individual colors")
+        self.assertContains(response, f'name="color-{self.kid.pk}"')
+        self.client.force_login(self.kid)
+        self.assertNotContains(self.client.get(self.url), "Individual colors")
+
+    def test_today_rail_labels_12_am_once(self):
+        response = self.client.get(self.url)
+        content = response.content.decode()
+        rail = content[content.index('class="tl-rail"') :]
+        rail = rail[: rail.index("</div>")]
+        self.assertEqual(rail.count('data-clock="00:00"'), 1)
+
     def test_bad_or_far_off_week_falls_back_to_this_week(self):
         this_week = week_start_for(django_timezone.localdate())
         for value in ("not-a-date", "0001-01-01", "9999-12-31"):

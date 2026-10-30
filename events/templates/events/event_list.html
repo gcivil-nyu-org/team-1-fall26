@@ -2,31 +2,6 @@
 {% load tz paint %}
 {% block title %}{% with view=form.cleaned_data.view %}{% if form.errors %}Schedule{% elif view == 'day' %}{{ start_date|date:"l j F" }}{% elif view == 'week' %}Week of {{ start_date|date:"j F" }}{% else %}Coming up{% endif %}{% endwith %} | Syncmily{% endblock %}
 {% block add_event_query %}{% if create_query %}?{{ create_query }}{% endif %}{% endblock %}
-{% block header_tools %}{% if day or form.errors %}
-    <details class="date-tab"{% if form.errors %} open{% endif %}>
-        <summary><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="date-label">Change date or time zone</span></summary>
-        <div class="palette-menu date-menu">
-            <form class="date-form" method="get">
-                <div class="field">
-                    <label for="{{ form.date.id_for_label }}">Date</label>
-                    {{ form.date }}
-                    {{ form.date.errors }}
-                </div>
-                <div class="field">
-                    <label for="{{ form.timezone.id_for_label }}">Time zone</label>
-                    {{ form.timezone }}
-                    {{ form.timezone.errors }}
-                </div>
-                <div class="field">
-                    <label for="{{ form.view.id_for_label }}">Show</label>
-                    {{ form.view }}
-                </div>
-                <button class="btn" type="submit">Show</button>
-            </form>
-            <p>Times are shown in {{ timezone_name }}.</p>
-        </div>
-    </details>
-{% endif %}{% endblock %}
 {% block content %}
 {% with view=form.cleaned_data.view %}
     {% include 'events/_flashes.html' %}

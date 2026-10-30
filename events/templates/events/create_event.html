@@ -1,7 +1,7 @@
 {% extends 'events/_paint_page.html' %}
 {% load static tz paint %}
 {% block title %}Add event | Syncmily{% endblock %}
-{% block scripts %}<script src="{% static 'events/location_autocomplete.js' %}?v=3" defer></script>{% endblock %}
+{% block scripts %}<script src="{% asset 'events/location_autocomplete.js' %}" defer></script>{% endblock %}
 {% block content %}
     <div class="head" data-sheet-hide>
         <h1>Add event</h1>

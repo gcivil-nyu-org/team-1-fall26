@@ -146,6 +146,26 @@ class SchedulePageTests(FamilyMixin, TestCase):
         )
         self.assertContains(response, "Overall colors")
         self.assertContains(response, "Individual colors")
+        # One row per member with a swatch that saves on change: no Save button.
+        self.assertContains(response, 'class="member-colour"')
+        self.assertContains(response, "data-autosave")
+        self.assertNotContains(
+            response,
+            '<button class="btn btn-quiet" type="submit">Save colours</button></div>',
+        )
+
+    def test_stylesheets_carry_a_hash_of_their_content(self):
+        import hashlib
+        import re
+
+        from django.contrib.staticfiles import finders
+
+        content = self.client.get(self.url, {"view": "day"}).content.decode()
+        for path in ("events/shell.css", "events/paint.css", "events/paint.js"):
+            with open(finders.find(path), "rb") as handle:
+                digest = hashlib.sha256(handle.read()).hexdigest()[:10]
+            self.assertIn(f"{path}?v={digest}", content)
+        self.assertIsNone(re.search(r"\.(css|js)\?v=\d{1,3}\b", content))
 
 
 class VerticalDayTests(FamilyMixin, TestCase):
