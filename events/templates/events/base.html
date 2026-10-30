@@ -42,10 +42,11 @@
         </nav>
         {% endif %}
         <div class="bar-end">
+            {% block header_tools %}{% endblock %}
             {% if shell.palette_url %}
                 <details class="palette-tab">
                     <summary><span class="deck-strip" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="palette-label">Colors</span></summary>
-                    <div class="palette-menu"><p>{{ shell.palette_title }}</p>{% include 'events/_palette_options.html' %}</div>
+                    <div class="palette-menu"><p>{{ shell.palette_title }}</p>{% include 'events/_palette_options.html' %}{% include 'events/_member_colours.html' %}</div>
                 </details>
             {% endif %}
             {% block switches %}{% endblock %}
@@ -59,7 +60,15 @@
                     </summary>
                     <div class="acct-menu">
                         <a href="{% url 'accounts:profile' %}">Profile &amp; settings</a>
-                        {% if shell.palette_url %}<div class="acct-palette"><p>{{ shell.palette_title }}</p>{% include 'events/_palette_options.html' %}</div>{% endif %}
+                        {% if shell.calendar_workspace %}
+                            <form class="acct-calendar" method="post" action="{% url 'calendars:google_connect' shell.calendar_workspace.pk %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit">{% if shell.calendar_connection %}Switch calendar account{% else %}Connect Google Calendar{% endif %}</button>
+                                {% if shell.calendar_connection.account_email %}<p class="acct-note" translate="no">{{ shell.calendar_connection.account_email }}</p>{% endif %}
+                            </form>
+                        {% endif %}
+                        {% if shell.palette_url %}<div class="acct-palette"><p>{{ shell.palette_title }}</p>{% include 'events/_palette_options.html' %}{% include 'events/_member_colours.html' %}</div>{% endif %}
                         <form class="sign-out" method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
                     </div>
                 </details>

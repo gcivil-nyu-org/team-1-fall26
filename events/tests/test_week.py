@@ -374,7 +374,7 @@ class PaletteTests(TestCase):
         page = self.client.get(reverse("accounts:dashboard"))
         self.assertContains(page, 'data-deck="bold"')
         self.assertContains(page, "My colors")
-        self.assertNotContains(page, "Family colors")
+        self.assertNotContains(page, "Overall colors")
         self.assertEqual(
             self.client.post(self.url, {"palette": "garden"}).status_code, 404
         )

@@ -123,17 +123,29 @@ class SchedulePageTests(FamilyMixin, TestCase):
 
     def test_parents_get_the_colour_editor_and_kids_do_not(self):
         response = self.client.get(self.url, {"view": "day"})
-        self.assertContains(response, "Change colours")
+        self.assertContains(response, "Individual colors")
         self.assertContains(response, 'name="color-%s"' % self.ana.pk)
         self.client.force_login(self.lucia)
         self.assertNotContains(
-            self.client.get(self.url, {"view": "day"}), "Change colours"
+            self.client.get(self.url, {"view": "day"}), "Individual colors"
         )
 
     def test_bad_date_keeps_the_page_and_opens_the_date_form(self):
         response = self.client.get(self.url, {"timezone": "Mars/Base"})
         self.assertPaint(response)
-        self.assertContains(response, '<details class="disclose" open>')
+        self.assertContains(response, '<details class="date-tab" open>')
+
+    def test_day_view_keeps_its_tools_in_the_header(self):
+        response = self.client.get(self.url, {"view": "day"})
+        content = response.content.decode()
+        self.assertNotContains(response, 'class="foot-tools"')
+        self.assertNotContains(response, "Change Google Account")
+        # Date and time zone comes first, then Colors with both kinds of colour.
+        self.assertLess(
+            content.index('class="date-tab"'), content.index('class="palette-tab"')
+        )
+        self.assertContains(response, "Overall colors")
+        self.assertContains(response, "Individual colors")
 
 
 class VerticalDayTests(FamilyMixin, TestCase):

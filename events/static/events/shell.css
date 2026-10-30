@@ -243,10 +243,10 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .deck-strip i { width: 6px; height: 14px; }
 .deck-strip i:nth-child(1) { background: var(--a3); } .deck-strip i:nth-child(2) { background: var(--b3); }
 .deck-strip i:nth-child(3) { background: var(--c3); } .deck-strip i:nth-child(4) { background: var(--d3); }
-.bar .palette-tab { position: relative; margin: 0; padding: 0; border: 0; font-size: inherit; color: inherit; }
-.bar .palette-tab summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: var(--radius-control); color: var(--muted); font-size: 13px; cursor: pointer; }
-.bar .palette-tab summary::-webkit-details-marker { display: none; }
-.bar .palette-tab summary:hover, .bar .palette-tab[open] summary { color: var(--ink); background: var(--raised); }
+.bar .palette-tab, .bar .date-tab { position: relative; margin: 0; padding: 0; border: 0; font-size: inherit; color: inherit; }
+.bar .palette-tab summary, .bar .date-tab summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: var(--radius-control); color: var(--muted); font-size: 13px; cursor: pointer; }
+.bar .palette-tab summary::-webkit-details-marker, .bar .date-tab summary::-webkit-details-marker { display: none; }
+.bar .palette-tab summary:hover, .bar .palette-tab[open] summary, .bar .date-tab summary:hover, .bar .date-tab[open] summary { color: var(--ink); background: var(--raised); }
 .bar .palette-menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 8px); min-width: 200px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
 .bar .palette-menu p, .bar .acct-palette p { margin: 4px 10px 6px; color: var(--muted); font-size: 12px; font-weight: 500; }
 .bar .palette-options { display: grid; gap: 2px; margin: 0; }
@@ -255,9 +255,22 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .palette-options button[aria-pressed="true"] { font-weight: 600; }
 .bar .palette-options button[aria-pressed="true"]::after { content: "✓"; margin-left: auto; }
 .bar .acct-palette { display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
-@media (max-width: 1100px) { .bar .palette-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
+@media (max-width: 1100px) { .bar .palette-label, .bar .date-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
 /* Phones: the bar is full, so the deck choice moves into the account menu. */
 @media (max-width: 560px) { .bar .palette-tab { display: none; } .bar .acct-palette { display: block; } }
+/* Day view: the date and time zone form sits in a dropdown left of Colors, and stays on phones
+   as an icon. */
+.bar .date-tab summary svg { width: 16px; height: 16px; flex-shrink: 0; }
+.bar .date-menu { min-width: 260px; }
+.bar .date-form { display: grid; gap: 10px; margin: 6px 10px 10px; }
+.bar .date-form .field { display: grid; gap: 4px; margin: 0; }
+.bar .date-form .btn { justify-self: start; }
+/* Member colours, under the decks in the Colors menu (the account menu on phones). */
+.bar .menu-colours { min-width: 260px; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.bar .menu-colours .colours { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 0 10px 8px; }
+/* Google Calendar account, in the account menu on every page. */
+.bar .acct-calendar { margin: 0; }
+.bar .acct-note { margin: -2px 10px 6px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 
 /* Page loads: the selected pills slide into place, everything else cross-fades. */
 @view-transition { navigation: auto; }

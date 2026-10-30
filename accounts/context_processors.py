@@ -3,6 +3,7 @@
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
 
+from calendars.context import google_calendar_context
 from events.access import family_workspaces
 from events.timeline import family_members
 
@@ -30,7 +31,7 @@ def _shell(user):
         .exists()
     )
     palette = workspace.palette if workspace else Workspace.Palette.PRIMARIES
-    palette_url, palette_title = None, "Family colors"
+    palette_url, palette_title = None, "Overall colors"
     if can_create:
         palette_url = reverse("accounts:set_palette", args=[workspace.pk])
     elif workspace:
@@ -87,6 +88,8 @@ def _shell(user):
         "palette_url": palette_url,
         "palette_title": palette_title,
         "palettes": Workspace.Palette.choices,
+        # Switch (or connect) the Google Calendar account from the account menu.
+        **google_calendar_context(user, workspace),
     }
 
 
