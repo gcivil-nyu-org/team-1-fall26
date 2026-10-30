@@ -1,5 +1,6 @@
-{% load paint %}{% comment %}Time zone note, date and time zone, member colours and Google Calendar for the schedule pages.
-The day view shows it as the page footer; the list views show it in the side panel.{% endcomment %}
+{% load paint %}{% comment %}Time zone note and the date and time zone form, in the side panel of the list views. The day
+view has the same form in the header; member colours and the Google Calendar account live in
+the header menus.{% endcomment %}
         <p class="note">Times are shown in {{ timezone_name }}.{% if day.free_note %} {{ day.free_note }}{% endif %}</p>
         <div class="foot-tools">
             <details class="disclose"{% if form.errors %} open{% endif %}>
@@ -22,34 +23,6 @@ The day view shows it as the page footer; the list views show it in the side pan
                     <button class="btn" type="submit">Show</button>
                 </form>
             </details>
-            {% if color_members %}
-                <details class="disclose">
-                    <summary>Change colours</summary>
-                    <form class="inline-form colours" method="post" action="{% url 'events:member_colors' color_workspace.pk %}" data-colours>
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        {% for member in color_members %}
-                            <label class="colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
-                                <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}"{% if not member.custom_color %} data-deck{% endif %}>
-                                <span translate="no">{% if member.user == request.user %}You{% else %}{{ member.user|person }}{% endif %}</span>
-                            </label>
-                        {% endfor %}
-                        <button class="btn btn-quiet" type="submit">Save colours</button>
-                    </form>
-                </details>
-            {% endif %}
-            {% if calendar_workspace %}
-                <form class="calendar-account" method="post" action="{% url 'calendars:google_connect' calendar_workspace.pk %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    {% if calendar_connection %}
-                        <p class="note">Google Calendar{% if calendar_connection.account_email %}: <span translate="no">{{ calendar_connection.account_email }}</span>{% else %} connected{% endif %}</p>
-                        <button class="btn btn-quiet" type="submit">Change Google Account</button>
-                    {% else %}
-                        <button class="btn btn-quiet" type="submit">Connect Google Calendar</button>
-                    {% endif %}
-                </form>
-            {% endif %}
             {% if can_create and not workspace %}
                 <a class="btn btn-quiet" href="{% url 'events:choose_workspace' %}?{{ create_query }}" data-dialog>Add event to a family</a>
             {% endif %}

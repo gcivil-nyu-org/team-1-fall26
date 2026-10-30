@@ -34,12 +34,13 @@ def chip_level(items):
     return min(len(items), FULL_LEVEL)
 
 
-RAIL_FIRST_HOUR = 7
+# The whole day, labelled every hour, so early starts and late nights both show.
+RAIL_FIRST_HOUR = 0
 RAIL_LAST_HOUR = 24
 
 
 def build_today_rail(events, members, today, tz, now):
-    """Today's timed plans as top/height percentages of 07:00-24:00, coloured by their
+    """Today's timed plans as top/height percentages of 00:00-24:00, coloured by their
     first member.
     """
     day_start, _ = local_day_bounds(today, tz)
@@ -78,7 +79,7 @@ def build_today_rail(events, members, today, tz, now):
                 (hour - RAIL_FIRST_HOUR) / (RAIL_LAST_HOUR - RAIL_FIRST_HOUR) * 100, 3
             ),
         }
-        for hour in range(RAIL_FIRST_HOUR, RAIL_LAST_HOUR, 2)
+        for hour in range(RAIL_FIRST_HOUR, RAIL_LAST_HOUR)
     ]
     place_side_by_side(items)
     now_top = percent(now) if start <= now < end else None

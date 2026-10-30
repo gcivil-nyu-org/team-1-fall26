@@ -16,8 +16,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from accounts.models import MemberColor, Workspace
-from calendars.models import CalendarConnection
+from accounts.models import MemberColor
 
 from .access import family_events, family_workspaces
 from .day import vertical_day
@@ -426,7 +425,6 @@ def event_list(request, workspace_id=None):
     if not context.get("timeline"):
         _add_people(page, workspace, request.user)
     context["page"] = page
-    context.update(_google_calendar_context(request.user, workspace))
     return render(request, "events/event_list.html", context)
 
 
@@ -501,31 +499,3 @@ def member_colors(request, workspace_id):
     ):
         next_url = reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
     return redirect(next_url)
-
-
-def _google_calendar_context(user, workspace):
-    """The Google account shown on the schedule, and the workspace a (re)connect imports
-    into.
-    """
-    connection = (
-        CalendarConnection.objects.filter(
-            user=user, provider=CalendarConnection.Provider.GOOGLE
-        )
-        .select_related("workspace")
-        .first()
-    )
-    # Keep sending events where they already go; otherwise use this page's family, then
-    # any the user runs.
-    if (
-        connection
-        and connection.workspace
-        and connection.workspace.primary_admin_id == user.pk
-    ):
-        target = connection.workspace
-    elif workspace and workspace.primary_admin_id == user.pk:
-        target = workspace
-    else:
-        target = (
-            Workspace.objects.filter(primary_admin=user).order_by("created_at").first()
-        )
-    return {"calendar_connection": connection, "calendar_workspace": target}
