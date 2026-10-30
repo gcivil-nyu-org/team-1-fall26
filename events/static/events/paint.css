@@ -385,6 +385,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .paint .who-pick input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
 .who-pick .sw { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--s3, var(--control)); }
 .paint .who-pick label:has(input:checked) { background: var(--s4, var(--ink)); color: var(--s4t, var(--on-deep)); }
+[data-theme="dark"] .paint .who-pick label[data-hue]:not(:has(input:checked)) { background: color-mix(in oklab, var(--s5) 30%, var(--card)); color: var(--s2); }
 .who-pick label:has(input:checked) .sw::after { content: ""; width: 11px; height: 6px; margin-top: -3px; border: solid var(--paint-ink); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
 .who-pick label:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .who-pick label:hover { filter: brightness(.97); }
