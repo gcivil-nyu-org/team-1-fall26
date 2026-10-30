@@ -2,9 +2,14 @@
 labels.
 """
 
+import hashlib
 from datetime import timedelta
+from functools import lru_cache
 
 from django import template
+from django.conf import settings
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
 from django.utils.html import format_html
@@ -66,3 +71,21 @@ def member(value, members):
         return (members or {}).get(int(str(key)))
     except (TypeError, ValueError):
         return None
+
+
+@lru_cache(maxsize=None)
+def _content_hash(path):
+    found = finders.find(path)
+    if not found:
+        return "0"
+    with open(found, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()[:10]
+
+
+@register.simple_tag
+def asset(path):
+    """A static file's URL stamped with a hash of its content, so browsers fetch a new
+    copy whenever the file changes (nginx sends no cache headers, only an ETag).
+    """
+    digest = _content_hash.__wrapped__(path) if settings.DEBUG else _content_hash(path)
+    return f"{static(path)}?v={digest}"

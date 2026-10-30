@@ -266,11 +266,18 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .date-form .field { display: grid; gap: 4px; margin: 0; }
 .bar .date-form .btn { justify-self: start; }
 /* Member colours, under the decks in the Colors menu (the account menu on phones). */
-.bar .menu-colours { min-width: 260px; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
-.bar .menu-colours .colours { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 0 10px 8px; }
+.bar .menu-colours { min-width: 220px; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.bar .member-colours { display: grid; gap: 2px; margin: 0; }
+/* One row per member, like the deck rows: name, then a round swatch that opens the picker. */
+.bar .member-colour { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 10px; border-radius: var(--radius-control); color: var(--ink); font: 500 14px/20px var(--font); cursor: pointer; }
+.bar .member-colour:hover { background: var(--raised); }
+.bar .member-colour input[type="color"] { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin: 0 0 0 auto; padding: 0; border: 0; border-radius: 50%; background: none; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.bar .member-colour input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.bar .member-colour input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.bar .member-colour input[type="color"]::-moz-color-swatch { border: 0; border-radius: 50%; }
+.bar .member-colour input[type="color"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 /* Google Calendar account, in the account menu on every page. */
 .bar .acct-calendar { margin: 0; }
-.bar .acct-note { margin: -2px 10px 6px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 
 /* Page loads: the selected pills slide into place, everything else cross-fades. */
 @view-transition { navigation: auto; }
@@ -306,7 +313,7 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
   .bar .mark { min-width: 44px; min-height: 44px; }
   .bar .account summary.me { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
   .bar .btn.add-btn { height: 44px; }
-  .bar .acct-menu a, .bar .acct-menu button, .bar .palette-options button { min-height: 44px; }
+  .bar .acct-menu a, .bar .acct-menu button, .bar .palette-options button, .bar .member-colour { min-height: 44px; }
 }
 /* Only the narrowest phones drop the wordmark: icon + switches + add + avatar need ~390px. */
 @media (max-width: 440px) { .bar .mark .mark-text { display: none; } }

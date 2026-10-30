@@ -326,6 +326,28 @@
             form.addEventListener("submit", function () {
                 inputs.forEach(function (input) { input.disabled = input.value === input.dataset.initial; });
             });
+            // The header's Individual colors save as soon as the picker closes: only that
+            // member's colour is sent, then the page reloads so every chip shows it.
+            if (form.hasAttribute("data-autosave")) {
+                inputs.forEach(function (input) {
+                    input.addEventListener("change", function () {
+                        if (input.value === input.dataset.initial) return;
+                        var data = new FormData();
+                        data.append("csrfmiddlewaretoken", form.querySelector("[name=csrfmiddlewaretoken]").value);
+                        data.append("next", form.querySelector("[name=next]").value);
+                        data.append(input.name, input.value);
+                        fetch(form.action, {
+                            method: "POST", body: data, credentials: "same-origin",
+                            headers: { "X-Requested-With": "fetch" },
+                        }).then(function (response) {
+                            if (!response.ok) throw new Error(String(response.status));
+                            location.reload();
+                        }).catch(function () {
+                            input.value = input.dataset.initial;
+                        });
+                    });
+                });
+            }
             window.addEventListener("pageshow", function () {
                 inputs.forEach(function (input) { input.disabled = false; });
             });

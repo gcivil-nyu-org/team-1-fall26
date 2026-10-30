@@ -2,7 +2,7 @@
 {% load static paint %}
 {% block title %}{% if workspace %}Chat, {{ workspace.name }}{% else %}Household chat{% endif %} | Syncmily{% endblock %}
 {% block main_class %}page page-chat{% endblock %}
-{% block scripts %}{% if workspace %}<script src="{% static 'chat/chat_home.js' %}?v=2" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% if workspace %}<script src="{% asset 'chat/chat_home.js' %}" defer></script>{% endif %}{% endblock %}
 {% block content %}
 {% if workspace %}
     <div class="chat">

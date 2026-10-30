@@ -105,8 +105,8 @@ def family_members(workspaces):
 
 
 def editable_members(user, workspace, members):
-    """The members whose colour this user may change: themselves and the kids, if they
-    are a parent here.
+    """The members whose colour this user may change: everyone in the family, if they
+    are a parent here. Kids change no one's colour.
     """
     is_parent = (
         workspace.primary_admin_id == user.pk
@@ -119,12 +119,7 @@ def editable_members(user, workspace, members):
     )
     if not is_parent:
         return []
-    return [
-        member
-        for member in members
-        if member["workspace"].pk == workspace.pk
-        and (member["user"].pk == user.pk or member["is_kid"])
-    ]
+    return [member for member in members if member["workspace"].pk == workspace.pk]
 
 
 def lane_user_ids(event, member_ids):
