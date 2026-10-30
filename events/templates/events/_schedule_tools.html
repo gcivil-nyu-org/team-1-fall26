@@ -1,28 +1,7 @@
-{% load paint %}{% comment %}Time zone note and the date and time zone form, in the side panel of the list views. The day
-view has the same form in the header; member colours and the Google Calendar account live in
-the header menus.{% endcomment %}
+{% load paint %}{% comment %}Time zone note in the side panel of the list views. The date and time zone picker,
+member colours and the Google Calendar account live in the header menus on every page.{% endcomment %}
         <p class="note">Times are shown in {{ timezone_name }}.{% if day.free_note %} {{ day.free_note }}{% endif %}</p>
         <div class="foot-tools">
-            <details class="disclose"{% if form.errors %} open{% endif %}>
-                <summary>Change date or time zone</summary>
-                <form class="inline-form" method="get">
-                    <div class="field">
-                        <label for="{{ form.date.id_for_label }}">Date</label>
-                        {{ form.date }}
-                        {{ form.date.errors }}
-                    </div>
-                    <div class="field">
-                        <label for="{{ form.timezone.id_for_label }}">Time zone</label>
-                        {{ form.timezone }}
-                        {{ form.timezone.errors }}
-                    </div>
-                    <div class="field">
-                        <label for="{{ form.view.id_for_label }}">Show</label>
-                        {{ form.view }}
-                    </div>
-                    <button class="btn" type="submit">Show</button>
-                </form>
-            </details>
             {% if can_create and not workspace %}
                 <a class="btn btn-quiet" href="{% url 'events:choose_workspace' %}?{{ create_query }}" data-dialog>Add event to a family</a>
             {% endif %}

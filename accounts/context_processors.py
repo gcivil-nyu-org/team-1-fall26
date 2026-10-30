@@ -5,7 +5,8 @@ from django.utils.functional import SimpleLazyObject
 
 from calendars.context import google_calendar_context
 from events.access import family_workspaces
-from events.timeline import family_members
+from events.forms import EventScheduleForm
+from events.timeline import editable_members, family_members
 
 from .models import Membership, Workspace
 from .services import get_family_context
@@ -15,15 +16,12 @@ def _shell(user):
     family = get_family_context(user)
     workspace = family["workspace"] if family else None
     me = None
+    color_members = []
     if workspace:
-        me = next(
-            (
-                member
-                for member in family_members([workspace])
-                if member["user"].pk == user.pk
-            ),
-            None,
-        )
+        members = family_members([workspace])
+        me = next((member for member in members if member["user"].pk == user.pk), None)
+        # Individual colors in the Colors menu, on every page.
+        color_members = editable_members(user, workspace, members)
     can_create = (
         bool(workspace)
         and family_workspaces(user, caregivers_only=True)
@@ -56,6 +54,15 @@ def _shell(user):
         "workspace": workspace,
         "me": me,
         "week_url": reverse("accounts:dashboard"),
+        # The header's date and time zone picker opens this schedule from any page.
+        "schedule_url": (
+            reverse("events:workspace_list", args=[workspace.pk])
+            if workspace
+            else reverse("events:list")
+        ),
+        "schedule_form": EventScheduleForm(
+            initial={"view": "day"}, auto_id="date_menu_%s"
+        ),
         "day_url": (
             (
                 reverse("events:workspace_list", args=[workspace.pk])
@@ -88,6 +95,8 @@ def _shell(user):
         "palette_url": palette_url,
         "palette_title": palette_title,
         "palettes": Workspace.Palette.choices,
+        "color_members": color_members,
+        "color_workspace": workspace if color_members else None,
         # Switch (or connect) the Google Calendar account from the account menu.
         **google_calendar_context(user, workspace),
     }
