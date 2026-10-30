@@ -11,7 +11,7 @@ from accounts.models import MemberColor, Membership, Workspace
 
 from ..models import Event
 from ..timeline import DECK_HUES, family_members
-from ..week import build_week, chip_level, week_start_for
+from ..week import build_today_rail, build_week, chip_level, week_start_for
 
 NEW_YORK = ZoneInfo("America/New_York")
 
@@ -374,7 +374,7 @@ class PaletteTests(TestCase):
         page = self.client.get(reverse("accounts:dashboard"))
         self.assertContains(page, 'data-deck="bold"')
         self.assertContains(page, "My colors")
-        self.assertNotContains(page, "Family colors")
+        self.assertNotContains(page, "Overall colors")
         self.assertEqual(
             self.client.post(self.url, {"palette": "garden"}).status_code, 404
         )
@@ -471,3 +471,15 @@ class TentativeEventTests(TestCase):
             ends_at=django_timezone.now() + timedelta(hours=1),
         )
         self.assertFalse(event.is_tentative)
+
+
+class TodayRailTests(TestCase):
+    def test_rail_covers_the_whole_day_with_a_label_every_hour(self):
+        tz = ZoneInfo("America/New_York")
+        now = datetime(2026, 10, 30, 1, 30, tzinfo=tz)
+        rail = build_today_rail([], [], date(2026, 10, 30), tz, now)
+        self.assertEqual([hour["hour"] for hour in rail["hours"]], list(range(24)))
+        self.assertEqual(rail["hours"][0]["top"], 0)
+        self.assertEqual(rail["hours"][12]["top"], 50)
+        # 1:30 AM used to fall above a rail that started at 07:00.
+        self.assertEqual(rail["now_top"], 6.25)

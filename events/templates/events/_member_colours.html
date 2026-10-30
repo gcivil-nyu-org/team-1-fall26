@@ -1,0 +1,17 @@
+{% load paint %}{% comment %}Each family member's colour, inside the header's Colors menu (and the account menu
+on phones). Shown on the schedule pages, to the parents who may change them.{% endcomment %}{% if color_members and color_workspace %}
+<div class="menu-colours">
+    <p>Individual colors</p>
+    <form class="colours" method="post" action="{% url 'events:member_colors' color_workspace.pk %}" data-colours>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% for member in color_members %}
+            <label class="colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
+                <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}"{% if not member.custom_color %} data-deck{% endif %}>
+                <span translate="no">{% if member.user == request.user %}You{% else %}{{ member.user|person }}{% endif %}</span>
+            </label>
+        {% endfor %}
+        <button class="btn btn-quiet" type="submit">Save colours</button>
+    </form>
+</div>
+{% endif %}

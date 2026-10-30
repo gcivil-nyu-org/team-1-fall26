@@ -535,8 +535,22 @@ class GoogleConnectionViewTests(TestCase):
         )
         response = self.client.get(schedule)
         self.assertContains(response, "caregiver@example.com")
-        self.assertContains(response, "Change Google Account")
+        self.assertContains(response, "Switch calendar account")
         self.assertNotContains(response, "1//refresh")
+
+    def test_account_menu_offers_the_switch_on_every_page(self):
+        connect = reverse("calendars:google_connect", args=[self.workspace.pk])
+        CalendarConnection.objects.create(
+            user=self.user,
+            workspace=self.workspace,
+            provider=CalendarConnection.Provider.GOOGLE,
+            account_email="caregiver@example.com",
+            refresh_token="1//refresh",
+        )
+        response = self.client.get(reverse("accounts:profile"))
+        self.assertContains(response, "Switch calendar account")
+        self.assertContains(response, f'action="{connect}"')
+        self.assertContains(response, "caregiver@example.com")
 
     def test_schedule_hides_the_button_from_people_who_run_no_family(self):
         self.client.force_login(self.other_user)
