@@ -358,6 +358,8 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 @media (max-width: 560px) {
   .head-tools .seg { flex: 1 1 100%; }
   .head-tools .seg a { flex: 1; text-align: center; }
+  .facts .row { flex-wrap: wrap; }
+  .map-actions { width: 100%; justify-content: flex-start; }
 }
 
 /* ===== Event: details and the add-event form ===== */
@@ -365,7 +367,9 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .event-card .pills { margin-bottom: 8px; }
 .facts .row { min-height: 52px; }
 .facts .row:first-child { border-top: 0; }
-.map-link { flex: none; padding: 12px 0; font-weight: 500; }
+.map-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 16px; }
+.map-link { flex: none; padding: 6px 0; font-weight: 500; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.map-link:hover { text-decoration-thickness: 2px; }
 .tz-note { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .tz-note > summary { cursor: pointer; padding: 6px 0; }
 .tz-note > summary:hover { color: var(--ink); }

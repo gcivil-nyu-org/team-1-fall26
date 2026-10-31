@@ -119,6 +119,162 @@ class WorkspaceEventTests(TestCase):
             ends_at=datetime(2026, 10, 20, 19, tzinfo=timezone.utc),
         )
 
+    def test_event_directions_use_saved_coordinates(self):
+        event = self.create_saved_event("Family dinner", self.workspace, self.admin)
+        event.location = "Times Square, New York"
+        event.latitude = 40.758
+        event.longitude = -73.9855
+        event.save(update_fields=["location", "latitude", "longitude"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "https://www.google.com/maps/dir/?api=1&amp;destination=40.758,-73.9855",
+        )
+        self.assertContains(
+            response,
+            "https://maps.apple.com/?daddr=40.758,-73.9855",
+        )
+
+    def test_event_directions_fall_back_to_address(self):
+        event = self.create_saved_event("Family dinner", self.workspace, self.admin)
+        event.location = "Central Park, New York"
+        event.save(update_fields=["location"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertContains(
+            response,
+            "https://www.google.com/maps/dir/?api=1&amp;destination="
+            "Central%20Park%2C%20New%20York",
+        )
+        self.assertContains(
+            response,
+            "https://maps.apple.com/?daddr=Central%20Park%2C%20New%20York",
+        )
+
+    def test_event_directions_update_when_location_changes(self):
+        event = self.create_saved_event("Family dinner", self.workspace, self.admin)
+        event.location = "Times Square"
+        event.latitude = 40.758
+        event.longitude = -73.9855
+        event.save(update_fields=["location", "latitude", "longitude"])
+
+        event.location = "Central Park"
+        event.latitude = 40.7829
+        event.longitude = -73.9654
+        event.save(update_fields=["location", "latitude", "longitude"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertContains(response, "destination=40.7829,-73.9654")
+        self.assertContains(response, "daddr=40.7829,-73.9654")
+        self.assertNotContains(response, "destination=40.758,-73.9855")
+        self.assertNotContains(response, "daddr=40.758,-73.9855")
+
+    def test_event_without_location_has_no_directions(self):
+        event = self.create_saved_event("Family dinner", self.workspace, self.admin)
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Google Maps Directions")
+        self.assertNotContains(response, "Apple Maps Directions")
+        self.assertNotContains(response, "https://www.google.com/maps/dir/")
+        self.assertNotContains(response, "https://maps.apple.com/")
+
+    def test_event_directions_are_available_on_details_page(self):
+        event = self.create_saved_event("Soccer practice", self.workspace, self.admin)
+        event.location = "Brooklyn Bridge Park"
+        event.save(update_fields=["location"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertContains(response, "Brooklyn Bridge Park")
+        self.assertContains(response, "Google Maps Directions")
+        self.assertContains(response, "Apple Maps Directions")
+
+    def test_event_with_whitespace_location_has_no_directions(self):
+        event = self.create_saved_event("Family dinner", self.workspace, self.admin)
+        event.location = "   "
+        event.save(update_fields=["location"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Google Maps Directions")
+        self.assertNotContains(response, "Apple Maps Directions")
+
+    def test_event_with_cleared_location_and_stale_coordinates_has_no_directions(self):
+        event = self.create_saved_event("Family dinner", self.workspace, self.admin)
+        event.location = ""
+        event.latitude = 40.758
+        event.longitude = -73.9855
+        event.save(update_fields=["location", "latitude", "longitude"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Google Maps Directions")
+        self.assertNotContains(response, "Apple Maps Directions")
+
+    def test_event_with_partial_coordinates_falls_back_to_address(self):
+        event = self.create_saved_event("Library visit", self.workspace, self.admin)
+        event.location = "NYPL Main Branch"
+        event.latitude = 40.7532
+        event.longitude = None
+        event.save(update_fields=["location", "latitude", "longitude"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertContains(
+            response,
+            "https://www.google.com/maps/dir/?api=1&amp;destination="
+            "NYPL%20Main%20Branch",
+        )
+        self.assertContains(
+            response,
+            "https://maps.apple.com/?daddr=NYPL%20Main%20Branch",
+        )
+
+    def test_event_with_invalid_coordinate_ranges_falls_back_to_address(self):
+        event = self.create_saved_event("Museum trip", self.workspace, self.admin)
+        event.location = "Metropolitan Museum"
+        event.latitude = 95.0
+        event.longitude = -73.9632
+        event.save(update_fields=["location", "latitude", "longitude"])
+
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+
+        self.assertContains(
+            response,
+            "https://www.google.com/maps/dir/?api=1&amp;destination="
+            "Metropolitan%20Museum",
+        )
+        self.assertContains(
+            response,
+            "https://maps.apple.com/?daddr=Metropolitan%20Museum",
+        )
+
+    def test_event_directions_permission_enforcement(self):
+        event = self.create_saved_event("Private event", self.workspace, self.admin)
+        event.location = "Times Square"
+        event.save(update_fields=["location"])
+
+        # Signed-out user is redirected to login
+        self.client.logout()
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse("accounts:login")))
+
+        # Another user not in the workspace gets 404
+        self.client.force_login(self.other_user)
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+        self.assertEqual(response.status_code, 404)
+
+
     def test_primary_admin_can_save_without_global_event_permission(self):
         token = self.submission_token(self.create_url)
         response = self.client.post(
