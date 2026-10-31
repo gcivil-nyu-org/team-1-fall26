@@ -143,9 +143,8 @@ class Event(models.Model):
     @property
     def has_valid_coordinates(self):
         """Return True when both coordinates are finite numbers in bounds."""
-        if (
-            not isinstance(self.latitude, (int, float))
-            or not isinstance(self.longitude, (int, float))
+        if not isinstance(self.latitude, (int, float)) or not isinstance(
+            self.longitude, (int, float)
         ):
             return False
         return (

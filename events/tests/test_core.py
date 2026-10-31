@@ -274,7 +274,6 @@ class WorkspaceEventTests(TestCase):
         response = self.client.get(reverse("events:detail", args=[event.pk]))
         self.assertEqual(response.status_code, 404)
 
-
     def test_primary_admin_can_save_without_global_event_permission(self):
         token = self.submission_token(self.create_url)
         response = self.client.post(
