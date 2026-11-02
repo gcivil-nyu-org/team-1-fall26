@@ -1,17 +1,17 @@
 {% extends 'events/_paint_page.html' %}
 {% load static tz paint %}
-{% block title %}Add event | Syncmily{% endblock %}
+{% block title %}{% if is_edit %}Edit event{% else %}Add event{% endif %} | Syncmily{% endblock %}
 {% block scripts %}
 <script src="{% asset 'events/location_autocomplete.js' %}" defer></script>
 <script src="{% asset 'events/progressive_event_form.js' %}" defer></script>
 {% endblock %}
 {% block content %}
     <div class="head" data-sheet-hide>
-        <h1>Add event</h1>
+        <h1>{% if is_edit %}Edit event{% else %}Add event{% endif %}</h1>
         {% if workspace %}<span class="span">{{ workspace.name }}</span>{% endif %}
     </div>
     <div class="layout-form">
-    <form class="panel event-form" data-event-form id="event-form" method="post" action="{{ create_url }}">
+    <form class="panel event-form" data-event-form id="event-form" method="post" action="{{ form_url }}">
         {% csrf_token %}
         {% for field in form.hidden_fields %}{{ field }}{% endfor %}
         {% if form.errors %}
@@ -142,7 +142,7 @@
             {% timezone timezone_name %}
             <section class="review" id="event-review" aria-labelledby="review-heading">
                 <h2 id="review-heading">Review your event</h2>
-                <p class="span" role="status">{% if form.errors %}Not saved yet. Fix the details above, then check again.{% else %}Looks right? Add it, or change anything above.{% endif %}</p>
+                <p class="span" role="status">{% if form.errors %}Not saved yet. Fix the details above, then check again.{% else %}{% if is_edit %}Looks right? Save your changes, or change anything above.{% else %}Looks right? Add it, or change anything above.{% endif %}{% endif %}</p>
                 <div class="facts">
                     <div class="row"><div class="grow"><b>{{ event_details.title }}</b><small>{{ event_details.starts_at|date:"l j F" }}, {{ event_details.starts_at|clock }} to {% if event_details.starts_at|date:"Y-m-d" != event_details.ends_at|date:"Y-m-d" %}{{ event_details.ends_at|date:"D j M" }}, {% endif %}{{ event_details.ends_at|clock }} ({{ timezone_name }})</small></div></div>
                     <div class="row"><div class="grow"><b>Who’s going</b><small translate="no">{% for participant in form.cleaned_data.participants %}{{ participant|person }}{% if not forloop.last %}, {% endif %}{% empty %}Whole family{% endfor %}</small></div></div>
@@ -166,9 +166,9 @@
 
         <p class="sr-only" data-review-notice role="status"></p>
         <div class="actions">
-            <a class="link-quiet" href="{{ create_url }}" data-dialog>Start over</a>
+            {% if is_edit %}<a class="link-quiet" href="{% url 'events:detail' event.pk %}?timezone={{ event.timezone_name|urlencode }}" data-dialog>Cancel</a>{% else %}<a class="link-quiet" href="{{ form_url }}" data-dialog>Start over</a>{% endif %}
             <button class="btn btn-quiet" type="submit" name="action" value="preview">Check details</button>
-            {% if can_save %}<button class="btn" type="submit" name="action" value="save">Add event</button>{% endif %}
+            {% if can_save %}<button class="btn" type="submit" name="action" value="save">{% if is_edit %}Save changes{% else %}Add event{% endif %}</button>{% endif %}
         </div>
     </form>
     <aside class="panel helper" aria-labelledby="event-tips" data-sheet-hide>

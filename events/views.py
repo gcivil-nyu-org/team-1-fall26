@@ -174,7 +174,7 @@ def create_event(request, workspace_id=None):
                 if workspace and workspace.primary_admin_id == request.user.pk
                 else reverse("accounts:dashboard")
             ),
-            "create_url": (
+            "form_url": (
                 reverse("events:workspace_create", args=[workspace.pk])
                 if workspace
                 else reverse("events:create")
@@ -185,6 +185,94 @@ def create_event(request, workspace_id=None):
                 if workspace
                 else {}
             ),
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_http_methods(["GET", "POST"])
+def edit_event(request, pk):
+    event = get_object_or_404(
+        Event.objects.filter(
+            workspace__in=family_workspaces(request.user, caregivers_only=True),
+            source=Event.Source.SYNCMILY,
+        )
+        .select_related("workspace")
+        .prefetch_related("participants"),
+        pk=pk,
+    )
+    form = EventForm(
+        request.POST if request.method == "POST" else None,
+        instance=event,
+        user=request.user,
+    )
+    event_details = None
+    travel_checks = []
+    timezone_name = event.timezone_name
+    if request.method == "POST" and form.is_valid():
+        event_details = form.event
+        timezone_name = form.cleaned_data["timezone"]
+        travel_checks = find_travel_checks(
+            event_details, form.cleaned_data["participants"]
+        )
+        if request.POST.get("action") == "save":
+            try:
+                with transaction.atomic():
+                    event_details.full_clean()
+                    event_details.save(
+                        update_fields=[
+                            "title",
+                            "starts_at",
+                            "ends_at",
+                            "timezone_name",
+                            "location",
+                            "latitude",
+                            "longitude",
+                            "transport_mode",
+                            "is_tentative",
+                            "requires_transport",
+                            "dropoff_driver",
+                            "pickup_driver",
+                            "updated_at",
+                        ]
+                    )
+                    event_details.participants.set(form.cleaned_data["participants"])
+            except ValidationError as error:
+                form.add_error(None, error.messages)
+            except DatabaseError:
+                form.add_error(
+                    None,
+                    "The event could not be saved. Your details are still here."
+                    " Please try again.",
+                )
+            else:
+                messages.success(request, "Your event has been updated.")
+                detail_url = reverse("events:detail", args=[event.pk])
+                return redirect(
+                    f"{detail_url}?{urlencode({'timezone': timezone_name})}"
+                )
+    return render(
+        request,
+        "events/create_event.html",
+        {
+            "form": form,
+            "event": event,
+            "is_edit": True,
+            "event_details": event_details,
+            "timezone_name": timezone_name,
+            "can_save": True,
+            "workspace": event.workspace,
+            "workspace_url": (
+                reverse("accounts:workspace_detail", args=[event.workspace_id])
+                if event.workspace.primary_admin_id == request.user.pk
+                else reverse("accounts:dashboard")
+            ),
+            "form_url": reverse("events:edit", args=[event.pk]),
+            "travel_checks": travel_checks,
+            "members": {
+                member["user"].pk: member
+                for member in family_members([event.workspace])
+            },
         },
     )
 
@@ -362,6 +450,7 @@ def event_detail(request, pk):
             "timezone_form": timezone_form,
             "timezone_name": timezone_name,
             "can_create": can_manage_drivers,
+            "can_edit": can_manage_drivers and event.source == Event.Source.SYNCMILY,
             "driver_form": driver_form,
             "workspace_url": (
                 reverse("accounts:workspace_detail", args=[event.workspace_id])
