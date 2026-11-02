@@ -257,6 +257,65 @@ def edit_event(request, pk):
 
 
 @login_required(login_url="accounts:login")
+@require_http_methods(["GET", "POST"])
+def delete_event(request, pk):
+    event = get_object_or_404(
+        Event.objects.filter(
+            workspace__in=family_workspaces(request.user, caregivers_only=True),
+            source=Event.Source.SYNCMILY,
+        ).select_related("workspace"),
+        pk=pk,
+    )
+    timezone_data = request.GET.copy()
+    if not timezone_data.get("timezone"):
+        timezone_data["timezone"] = event.timezone_name
+    timezone_form = EventTimezoneForm(timezone_data)
+    timezone_name = event.timezone_name
+    if timezone_form.is_valid():
+        timezone_name = timezone_form.cleaned_data["timezone"]
+    timezone_query = urlencode({"timezone": timezone_name})
+    error = None
+    if request.method == "POST":
+        if request.POST.get("action") != "delete":
+            error = "Choose Delete event to confirm, or Keep event to go back."
+        else:
+            schedule_query = urlencode(
+                {
+                    "date": timezone.localtime(
+                        event.starts_at, ZoneInfo(timezone_name)
+                    ).date(),
+                    "view": "day",
+                    "timezone": timezone_name,
+                }
+            )
+            schedule_url = reverse("events:workspace_list", args=[event.workspace_id])
+            try:
+                with transaction.atomic():
+                    event.delete()
+            except DatabaseError:
+                event.pk = pk
+                error = "The event could not be deleted. Please try again."
+            else:
+                messages.success(request, "Your event has been deleted.")
+                return redirect(f"{schedule_url}?{schedule_query}")
+    return render(
+        request,
+        "events/delete_event.html",
+        {
+            "event": event,
+            "timezone_name": timezone_name,
+            "timezone_query": timezone_query,
+            "error": error,
+            "workspace_url": (
+                reverse("accounts:workspace_detail", args=[event.workspace_id])
+                if event.workspace.primary_admin_id == request.user.pk
+                else reverse("accounts:dashboard")
+            ),
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
 @require_GET
 def choose_workspace(request):
     form = EventWorkspaceForm(
