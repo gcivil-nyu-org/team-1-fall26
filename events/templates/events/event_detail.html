@@ -70,6 +70,7 @@
                 </details>
             {% endif %}
             <div class="actions start">
+                {% if can_edit %}<a class="btn" href="{% url 'events:edit' event.pk %}" data-dialog>Edit event</a>{% endif %}
                 <a class="btn btn-quiet" href="{{ list_url }}?{{ schedule_query }}">See the whole day</a>
                 {% if can_create %}<a class="btn btn-quiet" href="{% url 'events:workspace_create' event.workspace_id %}?{{ schedule_query }}" data-dialog>Add another event that day</a>{% endif %}
             </div>
