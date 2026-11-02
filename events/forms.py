@@ -1,3 +1,4 @@
+from copy import copy
 from datetime import datetime, time, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo, available_timezones
@@ -226,7 +227,37 @@ class EventForm(EventTimezoneForm):
         ),
     )
 
-    def __init__(self, *args, user=None, workspace=None, **kwargs):
+    def __init__(self, *args, user=None, workspace=None, instance=None, **kwargs):
+        self.instance = instance
+        if instance is not None:
+            workspace = instance.workspace
+            selected_timezone = ZoneInfo(instance.timezone_name)
+            starts_at = timezone.localtime(instance.starts_at, selected_timezone)
+            ends_at = timezone.localtime(instance.ends_at, selected_timezone)
+            initial = {
+                name: getattr(instance, name)
+                for name in (
+                    "title",
+                    "location",
+                    "latitude",
+                    "longitude",
+                    "transport_mode",
+                    "is_tentative",
+                    "requires_transport",
+                )
+            }
+            initial.update(
+                date=starts_at.date(),
+                start_time=starts_at.time(),
+                end_date=ends_at.date() if ends_at.date() != starts_at.date() else None,
+                end_time=ends_at.time(),
+                timezone=instance.timezone_name,
+                participants=list(instance.participants.values_list("pk", flat=True)),
+                dropoff_driver=instance.dropoff_driver_id,
+                pickup_driver=instance.pickup_driver_id,
+            )
+            initial.update(kwargs.pop("initial", {}))
+            kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
 
         self.user = user if user is not None and user.is_authenticated else None
@@ -242,14 +273,17 @@ class EventForm(EventTimezoneForm):
 
         self.event = None
 
-        self.fields["submission_token"].initial = signing.dumps(
-            {
-                "id": str(uuid4()),
-                "user": self.user.pk if self.user else None,
-                "workspace": str(workspace.pk) if workspace else None,
-            },
-            salt="events.create",
-        )
+        if instance is None:
+            self.fields["submission_token"].initial = signing.dumps(
+                {
+                    "id": str(uuid4()),
+                    "user": self.user.pk if self.user else None,
+                    "workspace": str(workspace.pk) if workspace else None,
+                },
+                salt="events.create",
+            )
+        else:
+            self.fields.pop("submission_token")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -327,9 +361,12 @@ class EventForm(EventTimezoneForm):
         cleaned_data["pickup_driver"] = pickup_driver
 
         # Construct the event with all selected details.
-        event = Event(
-            created_by=self.user,
-            workspace=self.workspace,
+        event = (
+            copy(self.instance)
+            if self.instance is not None
+            else Event(created_by=self.user, workspace=self.workspace)
+        )
+        event_values = dict(
             title=cleaned_data["title"],
             timezone_name=cleaned_data["timezone"],
             starts_at=cleaned_data["starts_at"],
@@ -343,6 +380,8 @@ class EventForm(EventTimezoneForm):
             dropoff_driver=dropoff_driver,
             pickup_driver=pickup_driver,
         )
+        for name, value in event_values.items():
+            setattr(event, name, value)
 
         try:
             event.full_clean(
@@ -382,6 +421,7 @@ class EventForm(EventTimezoneForm):
                     starts_at=event.starts_at,
                     ends_at=event.ends_at,
                     participants=participants,
+                    exclude_event_id=event.pk,
                 )
 
                 conflict = conflicts.first()
