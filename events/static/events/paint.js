@@ -323,6 +323,40 @@
                 }
                 input.dataset.initial = input.value;
             });
+            // Hex codes beside the pickers: typing one moves the picker, moving the picker
+            // rewrites the code. Only the picker is sent, so the server check stays the same.
+            form.querySelectorAll("[data-hex]").forEach(function (field) {
+                var picker = field.closest(".colour-item, .member-colour").querySelector('input[type="color"]');
+                if (!picker) return;
+                function show() { field.value = picker.value.toUpperCase(); field.setCustomValidity(""); }
+                function typed() {
+                    var value = field.value.trim();
+                    if (value && value.charAt(0) !== "#") value = "#" + value;
+                    return /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : "";
+                }
+                function apply(eventName) {
+                    var value = typed();
+                    if (!value) return false;
+                    picker.value = value;
+                    picker.dispatchEvent(new Event(eventName, { bubbles: true }));
+                    return true;
+                }
+                function follow() { if (document.activeElement !== field) show(); }
+                field.hidden = false;
+                show();
+                picker.addEventListener("input", follow);
+                picker.addEventListener("change", follow);
+                field.addEventListener("input", function () { apply("input"); });
+                field.addEventListener("change", function () {
+                    if (apply("change")) show();
+                    else field.setCustomValidity("Use a hex code like #4A6FD8.");
+                });
+                field.addEventListener("keydown", function (event) {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    field.dispatchEvent(new Event("change", { bubbles: true }));
+                });
+            });
             form.addEventListener("submit", function () {
                 inputs.forEach(function (input) { input.disabled = input.value === input.dataset.initial; });
             });

@@ -277,6 +277,10 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .member-colour input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .bar .member-colour input[type="color"]::-moz-color-swatch { border: 0; border-radius: 50%; }
 .bar .member-colour input[type="color"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.bar .member-colour label { cursor: pointer; }
+.bar .member-colour input.hex { width: 10ch; height: 28px; min-height: 0; margin: 0 0 0 auto; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); font: 500 12px/1 var(--font); font-variant-numeric: tabular-nums; text-transform: uppercase; }
+.bar .member-colour input.hex:not([hidden]) + input[type="color"] { margin-left: 0; }
+.paint input.hex:invalid { border-color: var(--danger, #b42318); }
 /* Google Calendar account, in the account menu on every page. */
 .bar .acct-calendar { margin: 0; }
 

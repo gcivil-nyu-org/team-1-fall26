@@ -244,12 +244,14 @@ body.paint button.btn[disabled] { opacity: .5; cursor: not-allowed; }
 .calendar-account { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .colours { align-items: center; }
 .paint .colours label.colour { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 500; }
+.paint .colours .colour-item { display: inline-flex; align-items: center; gap: 10px; }
 /* The swatch is the colour itself: no white box from the native control around it. */
 .paint .colours input[type="color"] { -webkit-appearance: none; appearance: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: none; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
 .paint .colours input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 .paint .colours input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
 .paint .colours input[type="color"]::-moz-color-swatch { border: 0; border-radius: 8px; }
 .paint .colours input[type="color"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.paint .colours input.hex { width: 10ch; height: 36px; padding: 0 8px; font: 500 13px/1 var(--font); font-variant-numeric: tabular-nums; text-transform: uppercase; }
 
 /* Dialogs: event details and the add-event form open over the page (the "sheet"); confirmations. */
 dialog.sheet, dialog.confirm { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
