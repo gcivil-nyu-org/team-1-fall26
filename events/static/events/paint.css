@@ -708,3 +708,11 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
   .my-day-actions .btn { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { dialog.my-day[open] { animation: none; } }
+
+/* Day view: the right-click "Add event at …" menu, and focus on a member's day. */
+.slot-menu { position: fixed; z-index: 60; min-width: 180px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.slot-menu[hidden] { display: none; }
+.slot-menu [role="menuitem"] { display: block; padding: 8px 10px; border-radius: var(--radius-control); color: var(--ink); font: 500 14px/20px var(--font); text-decoration: none; white-space: nowrap; }
+.slot-menu [role="menuitem"]:hover, .slot-menu [role="menuitem"]:focus { background: var(--raised); outline: none; }
+.slot-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.daygrid .track:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }

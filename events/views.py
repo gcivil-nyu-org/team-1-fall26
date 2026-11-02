@@ -1,7 +1,9 @@
+from datetime import time as dt_time
 from urllib.parse import urlencode
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
@@ -33,6 +35,16 @@ from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_me
 from .week import local_day_bounds
 
 
+def _prefill_time(value):
+    """The start time a link asks the event form for, or None if missing or invalid."""
+    if not value:
+        return None
+    try:
+        return forms.TimeField().clean(value)
+    except ValidationError:
+        return None
+
+
 @require_http_methods(["GET", "POST"])
 def create_event(request, workspace_id=None):
     if (
@@ -62,6 +74,14 @@ def create_event(request, workspace_id=None):
                 "date": schedule_form.cleaned_data["date"],
                 "timezone": schedule_form.cleaned_data["timezone"],
             }
+            start_time = _prefill_time(request.GET.get("time"))
+            if start_time is not None:
+                # One hour by default, kept inside the same day.
+                end_minutes = min(
+                    start_time.hour * 60 + start_time.minute + 60, 23 * 60 + 59
+                )
+                initial["start_time"] = start_time
+                initial["end_time"] = dt_time(end_minutes // 60, end_minutes % 60)
     form = EventForm(
         request.POST if request.method == "POST" else None,
         initial=initial,
@@ -175,6 +195,7 @@ def choose_workspace(request):
         user=request.user,
         initial={
             "date": request.GET.get("date"),
+            "time": request.GET.get("time"),
             "timezone": (
                 request.GET.get("timezone") or timezone.get_current_timezone_name()
             ),
@@ -189,6 +210,7 @@ def choose_workspace(request):
                     **form.initial,
                     "workspace": choices[0].pk,
                     "date": form.initial["date"] or "",
+                    "time": form.initial["time"] or "",
                 },
                 user=request.user,
             )
@@ -197,6 +219,8 @@ def choose_workspace(request):
         query = {"timezone": form.cleaned_data["timezone"]}
         if form.cleaned_data["date"]:
             query["date"] = form.cleaned_data["date"]
+        if form.cleaned_data["time"]:
+            query["time"] = form.cleaned_data["time"].strftime("%H:%M")
         create_url = reverse("events:workspace_create", args=[workspace.pk])
         return redirect(f"{create_url}?{urlencode(query)}")
     return render(request, "events/choose_workspace.html", {"form": form})
