@@ -34,6 +34,16 @@ class AddAtTimeTests(FamilyMixin, TestCase):
         self.assertEqual(self.form_initial(time="25:99"), (None, None))
         self.assertEqual(self.form_initial(time="<script>"), (None, None))
 
+    def test_progressive_form_shows_the_prefilled_times(self):
+        response = self.client.get(
+            self.create_url, {"date": "2026-10-27", "time": "15:30"}
+        )
+        self.assertContains(response, 'value="15:30:00"')
+        self.assertContains(response, 'value="16:30:00"')
+        self.assertRegex(
+            response.content.decode(), r"data-progressive-times\s*>"
+        )  # no `hidden` on the times section
+
     def test_family_chooser_passes_the_time_along(self):
         response = self.client.get(
             reverse("events:choose_workspace"),

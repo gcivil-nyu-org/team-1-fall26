@@ -71,9 +71,10 @@ def create_event(request, workspace_id=None):
         schedule_form = EventScheduleForm(request.GET)
         if schedule_form.is_valid():
             initial = {
-                "date": schedule_form.cleaned_data["date"],
                 "timezone": schedule_form.cleaned_data["timezone"],
             }
+            if request.GET.get("date"):
+                initial["date"] = schedule_form.cleaned_data["date"]
             start_time = _prefill_time(request.GET.get("time"))
             if start_time is not None:
                 # One hour by default, kept inside the same day.

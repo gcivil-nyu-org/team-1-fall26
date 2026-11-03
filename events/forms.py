@@ -148,10 +148,11 @@ class EventForm(EventTimezoneForm):
     )
 
     title = forms.CharField(
+        label="What are we planning?",
         max_length=200,
         widget=forms.TextInput(
             attrs={
-                "placeholder": "Swim lesson, dentist, carpool…",
+                "placeholder": "Add an event title",
                 "autocomplete": "off",
                 "data-autofocus": "",
             }
@@ -159,7 +160,7 @@ class EventForm(EventTimezoneForm):
     )
 
     date = forms.DateField(
-        label="Start date",
+        label="When?",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
 
@@ -181,7 +182,7 @@ class EventForm(EventTimezoneForm):
     # Location field used by Photon autocomplete.
     # Users can still enter a location manually.
     location = forms.CharField(
-        label="Location (optional)",
+        label="Where (optional)",
         max_length=255,
         required=False,
         widget=forms.TextInput(
@@ -318,6 +319,16 @@ class EventForm(EventTimezoneForm):
         if self.errors:
             return cleaned_data
 
+        requires_transport = cleaned_data.get("requires_transport", False)
+        dropoff_driver = (
+            cleaned_data.get("dropoff_driver") if requires_transport else None
+        )
+        pickup_driver = (
+            cleaned_data.get("pickup_driver") if requires_transport else None
+        )
+        cleaned_data["dropoff_driver"] = dropoff_driver
+        cleaned_data["pickup_driver"] = pickup_driver
+
         # Construct the event with all selected details.
         event = Event(
             created_by=self.user,
@@ -331,9 +342,9 @@ class EventForm(EventTimezoneForm):
             longitude=longitude,
             transport_mode=cleaned_data["transport_mode"],
             is_tentative=cleaned_data.get("is_tentative", False),
-            requires_transport=cleaned_data.get("requires_transport", False),
-            dropoff_driver=cleaned_data.get("dropoff_driver"),
-            pickup_driver=cleaned_data.get("pickup_driver"),
+            requires_transport=requires_transport,
+            dropoff_driver=dropoff_driver,
+            pickup_driver=pickup_driver,
         )
 
         try:
