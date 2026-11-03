@@ -1,7 +1,10 @@
 {% extends 'events/_paint_page.html' %}
 {% load static tz paint %}
 {% block title %}Add event | Syncmily{% endblock %}
-{% block scripts %}<script src="{% asset 'events/location_autocomplete.js' %}" defer></script>{% endblock %}
+{% block scripts %}
+<script src="{% asset 'events/location_autocomplete.js' %}" defer></script>
+<script src="{% asset 'events/progressive_event_form.js' %}" defer></script>
+{% endblock %}
 {% block content %}
     <div class="head" data-sheet-hide>
         <h1>Add event</h1>
@@ -22,100 +25,128 @@
             <p class="notice">You can try this form here. To save an event, choose a family where you’re a parent.</p>
         {% endif %}
 
-        <div class="field">
-            <label for="{{ form.title.id_for_label }}">What</label>
+        <div class="field field-title">
+            <label for="{{ form.title.id_for_label }}">What are we planning?</label>
             {{ form.title }}
             {{ form.title.errors }}
+        </div>
+
+        <div class="field field-date">
+            <label for="{{ form.date.id_for_label }}">When?</label>
+            {{ form.date }}
+            {{ form.date.errors }}
+        </div>
+
+        <div class="progressive-times" data-progressive-times {% if not form.date.value and not form.start_time.value and not form.end_time.value and not form.start_time.errors and not form.end_time.errors %}hidden{% endif %}>
+            <div class="time-grid">
+                <div class="field field-start-time">
+                    <label for="{{ form.start_time.id_for_label }}">Starts</label>
+                    {{ form.start_time }}
+                    {{ form.start_time.errors }}
+                </div>
+                <div class="field field-end-time">
+                    <label for="{{ form.end_time.id_for_label }}">Ends</label>
+                    {{ form.end_time }}
+                    {{ form.end_time.errors }}
+                </div>
+            </div>
+            <div class="end-date-toggle-row">
+                <label class="check-inline" for="toggle-end-date">
+                    <input type="checkbox" id="toggle-end-date" data-toggle-end-date {% if form.end_date.value or form.end_date.errors %}checked{% endif %}>
+                    <span>Ends on another day</span>
+                </label>
+                <div class="field field-end-date" data-end-date-field {% if not form.end_date.value and not form.end_date.errors %}hidden{% endif %}>
+                    <label for="{{ form.end_date.id_for_label }}">End date <span class="opt">optional</span></label>
+                    {{ form.end_date }}
+                    {{ form.end_date.errors }}
+                </div>
+            </div>
         </div>
 
         {% if workspace %}
             <fieldset class="who-pick" aria-describedby="who-help">
                 <legend id="participants-heading">Who’s going</legend>
-                <div class="who-list">
-                    {% for choice in form.participants %}
-                        {% with member=choice.data.value|member:members %}
-                        <label{% if member.hue %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>{{ choice.tag }}<span class="sw" aria-hidden="true"></span><span translate="no">{% if member %}{{ member.user|person }}{% else %}{{ choice.choice_label }}{% endif %}</span></label>
-                        {% endwith %}
-                    {% empty %}
-                        <p class="span">No family members can be picked yet.</p>
-                    {% endfor %}
+                <div class="who-summary" data-who-summary>
+                    <div class="who-chips" data-who-chips>
+                        <span class="pill whole-family-pill" data-who-empty>Whole family</span>
+                        <span class="who-selected-avatars" data-who-selected-avatars></span>
+                    </div>
+                    <button type="button" class="btn btn-quiet btn-small who-toggle-btn" data-who-toggle aria-expanded="false">
+                        <span class="who-toggle-text">Choose members</span>
+                    </button>
                 </div>
-                <small id="who-help">Everyone in {{ workspace.name }} can see it. Pick nobody for a whole-family plan.</small>
+                <div class="who-drawer" data-who-drawer hidden>
+                    <div class="who-list">
+                        {% for choice in form.participants %}
+                            {% with member=choice.data.value|member:members %}
+                            <label{% if member.hue %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>{{ choice.tag }}<span class="sw" aria-hidden="true"></span><span translate="no">{% if member %}{{ member.user|person }}{% else %}{{ choice.choice_label }}{% endif %}</span></label>
+                            {% endwith %}
+                        {% empty %}
+                            <p class="span">No family members can be picked yet.</p>
+                        {% endfor %}
+                    </div>
+                    <small id="who-help">Everyone in {{ workspace.name }} can see it. Pick nobody for a whole-family plan.</small>
+                </div>
                 {{ form.participants.errors }}
             </fieldset>
         {% endif %}
 
-        <div class="grid3">
-            <div class="field">
-                <label for="{{ form.date.id_for_label }}">Day</label>
-                {{ form.date }}
-                {{ form.date.errors }}
-            </div>
-            <div class="field">
-                <label for="{{ form.start_time.id_for_label }}">Starts</label>
-                {{ form.start_time }}
-                {{ form.start_time.errors }}
-            </div>
-            <div class="field">
-                <label for="{{ form.end_time.id_for_label }}">Ends</label>
-                {{ form.end_time }}
-                {{ form.end_time.errors }}
-            </div>
-        </div>
-        <div class="grid2">
-            <div class="field">
-                <label for="{{ form.end_date.id_for_label }}">Ends on a later day <span class="opt">optional</span></label>
-                {{ form.end_date }}
-                {{ form.end_date.errors }}
-            </div>
-            <div class="field">
-                <label for="{{ form.timezone.id_for_label }}">Time zone</label>
-                {{ form.timezone }}
-                {{ form.timezone.errors }}
-            </div>
-        </div>
-
-        <div class="field">
+        <div class="field field-location">
             <label for="{{ form.location.id_for_label }}">Where <span class="opt">optional</span></label>
             {{ form.location }}
             {{ form.location.errors }}
         </div>
-        <div class="grid2">
-            <div class="field">
-                <label for="{{ form.transport_mode.id_for_label }}">Getting there</label>
+
+        <div class="progressive-location-details" data-progressive-location-details {% if not form.location.value and not form.transport_mode.errors and not form.requires_transport.errors and not form.dropoff_driver.errors and not form.pickup_driver.errors %}hidden{% endif %}>
+            <div class="field field-transport">
+                <label for="{{ form.transport_mode.id_for_label }}">How are you getting there?</label>
                 {{ form.transport_mode }}
                 <small>Used to check there’s time to travel between plans.</small>
                 {{ form.transport_mode.errors }}
             </div>
-            <div class="field check-field">
-                <div class="check">
-                    {{ form.is_tentative }}
-                    <label for="{{ form.is_tentative.id_for_label }}">Not confirmed yet<small>It shows with a dashed edge until it’s settled.</small></label>
+
+            {% if form.requires_transport %}
+                <div class="field check-field field-ride-toggle">
+                    <div class="check">
+                        {{ form.requires_transport }}
+                        <label for="{{ form.requires_transport.id_for_label }}">Someone needs a ride<small>Choose who drives family members there and back.</small></label>
+                    </div>
+                    {{ form.requires_transport.errors }}
                 </div>
-                {{ form.is_tentative.errors }}
-            </div>
+                <div class="progressive-drivers" data-progressive-drivers {% if not form.requires_transport.value and not form.dropoff_driver.errors and not form.pickup_driver.errors %}hidden{% endif %}>
+                    <div class="grid2">
+                        <div class="field">
+                            <label for="{{ form.dropoff_driver.id_for_label }}">Drop-off driver <span class="opt">optional</span></label>
+                            {{ form.dropoff_driver }}
+                            {{ form.dropoff_driver.errors }}
+                        </div>
+                        <div class="field">
+                            <label for="{{ form.pickup_driver.id_for_label }}">Pickup driver <span class="opt">optional</span></label>
+                            {{ form.pickup_driver }}
+                            {{ form.pickup_driver.errors }}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
         </div>
-        {% if form.requires_transport %}
-            <div class="field check-field">
-                <div class="check">
-                    {{ form.requires_transport }}
-                    <label for="{{ form.requires_transport.id_for_label }}">Someone needs a ride<small>Choose who drives family members there and back.</small></label>
-                </div>
-                {{ form.requires_transport.errors }}
-            </div>
-            <div class="grid2">
-                <div class="field">
-                    <label for="{{ form.dropoff_driver.id_for_label }}">Drop-off driver <span class="opt">optional</span></label>
-                    {{ form.dropoff_driver }}
-                    {{ form.dropoff_driver.errors }}
+
+        <details class="disclose more-options" data-more-options {% if form.timezone.errors or form.is_tentative.errors or form.is_tentative.value %}open{% endif %}>
+            <summary class="more-options-summary">More options</summary>
+            <div class="more-options-body">
+                <div class="field check-field">
+                    <div class="check">
+                        {{ form.is_tentative }}
+                        <label for="{{ form.is_tentative.id_for_label }}">Not confirmed yet<small>It shows with a dashed edge until it’s settled.</small></label>
+                    </div>
+                    {{ form.is_tentative.errors }}
                 </div>
                 <div class="field">
-                    <label for="{{ form.pickup_driver.id_for_label }}">Pickup driver <span class="opt">optional</span></label>
-                    {{ form.pickup_driver }}
-                    {{ form.pickup_driver.errors }}
+                    <label for="{{ form.timezone.id_for_label }}">Time zone</label>
+                    {{ form.timezone }}
+                    {{ form.timezone.errors }}
                 </div>
             </div>
-        {% endif %}
+        </details>
 
         {% if event_details %}
             {% timezone timezone_name %}
