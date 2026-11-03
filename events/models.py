@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timezone as datetime_timezone
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -139,9 +140,35 @@ class Event(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def has_valid_coordinates(self):
+        """Return True when both coordinates are finite numbers in bounds."""
+        if not isinstance(self.latitude, (int, float)) or not isinstance(
+            self.longitude, (int, float)
+        ):
+            return False
+        return (
+            math.isfinite(self.latitude)
+            and math.isfinite(self.longitude)
+            and -90 <= self.latitude <= 90
+            and -180 <= self.longitude <= 180
+        )
+
+    @property
+    def has_directions(self):
+        """Return True if the event has usable location information."""
+        return bool(self.location and self.location.strip())
+
+    @property
+    def directions_location(self):
+        """Return the trimmed location text for address fallback."""
+        return self.location.strip() if self.location else ""
+
     def clean(self):
         super().clean()
         self.title = self.title.strip()
+        if self.location:
+            self.location = self.location.strip()
         errors = {}
 
         if not self.title:

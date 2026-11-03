@@ -20,11 +20,37 @@
                 {% if event.is_tentative %}<span class="pill tent">Not confirmed yet</span>{% endif %}
             </div>
             <div class="facts">
-                {% if event.location %}
-                    <div class="row">
-                        <div class="grow"><b>Where</b><small>{{ event.location }}</small></div>
-                        <a class="map-link" href="https://www.google.com/maps/search/?api=1&amp;query={% if event.latitude is not None and event.longitude is not None %}{{ event.latitude|stringformat:'s' }},{{ event.longitude|stringformat:'s' }}{% else %}{{ event.location|urlencode }}{% endif %}" target="_blank" rel="noopener">Open in Maps<span class="sr-only"> (opens a new tab)</span></a>
+
+            {% if event.has_directions %}
+                <div class="row">
+                    <div class="grow">
+                        <b>Where</b>
+                        <small>{{ event.directions_location }}</small>
                     </div>
+
+                    <div class="map-actions">
+                        <a
+                            class="map-link"
+                            href="https://www.google.com/maps/dir/?api=1&amp;destination={% if event.has_valid_coordinates %}{{ event.latitude|stringformat:'s' }},{{ event.longitude|stringformat:'s' }}{% else %}{{ event.directions_location|urlencode }}{% endif %}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Google Maps Directions
+                            <span class="sr-only">(opens a new tab)</span>
+                        </a>
+
+                        <a
+                            class="map-link"
+                            href="https://maps.apple.com/?daddr={% if event.has_valid_coordinates %}{{ event.latitude|stringformat:'s' }},{{ event.longitude|stringformat:'s' }}{% else %}{{ event.directions_location|urlencode }}{% endif %}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Apple Maps Directions
+                            <span class="sr-only">(opens a new tab)</span>
+                        </a>
+                    </div>
+                </div>
+
                     <div class="row"><div class="grow"><b>Getting there</b><small>{{ event.get_transport_mode_display }}</small></div></div>
                 {% endif %}
                 {% if event.workspace_id %}<div class="row"><div class="grow"><b>Drivers</b><small>{% if event.requires_transport %}{% include "events/_driver_summary.html" %}{% else %}No transportation requested{% endif %}</small></div></div>{% endif %}

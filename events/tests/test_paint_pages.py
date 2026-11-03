@@ -260,7 +260,8 @@ class EventPageTests(FamilyMixin, TestCase):
             html=True,
         )
         self.assertContains(response, 'class="pill" translate="no" data-hue="c"')
-        self.assertContains(response, "Open in Maps")
+        self.assertContains(response, "Google Maps Directions")
+        self.assertContains(response, "Apple Maps Directions")
         self.assertContains(response, "Same day")
         self.assertContains(response, "Trick-or-treat")
         self.assertContains(response, "Add another event that day")
