@@ -377,7 +377,32 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .paint .tz-form label { margin: 0; }
 .event-card .actions { margin-top: 16px; }
 
-.event-form { display: block; }
+.event-form { display: block; max-width: 580px; margin: 0 auto; }
+.field-title input { font-size: 16px; font-weight: 500; }
+.time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+@media (max-width: 560px) { .time-grid { grid-template-columns: 1fr; } }
+.end-date-toggle-row { margin: -6px 0 16px; }
+.check-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+.check-inline input { width: 16px; height: 16px; margin: 0; flex: none; }
+.check-inline:hover { color: var(--ink); }
+.field-end-date { margin-top: 10px; margin-bottom: 0; }
+
+.who-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--card); min-height: 44px; margin-top: 4px; }
+.who-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.who-selected-avatars { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.who-avatar-chip { font-size: 12px; padding: 2px 8px; }
+.who-toggle-btn { flex: none; }
+.who-drawer { margin-top: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.who-drawer .who-list { margin-bottom: 8px; }
+
+[data-event-form]:not([data-progressive-ready="true"]) .who-summary { display: none; }
+[data-event-form]:not([data-progressive-ready="true"]) .who-drawer[hidden] { display: block !important; }
+
+.field-ride-toggle { margin-top: 8px; margin-bottom: 12px; }
+.more-options { margin: 16px 0; }
+.more-options-summary { font-size: 13px; font-weight: 600; color: var(--muted); }
+.more-options-body { margin-top: 10px; padding: 12px 14px; border-radius: var(--radius); background: var(--raised); border: 1px solid var(--line); }
+.more-options-body .field:last-child { margin-bottom: 0; }
 .paint .opt { margin-left: 4px; color: var(--muted); font-weight: 400; }
 .paint .notice { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius); background: var(--raised); color: var(--ink); }
 .grid3 { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 0 12px; }

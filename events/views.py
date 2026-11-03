@@ -59,9 +59,10 @@ def create_event(request, workspace_id=None):
         schedule_form = EventScheduleForm(request.GET)
         if schedule_form.is_valid():
             initial = {
-                "date": schedule_form.cleaned_data["date"],
                 "timezone": schedule_form.cleaned_data["timezone"],
             }
+            if request.GET.get("date"):
+                initial["date"] = schedule_form.cleaned_data["date"]
     form = EventForm(
         request.POST if request.method == "POST" else None,
         initial=initial,

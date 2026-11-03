@@ -112,7 +112,10 @@
             current = url;
             pageLink.href = url;
             if (window.syncmilyClocks) window.syncmilyClocks(body);
-            if (body.querySelector("[data-event-form]")) loadScript(sheet.dataset.locationScript);
+            if (body.querySelector("[data-event-form]")) {
+                loadScript(sheet.dataset.locationScript);
+                if (sheet.dataset.progressiveScript) loadScript(sheet.dataset.progressiveScript);
+            }
             sheet.scrollTop = 0;
             var focus = body.querySelector(".form-error, .errorlist, [aria-invalid='true']");
             if (focus && !focus.matches("input, select, textarea")) focus.tabIndex = -1;
