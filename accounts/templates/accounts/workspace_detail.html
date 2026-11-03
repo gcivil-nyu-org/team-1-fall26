@@ -24,10 +24,15 @@
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         {% for member in color_members %}
-                            <label class="colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
-                                <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}"{% if not member.custom_color %} data-deck{% endif %}>
-                                <span translate="no">{% if member.user == request.user %}You{% else %}{{ member.user|person }}{% endif %}</span>
-                            </label>
+                            {% with name=member.user|person %}
+                            <div class="colour-item">
+                                <label class="colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
+                                    <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}"{% if not member.custom_color %} data-deck{% endif %}>
+                                    <span translate="no">{% if member.user == request.user %}You{% else %}{{ name }}{% endif %}</span>
+                                </label>
+                                <input class="hex" type="text" inputmode="text" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" autocomplete="off" aria-label="{% if member.user == request.user %}Your{% else %}{{ name }}’s{% endif %} colour as a hex code" data-hex hidden>
+                            </div>
+                            {% endwith %}
                         {% endfor %}
                         <button class="btn btn-quiet" type="submit">Save colours</button>
                     </form>
