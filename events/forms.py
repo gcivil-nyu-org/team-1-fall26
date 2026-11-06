@@ -34,6 +34,9 @@ class EventWorkspaceForm(EventTimezoneForm):
 
     date = forms.DateField(required=False, widget=forms.HiddenInput)
 
+    # The day view's right-click "Add event at …" passes the slot's start time along.
+    time = forms.TimeField(required=False, widget=forms.HiddenInput)
+
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
 

@@ -2,6 +2,8 @@
 {% comment %}
     The day: one column per family member with the hours running down (events/day.py places the plans).
     Narrow pages stack the members as cards, each listing its plans in time order.
+    Parents can right-click an empty time (or press Shift+F10 on a member's day) to add an
+    event that starts there; paint.js builds the menu from data-add-at and the hour marks.
 {% endcomment %}
 <section class="day" aria-labelledby="day-timeline-title">
     <h2 id="day-timeline-title" class="sr-only">Schedule for {{ start_date|date:"l, F j, Y" }}</h2>
@@ -18,7 +20,7 @@
             </ul>
         </div>
     {% endif %}
-    <div class="daygrid" style="--lanes: {{ day.lanes|length }}; --span: {{ day.span_hours|stringformat:'s' }}">
+    <div class="daygrid" style="--lanes: {{ day.lanes|length }}; --span: {{ day.span_hours|stringformat:'s' }}"{% if shell.add_event_url %} data-add-at="{{ shell.add_event_url }}?{{ create_query }}"{% endif %}>
         <div class="hours" aria-hidden="true">
             <div class="corner"></div>
             <div class="axis">
@@ -34,7 +36,7 @@
                     {% if lane.user %}<span class="dot" aria-hidden="true">{{ lane.user|initial }}</span><span class="lane-name" translate="no">{{ lane.user|person }}</span>{% else %}<span class="dot dot-quiet" aria-hidden="true"></span><span class="lane-name">Whole family</span>{% endif %}
                     <small>{% if lane.slots %}{{ lane.slots|length }} plan{{ lane.slots|length|pluralize }}{% else %}Free{% endif %}</small>
                 </h3>
-                <div class="track">
+                <div class="track"{% if shell.add_event_url %} tabindex="0" role="group" aria-label="{% if lane.user %}{{ lane.user|person }}’s day{% else %}Whole family’s day{% endif %}. Right-click a time, or press Shift+F10, to add an event." aria-keyshortcuts="Shift+F10"{% endif %}>
                 <ol class="plans">
                     {% for slot in lane.slots %}
                         <li style="--top: {{ slot.top|stringformat:'s' }}%; --h: {{ slot.height|stringformat:'s' }}%; --col: {{ slot.column }}; --cols: {{ slot.columns }}">
