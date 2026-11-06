@@ -56,7 +56,7 @@
         {% if total_items %}
             {% widthratio completed_items total_items 100 as pct %}
             <span class="meter meter-big" role="img" aria-label="{{ completed_items }} of {{ total_items }} done, {{ pct }}%"><span class="meter-track"><i style="width: {{ pct }}%"></i></span><span class="pct" aria-hidden="true">{{ pct }}%</span></span>
-            <p class="span">{{ completed_items }} of {{ total_items }} done{% if completed_items == total_items %}. All done!{% endif %}</p>
+            <p class="span">{{ completed_items }} of {{ total_items }} done{% if completed_items == total_items %}. All done.{% endif %}</p>
         {% else %}
             <p class="span">Nothing on this list yet.</p>
         {% endif %}
