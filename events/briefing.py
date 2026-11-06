@@ -89,7 +89,13 @@ def build_family_briefing(user, workspace, now, tz):
     my_drives, open_rides = [], 0
     for item in briefing["items"]:
         event = item["event"]
-        item["people"] = list(event.participants.all())
+        # The database returns participants in no fixed order: list the viewer
+        # ("You") first, then everyone else by id, so the line reads the same
+        # every time.
+        item["people"] = sorted(
+            event.participants.all(),
+            key=lambda person: (person.pk != user.pk, person.pk),
+        )
         if not event.requires_transport:
             continue
         for leg, driver, at in (
