@@ -230,6 +230,14 @@ class DayTimelineTests(TestCase):
             [self.parent, self.admin, self.kid],
         )
 
+    def test_colour_editor_lists_the_viewer_first(self):
+        self.client.force_login(self.admin)
+        members = self.day("2026-10-23").context["color_members"]
+        self.assertEqual(
+            [member["user"] for member in members],
+            [self.admin, self.parent, self.kid],
+        )
+
     def test_parent_can_change_another_parents_colour(self):
         response = self.client.post(
             self.colors_url, {f"color-{self.admin.pk}": "#123456"}
