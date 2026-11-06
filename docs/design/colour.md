@@ -53,8 +53,7 @@ No packages are needed beyond Python 3.9+.
 
 ## Roles
 
-Global roles are declared on `:root`, so stylesheets for pages not yet ported (accounts.css,
-checklists.css) can use them. The four names the older pages also define on `:root` (`--ink`,
+Global roles are declared on `:root`. The four names the older pages also define on `:root` (`--ink`,
 `--muted`, `--line`, `--track`) stay on `.ui, body.paint`, as before, and so does the canvas
 `--counter`; ported pages also set `--counter` on the root (`:root:has(body.paint)`) so the overscroll
 area matches the theme. Dark values apply to ported pages only (`body.paint`): from the theme switch
@@ -292,60 +291,6 @@ The worst member across all three decks, for each chip level.
 | Step 4 edge on card | dark | bold f | `#bd3c3d` | `#1f1d19` | 3.11 | -24 | 3.0:1 |
 | Selected text (paint.css) | dark | bold a | `#111111` | `#c8d5f9` | 12.90 | 81 | 4.5:1, Lc 60 |
 
-### Pages not yet ported
-
-accounts.css and checklists.css, measured with the older pages' `--ink`, `--muted`, `--line` and
-backgrounds (left) and as they will be once ported to `body.paint` (right).
-
-| Pair | Where | Unported WCAG / Lc | Ported WCAG / Lc | Needs |
-|---|---|---|---|---|
-| Flash text | `accounts.css .flash` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 75 |
-| Success flash | `accounts.css .flash-success` | 11.67 / 92 | 16.17 / 98 | 4.5:1, Lc 75 |
-| Warning flash | `accounts.css .flash-warning` | 11.61 / 92 | 16.08 / 97 | 4.5:1, Lc 75 |
-| Error flash | `accounts.css .flash-error` | 11.49 / 91 | 15.91 / 97 | 4.5:1, Lc 75 |
-| Link button | `accounts.css .link-button` | 11.68 / 92 | 15.21 / 94 | 4.5:1, Lc 60 |
-| Role option edge | `accounts.css .role-option` | 4.58 / 71 | 4.65 / 72 | 3.0:1 |
-| Role option, checked | `accounts.css .role-option:checked` | 16.31 / 98 | 16.31 / 98 | 3.0:1 |
-| Role option text, checked | `accounts.css .role-option:checked` | 11.77 / 93 | 16.31 / 98 | 4.5:1, Lc 75 |
-| Member secondary line | `accounts.css .member-name small` | 5.07 / 74 | 6.86 / 84 | 4.5:1, Lc 60 |
-| Kid avatar | `accounts.css .avatar-kid` | 11.77 / 93 | 16.31 / 98 | 4.5:1, Lc 60 |
-| Pending badge | `accounts.css .status-pending` | 5.19 / 71 | 5.19 / 71 | 4.5:1, Lc 60 |
-| Active badge | `accounts.css .status-active` | 5.30 / 72 | 5.30 / 72 | 4.5:1, Lc 60 |
-| Kid page text | `accounts.css .kid-dashboard` | 11.68 / 92 | 15.21 / 94 | 4.5:1, Lc 75 |
-| Kid hero | `accounts.css .kid-hero` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 75 |
-| Kid page links | `accounts.css .kid-dashboard a` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 75 |
-| Kid today tile | `accounts.css .kid-today` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 75 |
-| Kid event card | `accounts.css .kid-event` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 75 |
-| Kid empty note | `accounts.css .kid-empty` | 11.77 / 93 | 16.31 / 98 | 4.5:1, Lc 75 |
-| Kid family bubble | `accounts.css .kid-bubble` | 11.77 / 93 | 16.31 / 98 | 3.0:1, Lc 45 |
-| Backup code | `accounts.css .backup-codes code` | 12.71 / 98 | 17.89 / 105 | 4.5:1, Lc 75 |
-| Checklist primary button | `checklists.css .cl-button` | 17.89 / -107 | 17.89 / -107 | 4.5:1, Lc 60 |
-| Checklist primary button, hover | `checklists.css .cl-button:hover` | 13.59 / -103 | 13.59 / -103 | 4.5:1, Lc 60 |
-| Checklist danger button, hover | `checklists.css .cl-button-danger:hover` | 5.28 / 67 | 5.28 / 67 | 4.5:1, Lc 60 |
-| Done task toggle, hover | `checklists.css .cl-task-toggle:hover` | 5.86 / 79 | 5.86 / 79 | 4.5:1, Lc 60 |
-| Checklist quiet button | `checklists.css .cl-button-secondary` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 60 |
-| Checklist quiet button edge | `checklists.css .cl-button-secondary` | 4.65 / 72 | 4.65 / 72 | 3.0:1 |
-| Checklist danger button | `checklists.css .cl-button-danger` | 5.81 / 73 | 5.81 / 73 | 4.5:1, Lc 60 |
-| Checklist card text | `checklists.css .cl-card` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 75 |
-| Checklist secondary text | `checklists.css .cl-muted, .cl-subtitle` | 5.15 / 75 | 6.86 / 84 | 4.5:1, Lc 60 |
-| Checklist secondary on page | `checklists.css .cl-subtitle` | 4.65 / 69 | 5.83 / 73 | 4.5:1, Lc 60 |
-| Checklist event tag | `checklists.css .cl-event` | 11.77 / 93 | 16.31 / 98 | 4.5:1, Lc 60 |
-| Task count badge | `checklists.css .cl-task-count` | 5.15 / 75 | 6.86 / 84 | 4.5:1, Lc 60 |
-| Checklist links | `checklists.css .checklist-page a, .cl-back` | 11.68 / 92 | 15.21 / 94 | 4.5:1, Lc 75 |
-| Add-task field edge | `checklists.css .cl-add-field input` | 4.65 / 72 | 4.65 / 72 | 3.0:1 |
-| Progress bar fill | `checklists.css .cl-progress` | 4.36 / 60 | 4.39 / 60 | 3.0:1 |
-| Progress card number | `checklists.css .cl-progress-number` | 5.30 / 72 | 5.30 / 72 | 3.0:1, Lc 45 |
-| Progress card text | `checklists.css .cl-progress-card` | 11.67 / 92 | 16.17 / 98 | 4.5:1, Lc 75 |
-| Done task text | `checklists.css .is-complete .cl-task-text` | 4.65 / 69 | 6.20 / 77 | 4.5:1, Lc 60 |
-| Done by line | `checklists.css .cl-completed-by` | 4.65 / 69 | 6.20 / 77 | 4.5:1, Lc 60 |
-| Checkbox edge | `checklists.css .cl-check-icon` | 4.65 / 72 | 4.65 / 72 | 3.0:1 |
-| Checked box tick | `checklists.css .is-complete .cl-check-icon` | 5.86 / -84 | 5.86 / -84 | 4.5:1, Lc 60 |
-| Checked box on its row | `checklists.css .is-complete .cl-check-icon` | 5.30 / 72 | 5.30 / 72 | 3.0:1 |
-| Task action links | `checklists.css .cl-task-actions a` | 12.91 / 99 | 17.89 / 105 | 4.5:1, Lc 60 |
-| Optional tag | `checklists.css .cl-optional` | 4.69 / 69 | 6.25 / 77 | 4.5:1, Lc 60 |
-| Form field edge | `checklists.css .cl-field input` | 4.65 / 72 | 4.65 / 72 | 3.0:1 |
-| Form focus ring | `checklists.css .cl-field input:focus` | 17.89 / 105 | 17.89 / 105 | 3.0:1 |
-
 ### Colour-blind separation
 
 CIEDE2000 between members at steps 3 and 4, simulated with Machado, Oliveira and Fernandes (2009) at full
@@ -443,7 +388,7 @@ shared lightness), and Red and Cyan swapped slots (f, g).
    or lower its chroma multiplier, and run again. Keep text on every chip.
 
 To change a role, edit the `css_region()` block in `palette.py` (and `STATUS` or `NEUTRALS` for
-values), rewrite the region, and add any new pair the pages use to `PAINT_PAIRS` or `LEGACY_PAIRS` in
+values), rewrite the region, and add any new pair the pages use to `PAINT_PAIRS` in
 the checker so it is measured from then on.
 
 ## Known limits
@@ -455,13 +400,10 @@ the checker so it is measured from then on.
 - **Dark-mode depth.** Chips keep their light-mode paint at night, so pale steps 1-2 are brighter than deep
   steps 4-5 on the dark page. Depth still reads as more pigment and the legend shows the ramp. A ramp that
   brightens with load in dark mode needs per-step text tokens in paint.css (below).
-- **Pages not yet ported** keep their own `--ink`, `--muted` and `--line` until they move to `body.paint`.
-  accounts.css and checklists.css are checked in both states.
 
 ## For the UI port: tokens to adopt
 
-These are outside the colour region (paint.css, the chrome in shell.css, shell.js, event_form.css,
-workspace.css), so this branch leaves them alone. `python docs/design/check_colours.py --audit` lists
+These are outside the colour region (paint.css, the chrome in shell.css, shell.js), so this branch leaves them alone. `python docs/design/check_colours.py --audit` lists
 every remaining literal with its nearest role.
 
 | Where | Today | Use |
@@ -479,4 +421,4 @@ every remaining literal with its nearest role.
 | two-step `.qr` on the UI branch | `color-scheme: light; background: Canvas` | `background: var(--fixed-white)` |
 | family page colour pills | names left out | `content: var(--name)` inside `[data-hue]` |
 | paint.css chip text | `.l1`/`.l2` read `--paint-ink`, `.l3`/`.l4` write `#fff`, dark `.l0` reads `--s2` | one text token per level, set next to `--s1..--s5`; the token region could then give dark mode a ramp that brightens with load |
-| event_form.css, workspace.css, chat_home.html | 233 + 54 + 20 literals (terracotta, lavender, violet bubbles) | retire with the port; nearest roles in `--audit` |
+| chat_home.html | 20 literals (violet bubbles) | retire with the port; nearest roles in `--audit` (event_form.css and workspace.css were deleted on 2026-11-06: no page loaded them) |

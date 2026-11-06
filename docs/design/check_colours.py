@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Syncmily colour gate: measures the colour tokens that ship and fails on any miss.
 
-Reads events/static/events/shell.css (and the older pages' :root tokens in
-event_form.css), resolves every
-role for light and dark and for each deck, then checks:
+Reads events/static/events/shell.css, resolves every role for light and dark and for
+each deck, then checks:
 
   1. contrast of every text/background and edge/background pair the stylesheets use
   (WCAG 2.x ratio and
@@ -45,7 +44,6 @@ import cssread  # noqa: E402
 
 REPO = HERE.parents[1]
 SHELL = REPO / "events/static/events/shell.css"
-LEGACY = REPO / "events/static/events/event_form.css"
 DECKS = ("primaries", "garden", "bold")
 HUES = "abcdefgh"
 SIMS = ("normal", "protan", "deutan", "tritan")
@@ -384,306 +382,6 @@ CHIP_PAIRS = {
     ],
 }
 
-# Pages not yet ported: accounts.css and checklists.css read the older pages'
-# --ink/--muted/--line
-# from event_form.css and the global roles from shell.css. Checked in that context and
-# as if ported.
-LEGACY_PAIRS = [
-    ("Flash text", "accounts.css .flash", "var(--ink)", "var(--card)", "body"),
-    (
-        "Success flash",
-        "accounts.css .flash-success",
-        "var(--ink)",
-        "var(--success-soft)",
-        "body",
-    ),
-    (
-        "Warning flash",
-        "accounts.css .flash-warning",
-        "var(--ink)",
-        "var(--warning-soft)",
-        "body",
-    ),
-    (
-        "Error flash",
-        "accounts.css .flash-error",
-        "var(--ink)",
-        "var(--danger-soft)",
-        "body",
-    ),
-    (
-        "Link button",
-        "accounts.css .link-button",
-        "var(--ink)",
-        "var(--background, var(--counter))",
-        "text",
-    ),
-    (
-        "Role option edge",
-        "accounts.css .role-option",
-        "var(--control)",
-        "var(--paper, var(--card))",
-        "ui",
-    ),
-    (
-        "Role option, checked",
-        "accounts.css .role-option:checked",
-        "var(--primary)",
-        "var(--raised)",
-        "ui",
-    ),
-    (
-        "Role option text, checked",
-        "accounts.css .role-option:checked",
-        "var(--ink)",
-        "var(--raised)",
-        "body",
-    ),
-    (
-        "Member secondary line",
-        "accounts.css .member-name small",
-        "var(--muted)",
-        "var(--paper, var(--card))",
-        "text",
-    ),
-    ("Kid avatar", "accounts.css .avatar-kid", "var(--ink)", "var(--raised)", "text"),
-    (
-        "Pending badge",
-        "accounts.css .status-pending",
-        "var(--warning)",
-        "var(--warning-soft)",
-        "text",
-    ),
-    (
-        "Active badge",
-        "accounts.css .status-active",
-        "var(--success)",
-        "var(--success-soft)",
-        "text",
-    ),
-    (
-        "Kid page text",
-        "accounts.css .kid-dashboard",
-        "var(--ink)",
-        "var(--background, var(--counter))",
-        "body",
-    ),
-    ("Kid hero", "accounts.css .kid-hero", "var(--ink)", "var(--card)", "body"),
-    (
-        "Kid page links",
-        "accounts.css .kid-dashboard a",
-        "var(--ink)",
-        "var(--card)",
-        "body",
-    ),
-    ("Kid today tile", "accounts.css .kid-today", "var(--ink)", "var(--card)", "body"),
-    ("Kid event card", "accounts.css .kid-event", "var(--ink)", "var(--card)", "body"),
-    (
-        "Kid empty note",
-        "accounts.css .kid-empty",
-        "var(--ink)",
-        "var(--raised)",
-        "body",
-    ),
-    (
-        "Kid family bubble",
-        "accounts.css .kid-bubble",
-        "var(--ink)",
-        "var(--raised)",
-        "large",
-    ),
-    (
-        "Backup code",
-        "accounts.css .backup-codes code",
-        "var(--ink)",
-        "var(--paper, var(--card))",
-        "body",
-    ),
-    (
-        "Checklist primary button",
-        "checklists.css .cl-button",
-        "var(--on-primary)",
-        "var(--primary)",
-        "text",
-    ),
-    (
-        "Checklist primary button, hover",
-        "checklists.css .cl-button:hover",
-        "var(--on-primary)",
-        "color-mix(in oklab, var(--primary) 88%, var(--card))",
-        "text",
-    ),
-    (
-        "Checklist danger button, hover",
-        "checklists.css .cl-button-danger:hover",
-        "var(--danger)",
-        "color-mix(in oklab, var(--danger) 14%, var(--card))",
-        "text",
-    ),
-    (
-        "Done task toggle, hover",
-        "checklists.css .cl-task-toggle:hover",
-        "var(--success)",
-        "var(--card)",
-        "text",
-    ),
-    (
-        "Checklist quiet button",
-        "checklists.css .cl-button-secondary",
-        "var(--ink)",
-        "var(--card)",
-        "text",
-    ),
-    (
-        "Checklist quiet button edge",
-        "checklists.css .cl-button-secondary",
-        "var(--control)",
-        "var(--card)",
-        "ui",
-    ),
-    (
-        "Checklist danger button",
-        "checklists.css .cl-button-danger",
-        "var(--danger)",
-        "var(--danger-soft)",
-        "text",
-    ),
-    (
-        "Checklist card text",
-        "checklists.css .cl-card",
-        "var(--ink)",
-        "var(--card)",
-        "body",
-    ),
-    (
-        "Checklist secondary text",
-        "checklists.css .cl-muted, .cl-subtitle",
-        "var(--muted)",
-        "var(--card)",
-        "text",
-    ),
-    (
-        "Checklist secondary on page",
-        "checklists.css .cl-subtitle",
-        "var(--muted)",
-        "var(--background, var(--counter))",
-        "text",
-    ),
-    (
-        "Checklist event tag",
-        "checklists.css .cl-event",
-        "var(--ink)",
-        "var(--raised)",
-        "text",
-    ),
-    (
-        "Task count badge",
-        "checklists.css .cl-task-count",
-        "var(--muted)",
-        "var(--card)",
-        "text",
-    ),
-    (
-        "Checklist links",
-        "checklists.css .checklist-page a, .cl-back",
-        "var(--ink)",
-        "var(--background, var(--counter))",
-        "body",
-    ),
-    (
-        "Add-task field edge",
-        "checklists.css .cl-add-field input",
-        "var(--control)",
-        "var(--card)",
-        "ui",
-    ),
-    (
-        "Progress bar fill",
-        "checklists.css .cl-progress",
-        "var(--success)",
-        "var(--line)",
-        "ui",
-    ),
-    (
-        "Progress card number",
-        "checklists.css .cl-progress-number",
-        "var(--success)",
-        "var(--success-soft)",
-        "large",
-    ),
-    (
-        "Progress card text",
-        "checklists.css .cl-progress-card",
-        "var(--ink)",
-        "var(--success-soft)",
-        "body",
-    ),
-    (
-        "Done task text",
-        "checklists.css .is-complete .cl-task-text",
-        "var(--muted)",
-        "var(--success-soft)",
-        "text",
-    ),
-    (
-        "Done by line",
-        "checklists.css .cl-completed-by",
-        "var(--muted)",
-        "var(--success-soft)",
-        "text",
-    ),
-    (
-        "Checkbox edge",
-        "checklists.css .cl-check-icon",
-        "var(--control)",
-        "var(--card)",
-        "ui",
-    ),
-    (
-        "Checked box tick",
-        "checklists.css .is-complete .cl-check-icon",
-        "var(--card)",
-        "var(--success)",
-        "text",
-    ),
-    (
-        "Checked box on its row",
-        "checklists.css .is-complete .cl-check-icon",
-        "var(--success)",
-        "var(--success-soft)",
-        "ui",
-    ),
-    (
-        "Task action links",
-        "checklists.css .cl-task-actions a",
-        "var(--ink)",
-        "var(--card)",
-        "text",
-    ),
-    (
-        "Optional tag",
-        "checklists.css .cl-optional",
-        "var(--muted)",
-        "var(--raised)",
-        "text",
-    ),
-    (
-        "Form field edge",
-        "checklists.css .cl-field input",
-        "var(--control)",
-        "var(--card)",
-        "ui",
-    ),
-    (
-        "Form focus ring",
-        "checklists.css .cl-field input:focus",
-        "var(--focus)",
-        "var(--card)",
-        "ui",
-    ),
-]
-
-
 # --- Token contexts
 # ---------------------------------------------------------------------------
 
@@ -719,19 +417,9 @@ def token_blocks(css_text):
     return blocks
 
 
-def legacy_root(css_text):
-    root = {}
-    for rule in cssread.parse(css_text):
-        if rule.selector == ":root" and not rule.at:
-            root.update(_decls(rule))
-    return root
-
-
-def context(blocks, theme, deck, legacy=None):
-    """Token values in effect for one theme ('light', 'dark', 'dark-os' or 'legacy') and
-    deck.
-    """
-    tokens = dict(legacy or {})
+def context(blocks, theme, deck):
+    """Token values in effect for one theme ('light', 'dark' or 'dark-os') and deck."""
+    tokens = {}
     for (kind, th, decks), decls in blocks.items():
         if kind == "root" and th == "light":
             tokens.update(decls)
@@ -739,8 +427,6 @@ def context(blocks, theme, deck, legacy=None):
         for (kind, th, decks), decls in blocks.items():
             if kind == "deck" and th == "light" and d in decks:
                 tokens.update(decls)
-    if theme == "legacy":
-        return tokens
     for (kind, th, decks), decls in blocks.items():
         if kind == "paint" and th == "light":
             tokens.update(decls)
@@ -905,7 +591,7 @@ class Report:
         self.lines.append(f"\n== {title}")
 
 
-def check_pairs(report, blocks, legacy):
+def check_pairs(report, blocks):
     rows = {}
     report.section("Contrast: chrome and text (ported pages)")
     for theme in ("light", "dark"):
@@ -931,18 +617,7 @@ def check_pairs(report, blocks, legacy):
                         key = (theme, what)
                         if key not in worst or row[4] < worst[key][6]:
                             worst[key] = (where, f"{deck} {letter}") + row
-    report.section("Contrast: pages not yet ported (accounts.css, checklists.css)")
-    legacy_rows = {}
-    for theme in ("legacy", "light"):
-        tokens = context(
-            blocks, theme, "primaries", legacy if theme == "legacy" else None
-        )
-        for what, where, fg, bg, kind in LEGACY_PAIRS:
-            label = f"[{'unported' if theme == 'legacy' else 'ported'}] {what}"
-            row = report.pair(label, fg, bg, kind, tokens)
-            if row:
-                legacy_rows[(theme, what)] = (where,) + row
-    return rows, worst, legacy_rows
+    return rows, worst
 
 
 def deck_colours(blocks, theme, deck):
@@ -1268,7 +943,7 @@ def audit():
 # ------------------------------------------------------------------------------------
 
 
-def markdown(rows, worst, legacy_rows, table, custom_worst):
+def markdown(rows, worst, table, custom_worst):
     print(
         "| Pair | Where | Theme | Text / edge | Background | WCAG | APCA Lc | Needs |"
     )
@@ -1289,21 +964,6 @@ def markdown(rows, worst, legacy_rows, table, custom_worst):
         print(
             f"| {what} | {theme} | {who} | `{f}` | `{b}` | {ratio:.2f} | {lc:.0f} |"
             f" {need[0]}:1" + (f", Lc {need[1]}" if need[1] else "") + " |"
-        )
-    print(
-        "\nPages not yet ported (left: with the older pages' tokens; right: once"
-        " ported):\n"
-    )
-    print("| Pair | Where | Unported WCAG / Lc | Ported WCAG / Lc | Needs |")
-    print("|---|---|---|---|---|")
-    for what, where, fg, bg, kind in LEGACY_PAIRS:
-        a, b = legacy_rows.get(("legacy", what)), legacy_rows.get(("light", what))
-        need = KINDS[kind]
-        cell = lambda r: f"{r[5]:.2f} / {r[6]:.0f}" if r else "n/a"  # noqa: E731
-        print(
-            f"| {what} | `{where}` | {cell(a)} | {cell(b)} | {need[0]}:1"
-            + (f", Lc {need[1]}" if need[1] else "")
-            + " |"
         )
     print("\nColour-vision separation, CIEDE2000 (minimum over the deck):\n")
     print(
@@ -1355,16 +1015,15 @@ def main():
         return 0
     css_text = args.css.read_text()
     blocks = token_blocks(css_text)
-    legacy = legacy_root(LEGACY.read_text()) if LEGACY.exists() else {}
     report = Report(args.verbose)
-    rows, worst, legacy_rows = check_pairs(report, blocks, legacy)
+    rows, worst = check_pairs(report, blocks)
     check_ramps(report, blocks)
     table = check_cvd(report, blocks)
     check_dark_parity(report, blocks)
     custom_worst = check_custom(report, blocks, css_text)
     check_neutrals(report, blocks)
     if args.markdown:
-        markdown(rows, worst, legacy_rows, table, custom_worst)
+        markdown(rows, worst, table, custom_worst)
         return 0 if not report.failures else 1
     for line in report.lines:
         if args.verbose or line.startswith("\n==") or "FAIL" in line:
