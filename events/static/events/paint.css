@@ -120,8 +120,11 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .paint input[aria-invalid="true"] { border-color: var(--danger); }
 /* Safari sizes each part of a date or time field for its widest value, so a narrow "11"
    leaves a gap before the slash ("11 /02/2026"). Equal-width digits close it; the parts'
-   own padding goes too, so the value starts where other fields' text starts. */
+   own padding goes too. An equal-width "1" sits mid-cell, so "11/08" and "10:30" read as
+   indented; pulling the value left by 0.4em (about 5.5px at 14px) sets dates and times
+   visibly tighter to the left border. */
 .paint :is(input[type="date"], input[type="time"]) { font-variant-numeric: tabular-nums; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit { margin-left: -.4em; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text { font-variant-numeric: normal; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,
