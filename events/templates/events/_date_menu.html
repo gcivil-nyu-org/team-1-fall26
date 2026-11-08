@@ -2,7 +2,7 @@
 schedule at the chosen date; on the schedule itself it keeps the current choices and opens
 when they are invalid.{% endcomment %}{% get_current_timezone as current_tz %}{% with date_form=schedule_form|default:shell.schedule_form %}
 <details class="date-tab"{% if date_form.errors %} open{% endif %}>
-    <summary><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="date-label">Change date or time zone</span></summary>
+    <summary title="Change date or time zone"><svg viewBox="0 0 18 16" fill="none" aria-hidden="true"><path d="M8.5 13.5H3.5a1.5 1.5 0 0 1-1.5-1.5V5a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 14 5v2.5M2 6.5h12M5 2v3M11 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="13.25" cy="12.25" r="3.25" stroke="currentColor" stroke-width="1.25"/><path d="M10 12.25h6.5M13.25 9c-1.4 1.8-1.4 4.7 0 6.5M13.25 9c1.4 1.8 1.4 4.7 0 6.5" stroke="currentColor" stroke-width="1"/></svg><span class="date-label">Change date or time zone</span></summary>
     <div class="palette-menu date-menu">
         <form class="date-form" method="get" action="{{ shell.schedule_url }}">
             <div class="field">

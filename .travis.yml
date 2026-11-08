@@ -5,11 +5,16 @@
 #   develop -> integration (the env named in EB_INTEGRATION_ENV, once the team creates it)
 # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and COVERALLS_REPO_TOKEN live in the Travis
 # repository settings (hidden), never in this file.
+# Credits: the org's Travis credits ran out on 2026-11-03 and every build that day was
+# cancelled mid-run. Cron builds therefore never deploy (they rebuild an unchanged commit),
+# and pip downloads are cached between builds.
 language: python
 os: linux
 dist: noble
 python:
   - "3.14"
+
+cache: pip
 
 services:
   - postgresql
@@ -59,6 +64,7 @@ deploy:
     wait_until_deployed: true
     on:
       branch: main
+      condition: $TRAVIS_EVENT_TYPE != cron
   - provider: elasticbeanstalk
     edge: true
     region: us-east-1
@@ -69,7 +75,7 @@ deploy:
     wait_until_deployed: true
     on:
       branch: develop
-      condition: -n "$EB_INTEGRATION_ENV"
+      condition: -n "$EB_INTEGRATION_ENV" && $TRAVIS_EVENT_TYPE != cron
 
 notifications:
   email:

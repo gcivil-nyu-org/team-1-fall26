@@ -118,6 +118,20 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .paint input::placeholder { color: var(--muted); }
 .paint input:focus-visible, .paint select:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; border-color: var(--ink); }
 .paint input[aria-invalid="true"] { border-color: var(--danger); }
+/* Safari sizes each part of a date or time field for its widest value, so a narrow "11"
+   leaves a gap before the slash ("11 /02/2026"). Equal-width digits close it; the parts'
+   own padding goes too, so the value starts where other fields' text starts. */
+.paint :is(input[type="date"], input[type="time"]) { font-variant-numeric: tabular-nums; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text { font-variant-numeric: normal; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-month-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-day-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-year-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-hour-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-minute-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-meridiem-field { padding: 0; }
 .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: var(--danger); font-size: 13px; }
 .errorlist.nonfield { margin: 0 0 16px; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in oklab, var(--danger) 10%, var(--card)); }
 
@@ -243,7 +257,14 @@ body.paint button.btn[disabled] { opacity: .5; cursor: not-allowed; }
 .calendar-account { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .colours { align-items: center; }
 .paint .colours label.colour { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 500; }
-.paint .colours input[type="color"] { width: 44px; height: 36px; padding: 3px; cursor: pointer; }
+.paint .colours .colour-item { display: inline-flex; align-items: center; gap: 10px; }
+/* The swatch is the colour itself: no white box from the native control around it. */
+.paint .colours input[type="color"] { -webkit-appearance: none; appearance: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: none; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.paint .colours input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.paint .colours input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
+.paint .colours input[type="color"]::-moz-color-swatch { border: 0; border-radius: 8px; }
+.paint .colours input[type="color"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.paint .colours input.hex { width: 10ch; height: 36px; padding: 0 8px; font: 500 13px/1 var(--font); font-variant-numeric: tabular-nums; text-transform: uppercase; }
 
 /* Dialogs: event details and the add-event form open over the page (the "sheet"); confirmations. */
 dialog.sheet, dialog.confirm { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
@@ -353,7 +374,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
   .seg a { padding: 11px 14px; }
   body.paint .page .btn, body.paint .sheet .btn, body.paint .confirm .btn, .disclose > summary { min-height: 44px; height: auto; }
   .paint input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]), .paint select { height: 44px; }
-  .paint .colours input[type="color"] { height: 44px; }
+  .paint .colours input[type="color"] { width: 44px; height: 44px; }
 }
 @media (max-width: 560px) {
   .head-tools .seg { flex: 1 1 100%; }
@@ -712,3 +733,11 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
   .my-day-actions .btn { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { dialog.my-day[open] { animation: none; } }
+
+/* Day view: the right-click "Add event at …" menu, and focus on a member's day. */
+.slot-menu { position: fixed; z-index: 60; min-width: 180px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.slot-menu[hidden] { display: none; }
+.slot-menu [role="menuitem"] { display: block; padding: 8px 10px; border-radius: var(--radius-control); color: var(--ink); font: 500 14px/20px var(--font); text-decoration: none; white-space: nowrap; }
+.slot-menu [role="menuitem"]:hover, .slot-menu [role="menuitem"]:focus { background: var(--raised); outline: none; }
+.slot-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.daygrid .track:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
