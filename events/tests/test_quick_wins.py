@@ -94,3 +94,17 @@ class ShellTests(TestCase):
         self.assertContains(response, '<span class="bar-switches">')
         self.assertContains(response, 'id="clock-switch"', count=1)
         self.assertContains(response, 'id="theme-switch"', count=1)
+
+    def test_sync_s_logo_and_favicons(self):
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(response, '<svg class="logo"', count=1)
+        self.assertContains(response, 'class="logo-s1"')
+        self.assertNotContains(response, "M3 12H27M10 3V8")
+        self.assertContains(response, 'rel="icon" type="image/svg+xml"')
+        self.assertContains(response, 'href="/static/events/icons/favicon-32.png?v=')
+
+    def test_sign_in_page_uses_the_same_logo(self):
+        self.client.logout()
+        response = self.client.get(reverse("accounts:login"))
+        self.assertContains(response, '<svg class="logo"')
+        self.assertNotContains(response, "M3 12H27M10 3V8")

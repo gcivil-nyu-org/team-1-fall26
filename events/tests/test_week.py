@@ -242,12 +242,12 @@ class WeekPageTests(TestCase):
         self.client.force_login(self.kid)
         self.assertNotContains(self.client.get(self.url), "Individual colors")
 
-    def test_today_rail_labels_12_am_once(self):
+    def test_empty_today_draws_no_hour_rail(self):
         response = self.client.get(self.url)
-        content = response.content.decode()
-        rail = content[content.index('class="tl-rail"') :]
-        rail = rail[: rail.index("</div>")]
-        self.assertEqual(rail.count('data-clock="00:00"'), 1)
+        if response.context["rail"]["items"]:
+            self.skipTest("this fixture has plans today")
+        self.assertNotContains(response, 'class="tl-rail"')
+        self.assertContains(response, "Nothing planned today")
 
     def test_bad_or_far_off_week_falls_back_to_this_week(self):
         this_week = week_start_for(django_timezone.localdate())
@@ -495,12 +495,57 @@ class TentativeEventTests(TestCase):
 
 
 class TodayRailTests(TestCase):
-    def test_rail_covers_the_whole_day_with_a_label_every_hour(self):
-        tz = ZoneInfo("America/New_York")
-        now = datetime(2026, 10, 30, 1, 30, tzinfo=tz)
-        rail = build_today_rail([], [], date(2026, 10, 30), tz, now)
-        self.assertEqual([hour["hour"] for hour in rail["hours"]], list(range(24)))
+    tz = ZoneInfo("America/New_York")
+    day = date(2026, 10, 30)
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(username="Rail")
+        cls.workspace = Workspace.objects.create(name="Rail", primary_admin=cls.user)
+
+    def plan(self, start_hour, end_hour, title="Plan"):
+        start = datetime(2026, 10, 30, start_hour, tzinfo=self.tz)
+        end = (
+            datetime(2026, 10, 31, 0, tzinfo=self.tz)
+            if end_hour == 24
+            else datetime(2026, 10, 30, end_hour, tzinfo=self.tz)
+        )
+        return Event.objects.create(
+            created_by=self.user,
+            workspace=self.workspace,
+            title=title,
+            starts_at=start,
+            ends_at=end,
+        )
+
+    def rail(self, events, now_hour=12):
+        now = datetime(2026, 10, 30, now_hour, 30, tzinfo=self.tz)
+        return build_today_rail(events, [], self.day, self.tz, now)
+
+    def test_empty_day_has_no_hours(self):
+        rail = self.rail([])
+        self.assertEqual(rail["hours"], [])
+        self.assertEqual(rail["height"], 0)
+        self.assertIsNone(rail["now_top"])
+
+    def test_rail_covers_plans_with_an_hour_either_side(self):
+        rail = self.rail([self.plan(9, 10), self.plan(13, 15)])
+        self.assertEqual([hour["hour"] for hour in rail["hours"]], list(range(8, 16)))
         self.assertEqual(rail["hours"][0]["top"], 0)
-        self.assertEqual(rail["hours"][12]["top"], 50)
-        # 1:30 AM used to fall above a rail that started at 07:00.
-        self.assertEqual(rail["now_top"], 6.25)
+        self.assertEqual(rail["height"], 8 * 26)
+        self.assertEqual(rail["now_top"], 56.25)  # 12:30 within 08:00-16:00
+
+    def test_short_day_still_shows_four_hours(self):
+        rail = self.rail([self.plan(10, 11)])
+        self.assertEqual(len(rail["hours"]), 4)
+
+    def test_window_stays_inside_the_day(self):
+        early = self.rail([self.plan(0, 1)], now_hour=0)
+        self.assertEqual(early["hours"][0]["hour"], 0)
+        late = self.rail([self.plan(22, 24)], now_hour=23)
+        self.assertEqual(late["hours"][-1]["hour"], 23)
+        self.assertEqual(len(late["hours"]), 4)
+        self.assertIsNotNone(late["now_top"])
+
+    def test_now_outside_the_window_is_not_drawn(self):
+        self.assertIsNone(self.rail([self.plan(9, 10)], now_hour=20)["now_top"])
