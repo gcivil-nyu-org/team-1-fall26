@@ -7,7 +7,7 @@ google-api-python-client==2.201.0
 python-dotenv==1.2.4
 cryptography==50.0.2
 requests==2.34.2
-django-axes[ipware]==8.3.1
+django-axes[ipware]==9.0.0
 django-ipware==8.0.0
 django-otp==1.7.5
 qrcode==8.2
