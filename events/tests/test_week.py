@@ -221,7 +221,7 @@ class WeekPageTests(TestCase):
 
     def test_week_page_draws_a_card_per_member_with_their_hue(self):
         response = self.client.get(self.url, {"week": "2026-10-28"})
-        self.assertContains(response, "Reyes week")
+        self.assertContains(response, "Reyes’ week")
         self.assertContains(response, "Mon 26 Oct to Sun 1 Nov")
         self.assertContains(response, 'class="card" data-hue="a"')
         self.assertContains(response, 'class="card" data-hue="b"')

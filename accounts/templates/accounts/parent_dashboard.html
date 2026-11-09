@@ -6,7 +6,7 @@
         <div class="flashes">{% for message in messages %}<p class="flash flash-{{ message.tags }}" role="status">{{ message }}</p>{% endfor %}</div>
     {% endif %}
     <div class="head">
-        <h1>{{ workspace.name }} week</h1>
+        <h1>{{ workspace.name|possessive }} week</h1>
         <span class="span">{{ week_start|date:"D j M" }} to {{ week_last|date:"D j M" }}</span>
         <button class="btn my-day-open" type="button" aria-haspopup="dialog" aria-controls="my-day" data-open-my-day hidden>Your day</button>
         {% if is_primary_admin %}<a class="btn btn-quiet" href="{% url 'accounts:manage_members' workspace.pk %}">Add a family member</a>{% endif %}

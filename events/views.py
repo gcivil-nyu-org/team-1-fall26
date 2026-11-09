@@ -1,7 +1,7 @@
 from datetime import time as dt_time
 from urllib.parse import urlencode
 from uuid import UUID
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
 from django import forms
 from django.contrib import messages
@@ -12,10 +12,11 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.cache import patch_cache_control
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from accounts.models import MemberColor
@@ -523,3 +524,11 @@ def member_colors(request, workspace_id):
     ):
         next_url = reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
     return redirect(next_url)
+
+
+@require_GET
+def timezone_names(request):
+    """Every time zone, for the "Show all time zones" button beside a time-zone menu."""
+    response = JsonResponse(sorted(available_timezones()), safe=False)
+    patch_cache_control(response, public=True, max_age=86400)
+    return response

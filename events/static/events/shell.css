@@ -327,3 +327,17 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
   .bar .add-btn { width: 44px; padding: 0; }
   .bar .add-btn .btn-label { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* The 12h/24h and light/dark switches sit in the top bar; on phones shell.js moves them into the
+   account menu (hidden in the bar until then, so nothing jumps). */
+.bar .bar-switches { display: contents; }
+@media (max-width: 560px) { .bar .bar-end > .bar-switches { display: none; } }
+.bar .acct-menu .bar-switches { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); margin-top: 4px; padding: 6px 4px 2px; }
+.bar .acct-menu .bar-switches .switch, .bar .acct-menu .bar-switches .switch:hover { display: grid; width: auto; min-height: 44px; padding: 0; background: none; }
+
+/* "Show all time zones" beside a time-zone menu; it needs a script, so it shows only with one. */
+body button.tz-all { display: none; justify-self: start; margin: 2px 0 0; padding: 4px 0; border: 0; background: none; box-shadow: none; color: var(--muted); font: 500 12px/16px var(--font); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+[data-js] body button.tz-all { display: inline-block; }
+body button.tz-all:hover { color: var(--ink); }
+body button.tz-all[disabled] { cursor: progress; opacity: .6; }
+
