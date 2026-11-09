@@ -40,8 +40,7 @@
         </a>
         {% if shell %}
         <nav class="nav" aria-label="Main">
-            <a href="{{ shell.week_url }}" {% if nav == 'dashboard' %}aria-current="page"{% endif %}>Week</a>
-            <a href="{{ shell.day_url }}" {% if request.resolver_match.app_name == 'events' and nav != 'choose_workspace' %}aria-current="page"{% endif %}>Day</a>
+            <a href="{{ shell.week_url }}" {% if nav == 'dashboard' or request.resolver_match.app_name == 'events' and nav != 'choose_workspace' %}aria-current="page"{% endif %}>Calendar</a>
             <a href="{{ shell.chat_url }}" {% if request.resolver_match.app_name == 'chat' %}aria-current="page"{% endif %}><span class="nav-long">Household chat</span><span class="nav-short">Chat</span></a>
             <a href="{{ shell.family_url }}" {% if nav == 'workspace_detail' or nav == 'manage_members' or nav == 'create_workspace' %}aria-current="page"{% endif %}>Family</a>
         </nav>

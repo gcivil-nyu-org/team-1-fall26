@@ -1,6 +1,6 @@
 {% extends 'events/_paint_page.html' %}
 {% load tz paint %}
-{% block title %}{% with view=form.cleaned_data.view %}{% if form.errors %}Schedule{% elif view == 'day' %}{{ start_date|date:"l j F" }}{% elif view == 'week' %}Week of {{ start_date|date:"j F" }}{% else %}Coming up{% endif %}{% endwith %} | Syncmily{% endblock %}
+{% block title %}{% with view=form.cleaned_data.view %}{% if form.errors %}Schedule{% elif view == 'day' %}{{ start_date|date:"l j F" }}{% elif view == 'week' %}Week of {{ start_date|date:"j F" }}{% elif view == 'month' %}{{ start_date|date:"F Y" }}{% else %}Coming up{% endif %}{% endwith %} | Syncmily{% endblock %}
 {% block add_event_query %}{% if create_query %}?{{ create_query }}{% endif %}{% endblock %}
 {% block content %}
 {% with view=form.cleaned_data.view %}
@@ -11,27 +11,16 @@
         {% elif view == 'day' %}
             <h1>{{ start_date|date:"l j F" }}</h1>
             <span class="span">{% if is_current %}Today. {% endif %}{{ day.summary }}</span>
+        {% elif view == 'month' %}
+            <h1>{{ start_date|date:"F Y" }}</h1>
         {% elif view == 'week' %}
             <h1>Week of {{ start_date|date:"j F" }}</h1>
             <span class="span">{{ start_date|date:"D j M" }} to {{ last_date|date:"D j M" }}, {{ page.paginator.count }} plan{{ page.paginator.count|pluralize }}</span>
         {% else %}
             <h1>Coming up</h1>
-            <span class="span">{% if workspace %}{{ workspace.name }}, {% endif %}{{ page.paginator.count }} plan{{ page.paginator.count|pluralize }} from today</span>
+            <span class="span">{% if workspace %}{{ workspace.name }}, {% endif %}{{ page.paginator.count }} plan{{ page.paginator.count|pluralize }} from {% if list_from %}{{ list_from|date:"D j M" }}{% else %}today{% endif %}</span>
         {% endif %}
-        <div class="head-tools">
-            {% if not form.errors and view != 'upcoming' %}
-                <nav class="seg" aria-label="Change {{ view }}">
-                    <a href="?{{ previous_query }}">Previous</a>
-                    <a href="?view={{ view }}&amp;{{ timezone_query }}"{% if is_current %} aria-current="true"{% endif %}>{% if view == 'day' %}Today{% else %}This week{% endif %}</a>
-                    <a href="?{{ next_query }}">Next</a>
-                </nav>
-            {% endif %}
-            <nav class="seg" aria-label="Schedule period">
-                <a href="?view=day{% if create_query %}&amp;{{ create_query }}{% endif %}"{% if view == 'day' and not form.errors %} aria-current="true"{% endif %}>Day</a>
-                <a href="{% url 'accounts:dashboard' %}{% if form.cleaned_data.date %}?week={{ form.cleaned_data.date|date:'Y-m-d' }}{% endif %}"{% if view == 'week' and not form.errors %} aria-current="true"{% endif %}>Week</a>
-                <a href="?view=upcoming{% if timezone_query %}&amp;{{ timezone_query }}{% endif %}"{% if view == 'upcoming' and not form.errors %} aria-current="true"{% endif %}>List</a>
-            </nav>
-        </div>
+        {% if period_nav %}<div class="head-tools">{% include "events/_period_nav.html" %}</div>{% endif %}
     </div>
 
     {% if form.errors %}
@@ -42,8 +31,10 @@
         </section>
     {% elif day %}
         {% include "events/_day_timeline.html" %}
+    {% elif month %}
+        {% include "events/_month.html" %}
     {% else %}
-        <div class="split">
+        <div class="schedule-list">
         <div class="stack">
         <section class="panel agenda" aria-labelledby="agenda-title">
             <h2 class="sr-only" id="agenda-title">{% if view == 'upcoming' %}Upcoming and ongoing events{% else %}Plans for the week of {{ start_date|date:"j F" }}{% endif %}</h2>
@@ -84,12 +75,8 @@
                 {% if page.has_next %}<a class="btn btn-quiet" href="?{{ period_query }}&amp;page={{ page.next_page_number }}">Next page</a>{% endif %}
             </nav>
         {% endif %}
+        <div class="schedule-foot">{% include "events/_schedule_tools.html" %}</div>
         </div>
-        <aside class="stack schedule-side" aria-label="Schedule settings">
-            <section class="panel page-foot">
-                {% include "events/_schedule_tools.html" %}
-            </section>
-        </aside>
         </div>
     {% endif %}
 

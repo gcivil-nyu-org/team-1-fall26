@@ -51,7 +51,6 @@
         if (!sheet || !sheet.showModal) return;
         var body = document.getElementById("sheet-body");
         var title = document.getElementById("sheet-title");
-        var pageLink = document.getElementById("sheet-page");
         var status = document.getElementById("sheet-status");
         var current = "", returnFocus = null, changed = false, request = null, saving = false;
         title.tabIndex = -1;
@@ -110,7 +109,6 @@
                 return document.importNode(node, true);
             }));
             current = url;
-            pageLink.href = url;
             if (window.syncmilyClocks) window.syncmilyClocks(body);
             if (body.querySelector("[data-event-form]")) {
                 loadScript(sheet.dataset.locationScript);
@@ -163,7 +161,6 @@
             changed = false;
             title.textContent = link.dataset.sheetTitle || "Opening…";
             body.replaceChildren();
-            pageLink.href = link.href;
             sheet.showModal();
             title.focus();
             load(link.href);

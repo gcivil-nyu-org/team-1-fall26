@@ -36,11 +36,7 @@
         {% if me_row %}
             <div class="kid-week-head">
                 <h2>My week <span class="span">{{ week_start|date:"M j" }} to {{ week_last|date:"M j" }}</span></h2>
-                <nav class="seg" aria-label="Change week">
-                    <a href="?week={{ previous_week }}">Previous</a>
-                    <a href="{% url 'accounts:dashboard' %}"{% if is_this_week %} aria-current="true"{% endif %}>This week</a>
-                    <a href="?week={{ next_week }}">Next</a>
-                </nav>
+                {% include "events/_period_nav.html" with period_nav=kid_nav %}
             </div>
             <div class="kid-week">
                 {% for chip in me_row.chips %}
