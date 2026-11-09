@@ -14,4 +14,4 @@ qrcode==8.2
 # Daphne's dependency, pinned to the release candidate because it is the first release
 # that fixes CVE-2026-115877 (HTTP request smuggling in twisted.web, which Daphne serves on).
 # Move to 26.10.0 final when it ships.
-twisted==26.10.0rc1
+twisted==26.10.0
