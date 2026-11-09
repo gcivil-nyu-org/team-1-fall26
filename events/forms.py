@@ -13,9 +13,67 @@ from .access import event_drivers, event_participants, family_workspaces
 from .conflicts import find_overlapping_events
 from .models import Event
 
+# The time-zone menu lists these, plus the current and chosen zones. The full list of
+# about 600 zones was half of every page's HTML (the header date menu repeats it on
+# every page); "Show all time zones" fetches it on demand. Any valid zone validates.
+COMMON_TIMEZONES = frozenset(
+    {
+        "UTC",
+        "America/New_York",
+        "America/Chicago",
+        "America/Denver",
+        "America/Phoenix",
+        "America/Los_Angeles",
+        "America/Anchorage",
+        "Pacific/Honolulu",
+        "America/Toronto",
+        "America/Vancouver",
+        "America/Mexico_City",
+        "America/Bogota",
+        "America/Sao_Paulo",
+        "America/Argentina/Buenos_Aires",
+        "Europe/London",
+        "Europe/Dublin",
+        "Europe/Lisbon",
+        "Europe/Paris",
+        "Europe/Berlin",
+        "Europe/Madrid",
+        "Europe/Rome",
+        "Europe/Amsterdam",
+        "Europe/Athens",
+        "Europe/Istanbul",
+        "Africa/Lagos",
+        "Africa/Cairo",
+        "Africa/Johannesburg",
+        "Asia/Dubai",
+        "Asia/Kolkata",
+        "Asia/Singapore",
+        "Asia/Shanghai",
+        "Asia/Hong_Kong",
+        "Asia/Seoul",
+        "Asia/Tokyo",
+        "Australia/Sydney",
+        "Pacific/Auckland",
+    }
+)
+
+
+class TimezoneSelect(forms.Select):
+    template_name = "events/widgets/timezone_select.html"
+
+    def optgroups(self, name, value, attrs=None):
+        keep = COMMON_TIMEZONES | {v for v in value if v}
+        keep |= {timezone.get_current_timezone_name()}
+        everything = self.choices
+        self.choices = [c for c in everything if not c[0] or c[0] in keep]
+        try:
+            return super().optgroups(name, value, attrs)
+        finally:
+            self.choices = everything
+
 
 class EventTimezoneForm(forms.Form):
-    timezone = forms.ChoiceField(required=False)
+    timezone = forms.ChoiceField(required=False, widget=TimezoneSelect)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

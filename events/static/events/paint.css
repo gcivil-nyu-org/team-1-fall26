@@ -44,7 +44,8 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .id small { font-size: 12px; color: var(--muted); }
 .chip { overflow-wrap: break-word; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; line-height: 16px; text-decoration: none; color: var(--paint-ink); transition: filter .15s; }
 .paint .chip { color: var(--paint-ink); }
-.card .chip { scroll-snap-align: start; min-height: 96px; }
+/* Phones: each person's row is only as tall as its busiest day (it was 96px even when free). */
+.card .chip { scroll-snap-align: start; min-height: 40px; }
 .chip .chip-day { font-weight: 600; }
 .chip time { display: block; font-weight: 400; white-space: nowrap; }
 .chip p { font-weight: 500; }
@@ -54,12 +55,17 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
   .days span:first-child { display: none; }
   .card { grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; scroll-snap-type: none; }
   .card .chip { min-height: 104px; }
+  /* Free days take a short strip, not a full block: a busy day still reads as fuller, and a
+     person with a free week takes one short row. 40px keeps a comfortable tap target
+     (WCAG 2.5.8 asks for 24px). */
+  .card .chip.l0 { align-self: start; min-height: 40px; height: 40px; justify-content: center; padding-block: 0; }
   .card .chip .chip-day { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @container week (width >= 900px) {
   .days, .card { grid-template-columns: 168px repeat(7, minmax(0, 1fr)); }
   .days span:first-child { display: block; }
   .card { min-height: 136px; }
+  .card:not(:has(.chip:not(.l0))) { min-height: 0; } /* a free week: one short row */
   .id { grid-column: auto; position: relative; flex-direction: column; align-items: stretch; justify-content: space-between; padding: 14px 16px; }
   .id > div { display: block; }
   .id::after { content: ""; position: absolute; top: 14px; right: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--counter); } /* die-cut hole */
@@ -93,7 +99,7 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 /* Today rail: 07:00 to 24:00 on a fixed-height axis; events are placed by percentage. */
 .rail { background: var(--card); border-radius: var(--radius); padding: 20px; }
 .rail .sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
-.tl-rail { height: 624px; border-left: 1px solid var(--line); margin-left: 44px; position: relative; }
+.tl-rail { border-left: 1px solid var(--line); margin-left: 44px; position: relative; }
 .tl-rail > i { position: absolute; left: -50px; font-style: normal; font-size: 12px; color: var(--muted); transform: translateY(-8px); }
 /* Plans that would collide share the width: --col of --cols columns, 4px apart. */
 .ev { position: absolute; left: calc(12px + (100% - 12px) * var(--col, 0) / var(--cols, 1)); width: calc((100% - 12px) / var(--cols, 1) - 4px); min-height: 24px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 3px; padding: 4px 10px; font-size: 12px; line-height: 16px; text-decoration: none; background: var(--s3); color: var(--paint-ink); }
@@ -120,8 +126,11 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .paint input[aria-invalid="true"] { border-color: var(--danger); }
 /* Safari sizes each part of a date or time field for its widest value, so a narrow "11"
    leaves a gap before the slash ("11 /02/2026"). Equal-width digits close it; the parts'
-   own padding goes too, so the value starts where other fields' text starts. */
+   own padding goes too. An equal-width "1" sits mid-cell, so "11/08" and "10:30" read as
+   indented; pulling the value left by 0.4em (about 5.5px at 14px) sets dates and times
+   visibly tighter to the left border. */
 .paint :is(input[type="date"], input[type="time"]) { font-variant-numeric: tabular-nums; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit { margin-left: -.4em; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text { font-variant-numeric: normal; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,
