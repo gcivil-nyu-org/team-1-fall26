@@ -290,6 +290,8 @@ class EventForm(EventTimezoneForm):
     def __init__(self, *args, user=None, workspace=None, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.fields["timezone"].widget = forms.HiddenInput()
+
         self.user = user if user is not None and user.is_authenticated else None
 
         self.workspace = workspace
