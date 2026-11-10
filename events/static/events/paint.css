@@ -429,10 +429,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 [data-event-form]:not([data-progressive-ready="true"]) .who-drawer[hidden] { display: block !important; }
 
 .field-ride-toggle { margin-top: 8px; margin-bottom: 12px; }
-.more-options { margin: 16px 0; }
-.more-options-summary { font-size: 13px; font-weight: 600; color: var(--muted); }
-.more-options-body { margin-top: 10px; padding: 12px 14px; border-radius: var(--radius); background: var(--raised); border: 1px solid var(--line); }
-.more-options-body .field:last-child { margin-bottom: 0; }
+.field-tentative { margin-top: 4px; margin-bottom: 16px; }
 .paint .opt { margin-left: 4px; color: var(--muted); font-weight: 400; }
 .paint .notice { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius); background: var(--raised); color: var(--ink); }
 .grid3 { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 0 12px; }

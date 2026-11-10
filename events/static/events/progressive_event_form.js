@@ -49,8 +49,6 @@
         );
         const whoToggleText = form.querySelector(".who-toggle-text");
 
-        const moreOptions = form.querySelector("[data-more-options]");
-
         // Step 2: Date and Time Progressive Logic
         function updateTimesVisibility() {
             if (!timesContainer) return;
@@ -247,19 +245,6 @@
                     updateWhoSummary();
                 }
             });
-        }
-
-        // Step 6: More Options Auto-Expand on Error
-        if (moreOptions) {
-            const hasMoreOptionsErrors = Boolean(
-                moreOptions.querySelector(".errorlist, [aria-invalid='true']")
-            );
-            const isTentativeChecked = Boolean(
-                form.querySelector('input[name="is_tentative"]:checked')
-            );
-            if (hasMoreOptionsErrors || isTentativeChecked) {
-                moreOptions.open = true;
-            }
         }
 
         // Submission Safeguards

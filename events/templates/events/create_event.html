@@ -130,23 +130,13 @@
             {% endif %}
         </div>
 
-        <details class="disclose more-options" data-more-options {% if form.timezone.errors or form.is_tentative.errors or form.is_tentative.value %}open{% endif %}>
-            <summary class="more-options-summary">More options</summary>
-            <div class="more-options-body">
-                <div class="field check-field">
-                    <div class="check">
-                        {{ form.is_tentative }}
-                        <label for="{{ form.is_tentative.id_for_label }}">Not confirmed yet<small>It shows with a dashed edge until it’s settled.</small></label>
-                    </div>
-                    {{ form.is_tentative.errors }}
-                </div>
-                <div class="field">
-                    <label for="{{ form.timezone.id_for_label }}">Time zone</label>
-                    {{ form.timezone }}
-                    {{ form.timezone.errors }}
-                </div>
+        <div class="field check-field field-tentative">
+            <div class="check">
+                {{ form.is_tentative }}
+                <label for="{{ form.is_tentative.id_for_label }}">Not confirmed yet<small>It shows with a dashed edge until it’s settled.</small></label>
             </div>
-        </details>
+            {{ form.is_tentative.errors }}
+        </div>
 
         {% if event_details %}
             {% timezone timezone_name %}
