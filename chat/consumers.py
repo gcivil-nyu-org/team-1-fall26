@@ -50,6 +50,7 @@ class HouseholdChatConsumer(AsyncJsonWebsocketConsumer):
             "sender": message.sender.get_username(),
             "content": message.content,
             "event_label": message.event_label,
+            "priority": message.priority,
             "created_at": message.created_at.isoformat(),
         }
 

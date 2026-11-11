@@ -185,6 +185,7 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
         self.assertTrue(connected)
         self.assertEqual(reply["content"], "Hi family")
         self.assertEqual(reply["sender"], "socket_kid")
+        self.assertEqual(reply["priority"], ChatMessage.Priority.HIGH)
         self.assertEqual(
             ChatMessage.objects.get(pk=reply["id"]).priority, ChatMessage.Priority.HIGH
         )

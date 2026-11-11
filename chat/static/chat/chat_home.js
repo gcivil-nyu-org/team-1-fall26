@@ -83,6 +83,12 @@
             time.textContent = time.dataset.clock;
             meta.appendChild(time);
         }
+        if (data.priority === "high") {
+            const badge = document.createElement("span");
+            badge.className = "msg-priority";
+            badge.textContent = "High priority";
+            meta.append(" ", badge);
+        }
         const bubble = document.createElement("p");
         bubble.className = "bubble";
         bubble.textContent = data.content;
