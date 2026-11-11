@@ -8,6 +8,7 @@ from django.utils import timezone
 from accounts.models import Membership, Workspace
 from syncmily.asgi import application
 
+from ..models import ChatMessage
 from ..services import create_message, get_household_messages
 
 
@@ -49,6 +50,19 @@ class ChatServiceTests(TestCase):
 
         self.assertEqual(message.content, "Dinner is ready!")
         self.assertEqual(message.workspace_id, self.workspace.id)
+        self.assertEqual(message.priority, ChatMessage.Priority.NORMAL)
+
+    def test_unsupported_priority_is_saved_as_normal(self):
+        for priority in ("urgent", None, ["high"]):
+            with self.subTest(priority=priority):
+                message = create_message(
+                    sender=self.member,
+                    workspace_id=self.workspace.id,
+                    content="Dinner is ready",
+                    priority=priority,
+                )
+                message.refresh_from_db()
+                self.assertEqual(message.priority, ChatMessage.Priority.NORMAL)
 
     def test_accepted_member_can_post(self):
         message = create_message(
@@ -160,7 +174,7 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
             communicator.scope["user"] = self.member
             connected, _ = await communicator.connect()
             await communicator.send_json_to(
-                {"type": "chat_message", "content": "Hi family"}
+                {"type": "chat_message", "content": "Hi family", "priority": "high"}
             )
             reply = await communicator.receive_json_from()
             await communicator.disconnect()
@@ -171,3 +185,6 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
         self.assertTrue(connected)
         self.assertEqual(reply["content"], "Hi family")
         self.assertEqual(reply["sender"], "socket_kid")
+        self.assertEqual(
+            ChatMessage.objects.get(pk=reply["id"]).priority, ChatMessage.Priority.HIGH
+        )
