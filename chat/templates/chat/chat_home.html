@@ -32,6 +32,11 @@
             <form class="compose" id="chat-form">
                 <label class="sr-only" for="chat-input">Message</label>
                 <input id="chat-input" type="text" placeholder="Message {{ workspace.name }}…" maxlength="2000" autocomplete="off" disabled>
+                <label class="sr-only" for="chat-priority">Message priority</label>
+                <select id="chat-priority" autocomplete="off" disabled>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                </select>
                 <button class="btn" id="chat-send" type="submit" disabled>Send</button>
             </form>
             {{ workspace.id|json_script:"chat-workspace-id" }}

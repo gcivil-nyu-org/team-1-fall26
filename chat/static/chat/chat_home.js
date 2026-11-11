@@ -17,6 +17,7 @@
     const messages = document.getElementById("chat-messages");
     const form = document.getElementById("chat-form");
     const input = document.getElementById("chat-input");
+    const priority = document.getElementById("chat-priority");
     const sendButton = document.getElementById("chat-send");
     const status = document.getElementById("chat-status");
     const error = document.getElementById("chat-error");
@@ -103,6 +104,7 @@
             status.textContent = "";
             error.textContent = "";
             input.disabled = false;
+            priority.disabled = false;
             sendButton.disabled = false;
             input.focus();
         };
@@ -119,6 +121,7 @@
 
         socket.onclose = function (event) {
             input.disabled = true;
+            priority.disabled = true;
             sendButton.disabled = true;
 
             if (intentionallyClosed) {
@@ -157,10 +160,12 @@
 
         socket.send(JSON.stringify({
             type: "chat_message",
-            content: content
+            content: content,
+            priority: priority.value,
         }));
 
         input.value = "";
+        priority.value = "normal";
         input.focus();
     });
 

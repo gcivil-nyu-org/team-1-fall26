@@ -501,6 +501,7 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .paint .chat-error:empty { display: none; }
 .compose { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
 .paint .compose input { flex: 1; min-width: 0; }
+.paint .compose select { width: auto; flex: none; }
 .chat-side .row[aria-current] b { text-decoration: underline; text-underline-offset: 3px; }
 @container page (width >= 900px) {
   .chat { grid-template-columns: minmax(0, 1fr) 300px; height: calc(100vh - 60px - 72px); min-height: 480px; }
