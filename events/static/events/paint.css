@@ -492,6 +492,7 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .msg-body { min-width: 0; }
 .msg-meta { color: var(--muted); font-size: 12px; }
 .msg-meta b { margin-right: 6px; color: var(--ink); font-size: 14px; font-weight: 600; }
+.msg-priority { display: inline-block; margin-inline-start: 6px; padding: 1px 6px; border: 1px solid currentColor; border-radius: 999px; color: var(--danger); font-weight: 600; }
 .paint .bubble { width: fit-content; max-width: 100%; margin-top: 4px; padding: 8px 12px; border-radius: 12px; background: var(--s1, var(--raised)); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-theme="dark"] .paint .bubble { background: color-mix(in oklab, var(--s5, var(--raised)) 35%, var(--card)); }
 .msg.mine { align-self: flex-end; flex-direction: row-reverse; text-align: right; }
