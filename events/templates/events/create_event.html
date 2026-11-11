@@ -10,6 +10,67 @@
         <h1>{% if is_edit %}Edit event{% else %}Add event{% endif %}</h1>
         {% if workspace %}<span class="span">{{ workspace.name }}</span>{% endif %}
     </div>
+    {% if can_save and not is_edit %}
+    <section class="panel ai-suggestion-panel" style="margin-bottom: 20px;">
+        <h2>✨ Create an event with AI</h2>
+
+        <p class="span">
+            Describe your family event in your own words.
+            Syncmily will suggest the details for you to review.
+        </p>
+
+        <form method="post" action="{{ form_url }}">
+            {% csrf_token %}
+
+            <div class="field">
+                <label for="{{ ai_form.description.id_for_label }}">
+                    Describe your event
+                </label>
+                {{ ai_form.description }}
+                {{ ai_form.description.errors }}
+                <small>{{ ai_form.description.help_text }}</small>
+            </div>
+
+            {{ ai_form.non_field_errors }}
+
+            <input
+                type="hidden"
+                name="timezone"
+                value="{{ form.timezone.value|default:timezone_name }}"
+            >
+
+            <div class="actions">
+                <button
+                    class="btn"
+                    type="submit"
+                    name="action"
+                    value="generate_suggestion">
+                    ✨ Generate Suggestion
+                </button>
+            </div>
+        </form>
+
+        {% if ai_suggestion_generated %}
+            <div class="notice" role="status">
+                <strong>Suggestion generated!</strong>
+                Review and edit the details below before saving.
+            </div>
+        {% endif %}
+
+        {% if ai_missing_fields %}
+            <div class="form-error" role="alert">
+                <strong>Required information is missing:</strong>
+                <ul>
+                    {% for field in ai_missing_fields %}
+                        <li>{{ field|title|cut:"_" }}</li>
+                    {% endfor %}
+                </ul>
+                <p>Please complete these fields before saving.</p>
+            </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
     <div class="layout-form">
     <form class="panel event-form" data-event-form id="event-form" method="post" action="{{ form_url }}">
         {% csrf_token %}

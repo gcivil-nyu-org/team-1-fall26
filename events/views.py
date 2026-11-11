@@ -22,6 +22,8 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 from accounts.models import MemberColor
 
 from .access import family_events, family_workspaces
+from .ai_forms import AIEventSuggestionForm
+from .ai_suggestions import EventSuggestionError, generate_event_suggestion
 from .day import vertical_day
 from .forms import (
     EventDriverForm,
@@ -63,9 +65,17 @@ def create_event(request, workspace_id=None):
             family_workspaces(request.user, caregivers_only=True), pk=workspace_id
         )
     can_save = workspace is not None
-    saving = request.method == "POST" and request.POST.get("action") == "save"
-    if saving and not can_save:
+    action = request.POST.get("action") if request.method == "POST" else None
+    saving = action == "save"
+
+    if action in ("generate_suggestion", "save") and not can_save:
         raise PermissionDenied
+
+    ai_form = AIEventSuggestionForm(
+        request.POST if action == "generate_suggestion" else None
+    )
+    ai_missing_fields = []
+    ai_suggestion_generated = False
 
     initial = {}
     if request.method == "GET":
@@ -84,8 +94,40 @@ def create_event(request, workspace_id=None):
                 )
                 initial["start_time"] = start_time
                 initial["end_time"] = dt_time(end_minutes // 60, end_minutes % 60)
+
+    if action == "generate_suggestion" and ai_form.is_valid():
+        suggestion_timezone = (
+            request.POST.get("timezone") or timezone.get_current_timezone_name()
+        )
+
+        if suggestion_timezone not in available_timezones():
+            ai_form.add_error(None, "Choose a valid timezone.")
+        else:
+            try:
+                suggestion = generate_event_suggestion(
+                    ai_form.cleaned_data["description"],
+                    timezone_name=suggestion_timezone,
+                )
+            except EventSuggestionError as error:
+                ai_form.add_error(None, str(error))
+            else:
+                initial.update(
+                    {
+                        key: value
+                        for key, value in suggestion.items()
+                        if key != "missing_fields" and value is not None
+                    }
+                )
+                initial["timezone"] = suggestion_timezone
+                ai_missing_fields = suggestion["missing_fields"]
+                ai_suggestion_generated = True
+
     form = EventForm(
-        request.POST if request.method == "POST" else None,
+        (
+            request.POST
+            if request.method == "POST" and action != "generate_suggestion"
+            else None
+        ),
         initial=initial,
         user=request.user,
         workspace=workspace,
@@ -165,6 +207,9 @@ def create_event(request, workspace_id=None):
         "events/create_event.html",
         {
             "form": form,
+            "ai_form": ai_form,
+            "ai_missing_fields": ai_missing_fields,
+            "ai_suggestion_generated": ai_suggestion_generated,
             "event_details": event_details,
             "timezone_name": timezone_name,
             "can_save": can_save,
