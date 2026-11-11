@@ -95,11 +95,9 @@ def create_event(request, workspace_id=None):
                 initial["start_time"] = start_time
                 initial["end_time"] = dt_time(end_minutes // 60, end_minutes % 60)
 
-
     if action == "generate_suggestion" and ai_form.is_valid():
         suggestion_timezone = (
-            request.POST.get("timezone")
-            or timezone.get_current_timezone_name()
+            request.POST.get("timezone") or timezone.get_current_timezone_name()
         )
 
         if suggestion_timezone not in available_timezones():
@@ -125,9 +123,11 @@ def create_event(request, workspace_id=None):
                 ai_suggestion_generated = True
 
     form = EventForm(
-        request.POST
-        if request.method == "POST" and action != "generate_suggestion"
-        else None,
+        (
+            request.POST
+            if request.method == "POST" and action != "generate_suggestion"
+            else None
+        ),
         initial=initial,
         user=request.user,
         workspace=workspace,

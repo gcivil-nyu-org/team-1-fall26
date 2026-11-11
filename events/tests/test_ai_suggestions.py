@@ -1,4 +1,3 @@
-
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
@@ -16,18 +15,12 @@ class AIEventSuggestionFormTests(SimpleTestCase):
 
     def test_accepts_valid_description(self):
         form = AIEventSuggestionForm(
-            data={
-                "description": (
-                    "Family dinner on November 20 at 6 PM."
-                )
-            }
+            data={"description": ("Family dinner on November 20 at 6 PM.")}
         )
         self.assertTrue(form.is_valid())
 
     def test_rejects_short_description(self):
-        form = AIEventSuggestionForm(
-            data={"description": "Dinner"}
-        )
+        form = AIEventSuggestionForm(data={"description": "Dinner"})
         self.assertFalse(form.is_valid())
 
     def test_rejects_empty_description(self):
@@ -112,9 +105,7 @@ class AIEventServiceTests(SimpleTestCase):
         result = generate_event_suggestion(
             "Family dinner on November 20 from 6 to 8 PM.",
             timezone_name="America/New_York",
-            reference_datetime=datetime(
-                2026, 11, 11, 12, 0, tzinfo=timezone.utc
-            ),
+            reference_datetime=datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc),
         )
 
         self.assertEqual(result["title"], "Family dinner")

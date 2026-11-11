@@ -1,4 +1,3 @@
-
 import json
 import os
 
@@ -7,7 +6,6 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 from django.utils import timezone
-
 
 # Groq API configuration
 API_URL = "https://api.groq.com/openai/v1/responses"
@@ -50,16 +48,12 @@ def _validate_suggestion(data):
     """
 
     if not isinstance(data, dict):
-        raise EventSuggestionError(
-            "Invalid suggestion format."
-        )
+        raise EventSuggestionError("Invalid suggestion format.")
 
     expected_fields = set(EVENT_SCHEMA["required"])
 
     if set(data.keys()) != expected_fields:
-        raise EventSuggestionError(
-            "Unexpected suggestion fields."
-        )
+        raise EventSuggestionError("Unexpected suggestion fields.")
 
     result = {}
 
@@ -67,9 +61,7 @@ def _validate_suggestion(data):
         value = data[field]
 
         if value is not None and not isinstance(value, str):
-            raise EventSuggestionError(
-                f"Invalid value for {field}."
-            )
+            raise EventSuggestionError(f"Invalid value for {field}.")
 
         if isinstance(value, str):
             value = value.strip() or None
@@ -82,42 +74,28 @@ def _validate_suggestion(data):
             try:
                 date.fromisoformat(result[field])
             except ValueError as error:
-                raise EventSuggestionError(
-                    f"Invalid {field}."
-                ) from error
+                raise EventSuggestionError(f"Invalid {field}.") from error
 
     # Validate and normalize times
     for field in ("start_time", "end_time"):
         if result[field]:
             try:
-                parsed_time = time.fromisoformat(
-                    result[field]
-                )
+                parsed_time = time.fromisoformat(result[field])
 
                 if parsed_time.tzinfo is not None:
-                    raise ValueError(
-                        "Time must be local."
-                    )
+                    raise ValueError("Time must be local.")
 
-                result[field] = parsed_time.strftime(
-                    "%H:%M"
-                )
+                result[field] = parsed_time.strftime("%H:%M")
 
             except ValueError as error:
-                raise EventSuggestionError(
-                    f"Invalid {field}."
-                ) from error
+                raise EventSuggestionError(f"Invalid {field}.") from error
 
     # Field length restrictions
     if result["title"] and len(result["title"]) > 200:
-        raise EventSuggestionError(
-            "Suggested title is too long."
-        )
+        raise EventSuggestionError("Suggested title is too long.")
 
     if result["location"] and len(result["location"]) > 255:
-        raise EventSuggestionError(
-            "Suggested location is too long."
-        )
+        raise EventSuggestionError("Suggested location is too long.")
 
     # Identify missing required event information
     missing_fields = [
@@ -158,24 +136,18 @@ def generate_event_suggestion(
 
     # Validate user input
     if not isinstance(description, str):
-        raise EventSuggestionError(
-            "Invalid event description."
-        )
+        raise EventSuggestionError("Invalid event description.")
 
     description = description.strip()
 
     if not 10 <= len(description) <= 2000:
-        raise EventSuggestionError(
-            "Describe the event in 10 to 2000 characters."
-        )
+        raise EventSuggestionError("Describe the event in 10 to 2000 characters.")
 
     # Read the API key from environment variables
     api_key = os.environ.get("GROQ_API_KEY")
 
     if not api_key:
-        raise EventSuggestionError(
-            "AI suggestions are not configured on this server."
-        )
+        raise EventSuggestionError("AI suggestions are not configured on this server.")
 
     # Validate timezone
     try:
@@ -186,21 +158,15 @@ def generate_event_suggestion(
         KeyError,
         TypeError,
     ) as error:
-        raise EventSuggestionError(
-            "Invalid timezone."
-        ) from error
+        raise EventSuggestionError("Invalid timezone.") from error
 
     # Resolve the current local date and time
     current_time = (
-        reference_datetime
-        if reference_datetime is not None
-        else timezone.now()
+        reference_datetime if reference_datetime is not None else timezone.now()
     )
 
     if current_time.tzinfo is None:
-        raise EventSuggestionError(
-            "Reference time must include a timezone."
-        )
+        raise EventSuggestionError("Reference time must include a timezone.")
 
     current_time = current_time.astimezone(zone)
 
@@ -270,9 +236,7 @@ def generate_event_suggestion(
 
         # Ensure generation completed successfully
         if output.get("status") != "completed":
-            raise EventSuggestionError(
-                "AI could not complete the event suggestion."
-            )
+            raise EventSuggestionError("AI could not complete the event suggestion.")
 
         # Extract text from the Responses API output
         text_parts = []
@@ -283,19 +247,13 @@ def generate_event_suggestion(
 
             for part in item.get("content", []):
                 if part.get("type") == "output_text":
-                    text_parts.append(
-                        part.get("text", "")
-                    )
+                    text_parts.append(part.get("text", ""))
 
         if not text_parts:
-            raise EventSuggestionError(
-                "AI returned no event details."
-            )
+            raise EventSuggestionError("AI returned no event details.")
 
         # Parse JSON
-        data = json.loads(
-            "".join(text_parts)
-        )
+        data = json.loads("".join(text_parts))
 
         # Validate before using in Django's EventForm
         return _validate_suggestion(data)
@@ -306,33 +264,25 @@ def generate_event_suggestion(
         ) from error
 
     except requests.HTTPError as error:
-        status_code = (
-            error.response.status_code
-            if error.response is not None
-            else None
-        )
+        status_code = error.response.status_code if error.response is not None else None
 
         if status_code == 429:
             raise EventSuggestionError(
-                "The free AI request limit was reached. "
-                "Please try again later."
+                "The free AI request limit was reached. " "Please try again later."
             ) from error
 
         if status_code in (401, 403):
             raise EventSuggestionError(
-                "Groq API authentication failed. "
-                "Check your API key."
+                "Groq API authentication failed. " "Check your API key."
             ) from error
 
         raise EventSuggestionError(
-            "The AI service could not generate a suggestion. "
-            "Please try again."
+            "The AI service could not generate a suggestion. " "Please try again."
         ) from error
 
     except requests.RequestException as error:
         raise EventSuggestionError(
-            "The AI service is unavailable. "
-            "Please try again."
+            "The AI service is unavailable. " "Please try again."
         ) from error
 
     except (

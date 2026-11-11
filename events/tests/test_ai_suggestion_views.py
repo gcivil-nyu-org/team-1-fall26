@@ -1,4 +1,3 @@
-
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -52,8 +51,7 @@ class AIEventSuggestionViewTests(TestCase):
         )
 
         self.description = (
-            "Family dinner on November 20, 2026 "
-            "from 6 PM to 8 PM at Olive Garden."
+            "Family dinner on November 20, 2026 " "from 6 PM to 8 PM at Olive Garden."
         )
 
         self.suggestion = {
@@ -88,9 +86,7 @@ class AIEventSuggestionViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertTrue(
-            response.context["ai_suggestion_generated"]
-        )
+        self.assertTrue(response.context["ai_suggestion_generated"])
 
         form = response.context["form"]
 
@@ -164,9 +160,7 @@ class AIEventSuggestionViewTests(TestCase):
             before_count,
         )
 
-        self.assertTrue(
-            response.context["ai_suggestion_generated"]
-        )
+        self.assertTrue(response.context["ai_suggestion_generated"])
 
     @patch("events.views.generate_event_suggestion")
     def test_generated_draft_can_be_edited(self, mock_ai):
@@ -183,9 +177,7 @@ class AIEventSuggestionViewTests(TestCase):
         generated_form = response.context["form"]
 
         # Preserve the original signed submission token.
-        token = generated_form[
-            "submission_token"
-        ].value()
+        token = generated_form["submission_token"].value()
 
         # Caregiver changes the AI-generated event title.
         edited_data = {
@@ -256,8 +248,6 @@ class AIEventSuggestionViewTests(TestCase):
 
         form = response.context["form"]
 
-        self.assertFalse(
-            form.initial.get("end_time")
-        )
+        self.assertFalse(form.initial.get("end_time"))
 
         self.assertEqual(Event.objects.count(), 0)
