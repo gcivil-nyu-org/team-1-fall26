@@ -1,3 +1,4 @@
+from copy import copy
 from datetime import datetime, time, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo, available_timezones
@@ -13,9 +14,67 @@ from .access import event_drivers, event_participants, family_workspaces
 from .conflicts import find_overlapping_events
 from .models import Event
 
+# The time-zone menu lists these, plus the current and chosen zones. The full list of
+# about 600 zones was half of every page's HTML (the header date menu repeats it on
+# every page); "Show all time zones" fetches it on demand. Any valid zone validates.
+COMMON_TIMEZONES = frozenset(
+    {
+        "UTC",
+        "America/New_York",
+        "America/Chicago",
+        "America/Denver",
+        "America/Phoenix",
+        "America/Los_Angeles",
+        "America/Anchorage",
+        "Pacific/Honolulu",
+        "America/Toronto",
+        "America/Vancouver",
+        "America/Mexico_City",
+        "America/Bogota",
+        "America/Sao_Paulo",
+        "America/Argentina/Buenos_Aires",
+        "Europe/London",
+        "Europe/Dublin",
+        "Europe/Lisbon",
+        "Europe/Paris",
+        "Europe/Berlin",
+        "Europe/Madrid",
+        "Europe/Rome",
+        "Europe/Amsterdam",
+        "Europe/Athens",
+        "Europe/Istanbul",
+        "Africa/Lagos",
+        "Africa/Cairo",
+        "Africa/Johannesburg",
+        "Asia/Dubai",
+        "Asia/Kolkata",
+        "Asia/Singapore",
+        "Asia/Shanghai",
+        "Asia/Hong_Kong",
+        "Asia/Seoul",
+        "Asia/Tokyo",
+        "Australia/Sydney",
+        "Pacific/Auckland",
+    }
+)
+
+
+class TimezoneSelect(forms.Select):
+    template_name = "events/widgets/timezone_select.html"
+
+    def optgroups(self, name, value, attrs=None):
+        keep = COMMON_TIMEZONES | {v for v in value if v}
+        keep |= {timezone.get_current_timezone_name()}
+        everything = self.choices
+        self.choices = [c for c in everything if not c[0] or c[0] in keep]
+        try:
+            return super().optgroups(name, value, attrs)
+        finally:
+            self.choices = everything
+
 
 class EventTimezoneForm(forms.Form):
-    timezone = forms.ChoiceField(required=False)
+    timezone = forms.ChoiceField(required=False, widget=TimezoneSelect)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,6 +92,9 @@ class EventWorkspaceForm(EventTimezoneForm):
     workspace = forms.ModelChoiceField(queryset=Workspace.objects.none())
 
     date = forms.DateField(required=False, widget=forms.HiddenInput)
+
+    # The day view's right-click "Add event at …" passes the slot's start time along.
+    time = forms.TimeField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
@@ -145,10 +207,11 @@ class EventForm(EventTimezoneForm):
     )
 
     title = forms.CharField(
+        label="What are we planning?",
         max_length=200,
         widget=forms.TextInput(
             attrs={
-                "placeholder": "Swim lesson, dentist, carpool…",
+                "placeholder": "Add an event title",
                 "autocomplete": "off",
                 "data-autofocus": "",
             }
@@ -156,7 +219,7 @@ class EventForm(EventTimezoneForm):
     )
 
     date = forms.DateField(
-        label="Start date",
+        label="When?",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
 
@@ -178,7 +241,7 @@ class EventForm(EventTimezoneForm):
     # Location field used by Photon autocomplete.
     # Users can still enter a location manually.
     location = forms.CharField(
-        label="Location (optional)",
+        label="Where (optional)",
         max_length=255,
         required=False,
         widget=forms.TextInput(
@@ -225,8 +288,40 @@ class EventForm(EventTimezoneForm):
         ),
     )
 
-    def __init__(self, *args, user=None, workspace=None, **kwargs):
+    def __init__(self, *args, user=None, workspace=None, instance=None, **kwargs):
+        self.instance = instance
+        if instance is not None:
+            workspace = instance.workspace
+            selected_timezone = ZoneInfo(instance.timezone_name)
+            starts_at = timezone.localtime(instance.starts_at, selected_timezone)
+            ends_at = timezone.localtime(instance.ends_at, selected_timezone)
+            initial = {
+                name: getattr(instance, name)
+                for name in (
+                    "title",
+                    "location",
+                    "latitude",
+                    "longitude",
+                    "transport_mode",
+                    "is_tentative",
+                    "requires_transport",
+                )
+            }
+            initial.update(
+                date=starts_at.date(),
+                start_time=starts_at.time(),
+                end_date=ends_at.date() if ends_at.date() != starts_at.date() else None,
+                end_time=ends_at.time(),
+                timezone=instance.timezone_name,
+                participants=list(instance.participants.values_list("pk", flat=True)),
+                dropoff_driver=instance.dropoff_driver_id,
+                pickup_driver=instance.pickup_driver_id,
+            )
+            initial.update(kwargs.pop("initial", {}))
+            kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
+
+        self.fields["timezone"].widget = forms.HiddenInput()
 
         self.user = user if user is not None and user.is_authenticated else None
 
@@ -241,14 +336,17 @@ class EventForm(EventTimezoneForm):
 
         self.event = None
 
-        self.fields["submission_token"].initial = signing.dumps(
-            {
-                "id": str(uuid4()),
-                "user": self.user.pk if self.user else None,
-                "workspace": str(workspace.pk) if workspace else None,
-            },
-            salt="events.create",
-        )
+        if instance is None:
+            self.fields["submission_token"].initial = signing.dumps(
+                {
+                    "id": str(uuid4()),
+                    "user": self.user.pk if self.user else None,
+                    "workspace": str(workspace.pk) if workspace else None,
+                },
+                salt="events.create",
+            )
+        else:
+            self.fields.pop("submission_token")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -315,10 +413,23 @@ class EventForm(EventTimezoneForm):
         if self.errors:
             return cleaned_data
 
+        requires_transport = cleaned_data.get("requires_transport", False)
+        dropoff_driver = (
+            cleaned_data.get("dropoff_driver") if requires_transport else None
+        )
+        pickup_driver = (
+            cleaned_data.get("pickup_driver") if requires_transport else None
+        )
+        cleaned_data["dropoff_driver"] = dropoff_driver
+        cleaned_data["pickup_driver"] = pickup_driver
+
         # Construct the event with all selected details.
-        event = Event(
-            created_by=self.user,
-            workspace=self.workspace,
+        event = (
+            copy(self.instance)
+            if self.instance is not None
+            else Event(created_by=self.user, workspace=self.workspace)
+        )
+        event_values = dict(
             title=cleaned_data["title"],
             timezone_name=cleaned_data["timezone"],
             starts_at=cleaned_data["starts_at"],
@@ -328,10 +439,12 @@ class EventForm(EventTimezoneForm):
             longitude=longitude,
             transport_mode=cleaned_data["transport_mode"],
             is_tentative=cleaned_data.get("is_tentative", False),
-            requires_transport=cleaned_data.get("requires_transport", False),
-            dropoff_driver=cleaned_data.get("dropoff_driver"),
-            pickup_driver=cleaned_data.get("pickup_driver"),
+            requires_transport=requires_transport,
+            dropoff_driver=dropoff_driver,
+            pickup_driver=pickup_driver,
         )
+        for name, value in event_values.items():
+            setattr(event, name, value)
 
         try:
             event.full_clean(
@@ -371,6 +484,7 @@ class EventForm(EventTimezoneForm):
                     starts_at=event.starts_at,
                     ends_at=event.ends_at,
                     participants=participants,
+                    exclude_event_id=event.pk,
                 )
 
                 conflict = conflicts.first()

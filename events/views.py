@@ -1,10 +1,9 @@
-from .ai_forms import AIEventSuggestionForm
-from .ai_suggestions import EventSuggestionError, generate_event_suggestion
-
+from datetime import time as dt_time
 from urllib.parse import urlencode
 from uuid import UUID
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
@@ -13,15 +12,18 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.cache import patch_cache_control
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from accounts.models import MemberColor
 
 from .access import family_events, family_workspaces
+from .ai_forms import AIEventSuggestionForm
+from .ai_suggestions import EventSuggestionError, generate_event_suggestion
 from .day import vertical_day
 from .forms import (
     EventDriverForm,
@@ -34,6 +36,16 @@ from .models import Event
 from .travel_conflicts import find_travel_checks
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
 from .week import local_day_bounds
+
+
+def _prefill_time(value):
+    """The start time a link asks the event form for, or None if missing or invalid."""
+    if not value:
+        return None
+    try:
+        return forms.TimeField().clean(value)
+    except ValidationError:
+        return None
 
 
 @require_http_methods(["GET", "POST"])
@@ -56,10 +68,7 @@ def create_event(request, workspace_id=None):
     action = request.POST.get("action") if request.method == "POST" else None
     saving = action == "save"
 
-    if action == "generate_suggestion" and not can_save:
-        raise PermissionDenied
-
-    if saving and not can_save:
+    if action in ("generate_suggestion", "save") and not can_save:
         raise PermissionDenied
 
     ai_form = AIEventSuggestionForm(
@@ -73,34 +82,47 @@ def create_event(request, workspace_id=None):
         schedule_form = EventScheduleForm(request.GET)
         if schedule_form.is_valid():
             initial = {
-                "date": schedule_form.cleaned_data["date"],
                 "timezone": schedule_form.cleaned_data["timezone"],
             }
+            if request.GET.get("date"):
+                initial["date"] = schedule_form.cleaned_data["date"]
+            start_time = _prefill_time(request.GET.get("time"))
+            if start_time is not None:
+                # One hour by default, kept inside the same day.
+                end_minutes = min(
+                    start_time.hour * 60 + start_time.minute + 60, 23 * 60 + 59
+                )
+                initial["start_time"] = start_time
+                initial["end_time"] = dt_time(end_minutes // 60, end_minutes % 60)
+
+
     if action == "generate_suggestion" and ai_form.is_valid():
-        try:
-            suggestion = generate_event_suggestion(
-                ai_form.cleaned_data["description"],
-                timezone_name=(
-                    request.POST.get("timezone")
-                    or timezone.get_current_timezone_name()
-                ),
-            )
-        except EventSuggestionError as error:
-            ai_form.add_error(None, str(error))
+        suggestion_timezone = (
+            request.POST.get("timezone")
+            or timezone.get_current_timezone_name()
+        )
+
+        if suggestion_timezone not in available_timezones():
+            ai_form.add_error(None, "Choose a valid timezone.")
         else:
-            initial.update(
-                {
-                    key: value
-                    for key, value in suggestion.items()
-                    if key != "missing_fields" and value is not None
-                }
-            )
-            initial["timezone"] = (
-                request.POST.get("timezone")
-                or timezone.get_current_timezone_name()
-            )
-            ai_missing_fields = suggestion["missing_fields"]
-            ai_suggestion_generated = True
+            try:
+                suggestion = generate_event_suggestion(
+                    ai_form.cleaned_data["description"],
+                    timezone_name=suggestion_timezone,
+                )
+            except EventSuggestionError as error:
+                ai_form.add_error(None, str(error))
+            else:
+                initial.update(
+                    {
+                        key: value
+                        for key, value in suggestion.items()
+                        if key != "missing_fields" and value is not None
+                    }
+                )
+                initial["timezone"] = suggestion_timezone
+                ai_missing_fields = suggestion["missing_fields"]
+                ai_suggestion_generated = True
 
     form = EventForm(
         request.POST
@@ -197,7 +219,7 @@ def create_event(request, workspace_id=None):
                 if workspace and workspace.primary_admin_id == request.user.pk
                 else reverse("accounts:dashboard")
             ),
-            "create_url": (
+            "form_url": (
                 reverse("events:workspace_create", args=[workspace.pk])
                 if workspace
                 else reverse("events:create")
@@ -213,6 +235,153 @@ def create_event(request, workspace_id=None):
 
 
 @login_required(login_url="accounts:login")
+@require_http_methods(["GET", "POST"])
+def edit_event(request, pk):
+    event = get_object_or_404(
+        Event.objects.filter(
+            workspace__in=family_workspaces(request.user, caregivers_only=True),
+            source=Event.Source.SYNCMILY,
+        )
+        .select_related("workspace")
+        .prefetch_related("participants"),
+        pk=pk,
+    )
+    form = EventForm(
+        request.POST if request.method == "POST" else None,
+        instance=event,
+        user=request.user,
+    )
+    event_details = None
+    travel_checks = []
+    timezone_name = event.timezone_name
+    if request.method == "POST" and form.is_valid():
+        event_details = form.event
+        timezone_name = form.cleaned_data["timezone"]
+        travel_checks = find_travel_checks(
+            event_details, form.cleaned_data["participants"]
+        )
+        if request.POST.get("action") == "save":
+            try:
+                with transaction.atomic():
+                    event_details.full_clean()
+                    event_details.save(
+                        update_fields=[
+                            "title",
+                            "starts_at",
+                            "ends_at",
+                            "timezone_name",
+                            "location",
+                            "latitude",
+                            "longitude",
+                            "transport_mode",
+                            "is_tentative",
+                            "requires_transport",
+                            "dropoff_driver",
+                            "pickup_driver",
+                            "updated_at",
+                        ]
+                    )
+                    event_details.participants.set(form.cleaned_data["participants"])
+            except ValidationError as error:
+                form.add_error(None, error.messages)
+            except DatabaseError:
+                form.add_error(
+                    None,
+                    "The event could not be saved. Your details are still here."
+                    " Please try again.",
+                )
+            else:
+                messages.success(request, "Your event has been updated.")
+                detail_url = reverse("events:detail", args=[event.pk])
+                return redirect(
+                    f"{detail_url}?{urlencode({'timezone': timezone_name})}"
+                )
+    return render(
+        request,
+        "events/create_event.html",
+        {
+            "form": form,
+            "event": event,
+            "is_edit": True,
+            "event_details": event_details,
+            "timezone_name": timezone_name,
+            "can_save": True,
+            "workspace": event.workspace,
+            "workspace_url": (
+                reverse("accounts:workspace_detail", args=[event.workspace_id])
+                if event.workspace.primary_admin_id == request.user.pk
+                else reverse("accounts:dashboard")
+            ),
+            "form_url": reverse("events:edit", args=[event.pk]),
+            "travel_checks": travel_checks,
+            "members": {
+                member["user"].pk: member
+                for member in family_members([event.workspace])
+            },
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_http_methods(["GET", "POST"])
+def delete_event(request, pk):
+    event = get_object_or_404(
+        Event.objects.filter(
+            workspace__in=family_workspaces(request.user, caregivers_only=True),
+            source=Event.Source.SYNCMILY,
+        ).select_related("workspace"),
+        pk=pk,
+    )
+    timezone_data = request.GET.copy()
+    if not timezone_data.get("timezone"):
+        timezone_data["timezone"] = event.timezone_name
+    timezone_form = EventTimezoneForm(timezone_data)
+    timezone_name = event.timezone_name
+    if timezone_form.is_valid():
+        timezone_name = timezone_form.cleaned_data["timezone"]
+    timezone_query = urlencode({"timezone": timezone_name})
+    error = None
+    if request.method == "POST":
+        if request.POST.get("action") != "delete":
+            error = "Choose Delete event to confirm, or Keep event to go back."
+        else:
+            schedule_query = urlencode(
+                {
+                    "date": timezone.localtime(
+                        event.starts_at, ZoneInfo(timezone_name)
+                    ).date(),
+                    "view": "day",
+                    "timezone": timezone_name,
+                }
+            )
+            schedule_url = reverse("events:workspace_list", args=[event.workspace_id])
+            try:
+                with transaction.atomic():
+                    event.delete()
+            except DatabaseError:
+                event.pk = pk
+                error = "The event could not be deleted. Please try again."
+            else:
+                messages.success(request, "Your event has been deleted.")
+                return redirect(f"{schedule_url}?{schedule_query}")
+    return render(
+        request,
+        "events/delete_event.html",
+        {
+            "event": event,
+            "timezone_name": timezone_name,
+            "timezone_query": timezone_query,
+            "error": error,
+            "workspace_url": (
+                reverse("accounts:workspace_detail", args=[event.workspace_id])
+                if event.workspace.primary_admin_id == request.user.pk
+                else reverse("accounts:dashboard")
+            ),
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
 @require_GET
 def choose_workspace(request):
     form = EventWorkspaceForm(
@@ -220,6 +389,7 @@ def choose_workspace(request):
         user=request.user,
         initial={
             "date": request.GET.get("date"),
+            "time": request.GET.get("time"),
             "timezone": (
                 request.GET.get("timezone") or timezone.get_current_timezone_name()
             ),
@@ -234,6 +404,7 @@ def choose_workspace(request):
                     **form.initial,
                     "workspace": choices[0].pk,
                     "date": form.initial["date"] or "",
+                    "time": form.initial["time"] or "",
                 },
                 user=request.user,
             )
@@ -242,6 +413,8 @@ def choose_workspace(request):
         query = {"timezone": form.cleaned_data["timezone"]}
         if form.cleaned_data["date"]:
             query["date"] = form.cleaned_data["date"]
+        if form.cleaned_data["time"]:
+            query["time"] = form.cleaned_data["time"].strftime("%H:%M")
         create_url = reverse("events:workspace_create", args=[workspace.pk])
         return redirect(f"{create_url}?{urlencode(query)}")
     return render(request, "events/choose_workspace.html", {"form": form})
@@ -381,6 +554,7 @@ def event_detail(request, pk):
             "timezone_form": timezone_form,
             "timezone_name": timezone_name,
             "can_create": can_manage_drivers,
+            "can_edit": can_manage_drivers and event.source == Event.Source.SYNCMILY,
             "driver_form": driver_form,
             "workspace_url": (
                 reverse("accounts:workspace_detail", args=[event.workspace_id])
@@ -543,3 +717,11 @@ def member_colors(request, workspace_id):
     ):
         next_url = reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
     return redirect(next_url)
+
+
+@require_GET
+def timezone_names(request):
+    """Every time zone, for the "Show all time zones" button beside a time-zone menu."""
+    response = JsonResponse(sorted(available_timezones()), safe=False)
+    patch_cache_control(response, public=True, max_age=86400)
+    return response

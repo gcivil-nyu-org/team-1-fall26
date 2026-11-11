@@ -173,8 +173,19 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar a, .bar a:hover { color: inherit; }
 .bar :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
 .bar .mark { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; text-decoration: none; }
+/* The Sync S logo: two interlocking strokes, one per person. Brand colours stay fixed across
+   palettes; logos are exempt from WCAG 1.4.11 non-text contrast. */
+.logo .logo-s1 { stroke: #436ed8; }
+.logo .logo-s2 { stroke: #f89d19; }
+[data-theme="dark"] .logo .logo-s1 { stroke: #91b3fd; }
+[data-theme="dark"] .logo .logo-s2 { stroke: #facc1f; }
 .bar .nav { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--track); border: 1px solid var(--track-edge); box-shadow: inset 0 1px 2px #1a1c1b0d; }
 .bar .nav a { padding: 6px 12px; border-radius: var(--radius-control); color: var(--muted); text-decoration: none; }
+/* Header labels never wrap: between 900px and 1300px "Household chat" turned into two lines and
+   stretched the whole pill, and "Add event" broke onto two lines. Below 1300px the short labels
+   ("Chat"; icon-only date and Colors menus) take over instead. */
+.bar .nav a, .bar .btn, .bar .me-name, .bar summary { white-space: nowrap; }
+@media (max-width: 1000px) { .bar .me .me-name { display: none; } }
 .bar .nav a:hover { color: var(--ink); background: var(--raised); }
 .bar .nav a[aria-current="page"] { color: var(--ink); font-weight: 600; view-transition-name: nav-pill; }
 .bar .bar-end { margin-left: auto; display: flex; align-items: center; gap: 16px; }
@@ -255,12 +266,13 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .palette-options button[aria-pressed="true"] { font-weight: 600; }
 .bar .palette-options button[aria-pressed="true"]::after { content: "✓"; margin-left: auto; }
 .bar .acct-palette { display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
-@media (max-width: 1100px) { .bar .palette-label, .bar .date-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
+@media (max-width: 1299px) { .bar .palette-label, .bar .date-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
 /* Phones: the bar is full, so the deck choice moves into the account menu. */
 @media (max-width: 560px) { .bar .palette-tab { display: none; } .bar .acct-palette { display: block; } }
 /* Day view: the date and time zone form sits in a dropdown left of Colors, and stays on phones
    as an icon. */
-.bar .date-tab summary svg { width: 16px; height: 16px; flex-shrink: 0; }
+.bar .date-tab summary svg { width: 18px; height: 16px; flex-shrink: 0; }
+.bar .palette-tab summary .palette-icon { width: 16px; height: 16px; flex-shrink: 0; }
 .bar .date-menu { min-width: 260px; }
 .bar .date-form { display: grid; gap: 10px; margin: 6px 10px 10px; }
 .bar .date-form .field { display: grid; gap: 4px; margin: 0; }
@@ -276,6 +288,10 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .member-colour input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .bar .member-colour input[type="color"]::-moz-color-swatch { border: 0; border-radius: 50%; }
 .bar .member-colour input[type="color"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.bar .member-colour label { cursor: pointer; }
+.bar .member-colour input.hex { width: 10ch; height: 28px; min-height: 0; margin: 0 0 0 auto; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); font: 500 12px/1 var(--font); font-variant-numeric: tabular-nums; text-transform: uppercase; }
+.bar .member-colour input.hex:not([hidden]) + input[type="color"] { margin-left: 0; }
+.paint input.hex:invalid { border-color: var(--danger, #b42318); }
 /* Google Calendar account, in the account menu on every page. */
 .bar .acct-calendar { margin: 0; }
 
@@ -294,6 +310,8 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 
 /* Phone: the same nav becomes a tab bar fixed to the bottom of the screen. */
 .bar .nav-short { display: none; }
+/* "Household chat" becomes "Chat" below 1300px, where the full label would wrap. */
+@media (max-width: 1299px) { .bar .nav-long { display: none; } .bar .nav-short { display: inline; } }
 @media (max-width: 900px) {
   .bar { gap: 8px; padding: 0 16px; }
   .bar .bar-end { gap: 4px; }
@@ -322,3 +340,18 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
   .bar .add-btn { width: 44px; padding: 0; }
   .bar .add-btn .btn-label { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* The 12h/24h and light/dark switches sit in the top bar; on phones shell.js moves them into the
+   account menu (hidden in the bar until then, so nothing jumps). */
+.bar .bar-switches { display: contents; }
+@media (max-width: 560px) { .bar .bar-end > .bar-switches { display: none; } }
+.bar .acct-menu .bar-switches { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); margin-top: 4px; padding: 6px 4px 2px; }
+.bar .acct-menu .bar-switches .switch, .bar .acct-menu .bar-switches .switch:hover { display: grid; width: auto; min-height: 44px; padding: 0; background: none; }
+
+/* "Show all time zones" beside a time-zone menu; it needs a script, so it shows only with one. */
+body button.tz-all { display: none; justify-self: start; margin: 2px 0 0; padding: 4px 0; border: 0; background: none; box-shadow: none; color: var(--muted); font: 500 12px/16px var(--font); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+[data-js] body button.tz-all { display: inline-block; }
+body button.tz-all:hover { color: var(--ink); }
+body button.tz-all[disabled] { cursor: progress; opacity: .6; }
+/* Just above the phone layout the bar is tight; closer controls keep it on screen. */
+@media (min-width: 901px) and (max-width: 960px) { .bar .bar-end { gap: 8px; } }

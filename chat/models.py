@@ -3,6 +3,10 @@ from django.db import models
 
 
 class ChatMessage(models.Model):
+    class Priority(models.TextChoices):
+        NORMAL = "normal", "Normal"
+        HIGH = "high", "High"
+
     workspace = models.ForeignKey(
         "accounts.Workspace",
         on_delete=models.CASCADE,
@@ -18,6 +22,9 @@ class ChatMessage(models.Model):
     )
 
     content = models.TextField(max_length=2000)
+    priority = models.CharField(
+        max_length=6, choices=Priority.choices, default=Priority.NORMAL
+    )
     event_label = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

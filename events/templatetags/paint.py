@@ -18,6 +18,13 @@ register = template.Library()
 
 
 @register.filter
+def possessive(name):
+    """'The Garcias' -> 'The Garcias’' and 'Ana' -> 'Ana’s', for week headings."""
+    name = str(name).strip()
+    return f"{name}’" if name.endswith(("s", "S")) else f"{name}’s"
+
+
+@register.filter
 def person(user):
     """The name a family uses: the first name when there is one, else the username."""
     if not user:
@@ -85,7 +92,8 @@ def _content_hash(path):
 @register.simple_tag
 def asset(path):
     """A static file's URL stamped with a hash of its content, so browsers fetch a new
-    copy whenever the file changes (nginx sends no cache headers, only an ETag).
+    copy whenever the file changes. nginx lets browsers keep stamped files for a year
+    (.platform/hooks/postdeploy/03_https.sh).
     """
     digest = _content_hash.__wrapped__(path) if settings.DEBUG else _content_hash(path)
     return f"{static(path)}?v={digest}"

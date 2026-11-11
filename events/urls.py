@@ -19,6 +19,9 @@ urlpatterns = [
         views.member_colors,
         name="member_colors",
     ),
+    path("timezones/", views.timezone_names, name="timezones"),
     path("<int:pk>/", views.event_detail, name="detail"),
+    path("<int:pk>/edit/", views.edit_event, name="edit"),
+    path("<int:pk>/delete/", views.delete_event, name="delete"),
     path("<int:pk>/transport/", views.set_transport_mode, name="set_transport_mode"),
 ]

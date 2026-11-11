@@ -112,7 +112,10 @@
             current = url;
             pageLink.href = url;
             if (window.syncmilyClocks) window.syncmilyClocks(body);
-            if (body.querySelector("[data-event-form]")) loadScript(sheet.dataset.locationScript);
+            if (body.querySelector("[data-event-form]")) {
+                loadScript(sheet.dataset.locationScript);
+                if (sheet.dataset.progressiveScript) loadScript(sheet.dataset.progressiveScript);
+            }
             sheet.scrollTop = 0;
             var focus = body.querySelector(".form-error, .errorlist, [aria-invalid='true']");
             if (focus && !focus.matches("input, select, textarea")) focus.tabIndex = -1;
@@ -323,6 +326,40 @@
                 }
                 input.dataset.initial = input.value;
             });
+            // Hex codes beside the pickers: typing one moves the picker, moving the picker
+            // rewrites the code. Only the picker is sent, so the server check stays the same.
+            form.querySelectorAll("[data-hex]").forEach(function (field) {
+                var picker = field.closest(".colour-item, .member-colour").querySelector('input[type="color"]');
+                if (!picker) return;
+                function show() { field.value = picker.value.toUpperCase(); field.setCustomValidity(""); }
+                function typed() {
+                    var value = field.value.trim();
+                    if (value && value.charAt(0) !== "#") value = "#" + value;
+                    return /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : "";
+                }
+                function apply(eventName) {
+                    var value = typed();
+                    if (!value) return false;
+                    picker.value = value;
+                    picker.dispatchEvent(new Event(eventName, { bubbles: true }));
+                    return true;
+                }
+                function follow() { if (document.activeElement !== field) show(); }
+                field.hidden = false;
+                show();
+                picker.addEventListener("input", follow);
+                picker.addEventListener("change", follow);
+                field.addEventListener("input", function () { apply("input"); });
+                field.addEventListener("change", function () {
+                    if (apply("change")) show();
+                    else field.setCustomValidity("Use a hex code like #4A6FD8.");
+                });
+                field.addEventListener("keydown", function (event) {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    field.dispatchEvent(new Event("change", { bubbles: true }));
+                });
+            });
             form.addEventListener("submit", function () {
                 inputs.forEach(function (input) { input.disabled = input.value === input.dataset.initial; });
             });
@@ -352,5 +389,99 @@
                 inputs.forEach(function (input) { input.disabled = false; });
             });
         });
+    });
+
+    // ---- Day view: right-click an empty time to add an event that starts there. The menu
+    // follows the WAI-ARIA menu pattern: arrows move, Enter opens, Esc closes and returns
+    // focus. Shift+F10 or the context-menu key opens it on a focused member's day. ----
+    ready(function () {
+        var grid = document.querySelector(".daygrid[data-add-at]");
+        if (!grid) return;
+        var marks = Array.prototype.map.call(grid.querySelectorAll(".axis [data-axis]"), function (mark) {
+            var parts = mark.dataset.clock.split(":");
+            return { top: parseFloat(mark.style.top), minutes: (+parts[0] || 24) * 60 + (+parts[1] || 0) };
+        }).sort(function (a, b) { return a.top - b.top; });
+        if (marks.length < 2) return;
+        // The last mark is midnight at the bottom edge: count it as 24:00, not 00:00.
+        marks.forEach(function (mark, i) { if (i < marks.length - 1 && mark.minutes === 24 * 60) mark.minutes = 0; });
+
+        var menu = document.createElement("div");
+        menu.className = "slot-menu";
+        menu.setAttribute("role", "menu");
+        menu.hidden = true;
+        var item = document.createElement("a");
+        item.setAttribute("role", "menuitem");
+        item.setAttribute("data-dialog", "");
+        item.setAttribute("tabindex", "-1");
+        menu.appendChild(item);
+        // Inside the page's main landmark, so screen readers find it with the day.
+        (grid.closest("main") || document.body).appendChild(menu);
+        var returnTo = null;
+
+        function minutesAt(percent) {
+            for (var i = 0; i < marks.length - 1; i++) {
+                var a = marks[i], b = marks[i + 1];
+                if (percent < b.top || i === marks.length - 2) {
+                    var share = Math.max(0, Math.min(1, (percent - a.top) / (b.top - a.top)));
+                    var minutes = a.minutes + share * (b.minutes - a.minutes);
+                    return Math.min(Math.floor(minutes / 30) * 30, 23 * 60 + 30);
+                }
+            }
+            return marks[0].minutes;
+        }
+        function label(minutes) {
+            var h = Math.floor(minutes / 60), m = minutes % 60, mm = (m < 10 ? "0" : "") + m;
+            if (document.documentElement.dataset.clock === "24") return (h < 10 ? "0" : "") + h + ":" + mm;
+            return ((h + 11) % 12 + 1) + ":" + mm + " " + (h < 12 ? "AM" : "PM");
+        }
+        function close(restore) {
+            if (menu.hidden) return;
+            menu.hidden = true;
+            if (restore && returnTo) returnTo.focus();
+        }
+        function open(minutes, x, y, from) {
+            var h = Math.floor(minutes / 60), m = minutes % 60;
+            var value = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+            item.href = grid.dataset.addAt + "&time=" + value;
+            item.textContent = "Add event at " + label(minutes);
+            returnTo = from;
+            menu.hidden = false;
+            var box = menu.getBoundingClientRect();
+            menu.style.left = Math.min(x, window.innerWidth - box.width - 8) + "px";
+            menu.style.top = Math.min(y, window.innerHeight - box.height - 8) + "px";
+            item.focus();
+        }
+
+        grid.addEventListener("contextmenu", function (event) {
+            var track = event.target.closest(".track");
+            // Plans keep the browser's own menu (open in a new tab, copy link…).
+            if (!track || event.target.closest("a, .plan")) return;
+            event.preventDefault();
+            var box = track.getBoundingClientRect();
+            var percent = (event.clientY - box.top) / box.height * 100;
+            open(minutesAt(percent), event.clientX, event.clientY, track);
+        });
+        grid.addEventListener("keydown", function (event) {
+            var track = event.target.closest(".track");
+            if (!track || event.target !== track) return;
+            if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
+            event.preventDefault();
+            // From the keyboard: the next half hour from now if the day shows it, else its first hour.
+            var now = new Date(), minutes = now.getHours() * 60 + now.getMinutes();
+            var first = marks[0].minutes, start = Math.ceil(minutes / 30) * 30;
+            var target = grid.querySelector(".now") && start < 24 * 60 ? start : first;
+            var box = track.getBoundingClientRect();
+            open(Math.max(target, first), box.left + 12, box.top + 12, track);
+        });
+        menu.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") { event.preventDefault(); close(true); }
+            else if (event.key === "Tab") { close(false); }
+            else if (["ArrowDown", "ArrowUp", "Home", "End"].indexOf(event.key) >= 0) { event.preventDefault(); item.focus(); }
+            else if (event.key === " ") { event.preventDefault(); item.click(); }
+        });
+        item.addEventListener("click", function () { close(false); });
+        document.addEventListener("pointerdown", function (event) { if (!menu.contains(event.target)) close(false); });
+        window.addEventListener("scroll", function () { close(false); }, { passive: true });
+        window.addEventListener("resize", function () { close(false); });
     });
 })();

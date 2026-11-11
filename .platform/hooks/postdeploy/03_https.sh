@@ -51,6 +51,13 @@ fi
 # HTTPS server. Mirrors Elastic Beanstalk's own proxy settings, plus the scheme
 # header Django needs to know the request was secure.
 cat > "$NGINX_DIR/conf.d/syncmily_https.conf" <<CONF
+# Static URLs carry a content hash (?v=..., the asset template tag), so a stamped file never
+# changes and browsers may keep it for a year. Anything requested without the stamp gets an hour.
+map \$arg_v \$syncmily_static_cache {
+    ""      "public, max-age=3600";
+    default "public, max-age=31536000, immutable";
+}
+
 server {
     listen 443 ssl;
     http2 on;
@@ -74,6 +81,15 @@ server {
     client_body_timeout   60;
     keepalive_timeout     60;
 
+    # Pages, CSS and JS were sent uncompressed (a 72 KB page, 89 KB of CSS). gzip cuts them about
+    # 4x. Django masks the CSRF token differently on every response, which keeps BREACH off it.
+    gzip            on;
+    gzip_vary       on;
+    gzip_proxied    any;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types      text/css application/javascript text/javascript application/json image/svg+xml application/manifest+json text/plain;
+
     if (\$host != "$PRIMARY") {
         return 301 https://$PRIMARY\$request_uri;
     }
@@ -94,6 +110,7 @@ server {
     location /static {
         alias /var/app/current/staticfiles;
         access_log off;
+        add_header Cache-Control \$syncmily_static_cache;
     }
 }
 CONF

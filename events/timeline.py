@@ -119,7 +119,9 @@ def editable_members(user, workspace, members):
     )
     if not is_parent:
         return []
-    return [member for member in members if member["workspace"].pk == workspace.pk]
+    family = [member for member in members if member["workspace"].pk == workspace.pk]
+    # "You" first, then everyone else in the family's usual order (sorted is stable).
+    return sorted(family, key=lambda member: member["user"].pk != user.pk)
 
 
 def lane_user_ids(event, member_ids):

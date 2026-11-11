@@ -34,23 +34,44 @@ def chip_level(items):
     return min(len(items), FULL_LEVEL)
 
 
-# The whole day, labelled every hour, so early starts and late nights both show.
-RAIL_FIRST_HOUR = 0
-RAIL_LAST_HOUR = 24
+# The rail shows only the hours around today's plans: an hour before the first one and
+# an hour after the last, at least RAIL_MIN_HOURS tall. An empty day draws no rail at
+# all (it listed all 24 empty hours before). Each hour is RAIL_HOUR_PX tall.
+RAIL_MIN_HOURS = 4
+RAIL_HOUR_PX = 26
+RAIL_MIN_PX = 24  # the shortest a plan is drawn: a 24px tap target
+
+
+def rail_window(events, day_start, day_end):
+    """The (first, last) local hours the rail covers; None when nothing is planned."""
+    starts, ends = [], []
+    for event in events:
+        if event.starts_at < day_end and event.ends_at > day_start:
+            starts.append((max(event.starts_at, day_start) - day_start).total_seconds())
+            ends.append((min(event.ends_at, day_end) - day_start).total_seconds())
+    if not starts:
+        return None
+    first = max(0, int(min(starts) // 3600) - 1)
+    last = min(24, -int(-max(ends) // 3600) + 1)
+    if last - first < RAIL_MIN_HOURS:
+        last = min(24, first + RAIL_MIN_HOURS)
+        first = max(0, last - RAIL_MIN_HOURS)
+    return first, last
 
 
 def build_today_rail(events, members, today, tz, now):
-    """Today's timed plans as top/height percentages of 00:00-24:00, coloured by their
-    first member.
+    """Today's timed plans as top/height percentages of the rail's window (see
+    rail_window), coloured by their first member.
     """
-    day_start, _ = local_day_bounds(today, tz)
-    start = (day_start + timedelta(hours=RAIL_FIRST_HOUR)).astimezone(
-        datetime_timezone.utc
-    )
-    end = (day_start + timedelta(hours=RAIL_LAST_HOUR)).astimezone(
-        datetime_timezone.utc
-    )
+    day_start, day_end = local_day_bounds(today, tz)
+    window = rail_window(events, day_start, day_end)
+    if window is None:
+        return {"items": [], "hours": [], "now_top": None, "height": 0}
+    first, last = window
+    start = (day_start + timedelta(hours=first)).astimezone(datetime_timezone.utc)
+    end = (day_start + timedelta(hours=last)).astimezone(datetime_timezone.utc)
     span = (end - start).total_seconds()
+    height = (last - first) * RAIL_HOUR_PX
 
     def percent(moment):
         seconds = (min(max(moment, start), end) - start).total_seconds()
@@ -73,22 +94,16 @@ def build_today_rail(events, members, today, tz, now):
             }
         )
     hours = [
-        {
-            "hour": hour % 24,
-            "top": round(
-                (hour - RAIL_FIRST_HOUR) / (RAIL_LAST_HOUR - RAIL_FIRST_HOUR) * 100, 3
-            ),
-        }
-        for hour in range(RAIL_FIRST_HOUR, RAIL_LAST_HOUR)
+        {"hour": hour % 24, "top": round((hour - first) / (last - first) * 100, 3)}
+        for hour in range(first, last)
     ]
-    place_side_by_side(items)
+    place_side_by_side(items, min_percent=RAIL_MIN_PX / height * 100)
     now_top = percent(now) if start <= now < end else None
-    return {"items": items, "hours": hours, "now_top": now_top}
+    return {"items": items, "hours": hours, "now_top": now_top, "height": height}
 
 
-# A plan is drawn at least this tall (a 24px tap target on the 612px rail), so short
-# plans
-# that touch in time can still collide on screen.
+# A plan is drawn at least RAIL_MIN_PX tall, so short plans that touch in time can still
+# collide on screen; build_today_rail passes that height as a share of its rail.
 RAIL_MIN_PERCENT = 4
 
 

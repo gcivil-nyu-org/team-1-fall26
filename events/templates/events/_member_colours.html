@@ -1,6 +1,6 @@
 {% load paint %}{% comment %}Each family member's colour, inside the header's Colors menu (and the account menu
 on phones), laid out like the deck rows above it: the name, then the current colour. Clicking
-the swatch opens the colour picker; paint.js saves the change at once. Without script, the
+the swatch opens the colour picker, or type a hex code; paint.js saves the change at once. Without script, the
 Save button below does it. Shown on every page, to parents.{% endcomment %}{% with color_members=shell.color_members color_workspace=shell.color_workspace %}{% if color_members and color_workspace %}
 <div class="menu-colours">
     <p>Individual colors</p>
@@ -9,10 +9,11 @@ Save button below does it. Shown on every page, to parents.{% endcomment %}{% wi
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
         {% for member in color_members %}
             {% with name=member.user|person %}
-            <label class="member-colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
-                <span translate="no">{% if member.user == request.user %}You{% else %}{{ name }}{% endif %}</span>
-                <input type="color" name="color-{{ member.user.pk }}" value="{{ member.color }}" aria-label="Change {% if member.user == request.user %}your{% else %}{{ name }}’s{% endif %} colour"{% if not member.custom_color %} data-deck{% endif %}>
-            </label>
+            <div class="member-colour" data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}>
+                <label for="{{ colours_place }}-colour-{{ member.user.pk }}" translate="no">{% if member.user == request.user %}You{% else %}{{ name }}{% endif %}</label>
+                <input class="hex" type="text" inputmode="text" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" autocomplete="off" aria-label="{% if member.user == request.user %}Your{% else %}{{ name }}’s{% endif %} colour as a hex code" data-hex hidden>
+                <input type="color" id="{{ colours_place }}-colour-{{ member.user.pk }}" name="color-{{ member.user.pk }}" value="{{ member.color }}" aria-label="Change {% if member.user == request.user %}your{% else %}{{ name }}’s{% endif %} colour"{% if not member.custom_color %} data-deck{% endif %}>
+            </div>
             {% endwith %}
         {% endfor %}
         <noscript><button class="btn btn-quiet" type="submit">Save colours</button></noscript>

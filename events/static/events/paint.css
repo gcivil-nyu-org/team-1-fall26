@@ -44,7 +44,8 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .id small { font-size: 12px; color: var(--muted); }
 .chip { overflow-wrap: break-word; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; line-height: 16px; text-decoration: none; color: var(--paint-ink); transition: filter .15s; }
 .paint .chip { color: var(--paint-ink); }
-.card .chip { scroll-snap-align: start; min-height: 96px; }
+/* Phones: each person's row is only as tall as its busiest day (it was 96px even when free). */
+.card .chip { scroll-snap-align: start; min-height: 40px; }
 .chip .chip-day { font-weight: 600; }
 .chip time { display: block; font-weight: 400; white-space: nowrap; }
 .chip p { font-weight: 500; }
@@ -54,12 +55,17 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
   .days span:first-child { display: none; }
   .card { grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; scroll-snap-type: none; }
   .card .chip { min-height: 104px; }
+  /* Free days take a short strip, not a full block: a busy day still reads as fuller, and a
+     person with a free week takes one short row. 40px keeps a comfortable tap target
+     (WCAG 2.5.8 asks for 24px). */
+  .card .chip.l0 { align-self: start; min-height: 40px; height: 40px; justify-content: center; padding-block: 0; }
   .card .chip .chip-day { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @container week (width >= 900px) {
   .days, .card { grid-template-columns: 168px repeat(7, minmax(0, 1fr)); }
   .days span:first-child { display: block; }
   .card { min-height: 136px; }
+  .card:not(:has(.chip:not(.l0))) { min-height: 0; } /* a free week: one short row */
   .id { grid-column: auto; position: relative; flex-direction: column; align-items: stretch; justify-content: space-between; padding: 14px 16px; }
   .id > div { display: block; }
   .id::after { content: ""; position: absolute; top: 14px; right: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--counter); } /* die-cut hole */
@@ -93,7 +99,7 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 /* Today rail: 07:00 to 24:00 on a fixed-height axis; events are placed by percentage. */
 .rail { background: var(--card); border-radius: var(--radius); padding: 20px; }
 .rail .sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
-.tl-rail { height: 624px; border-left: 1px solid var(--line); margin-left: 44px; position: relative; }
+.tl-rail { border-left: 1px solid var(--line); margin-left: 44px; position: relative; }
 .tl-rail > i { position: absolute; left: -50px; font-style: normal; font-size: 12px; color: var(--muted); transform: translateY(-8px); }
 /* Plans that would collide share the width: --col of --cols columns, 4px apart. */
 .ev { position: absolute; left: calc(12px + (100% - 12px) * var(--col, 0) / var(--cols, 1)); width: calc((100% - 12px) / var(--cols, 1) - 4px); min-height: 24px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 3px; padding: 4px 10px; font-size: 12px; line-height: 16px; text-decoration: none; background: var(--s3); color: var(--paint-ink); }
@@ -118,6 +124,23 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .paint input::placeholder { color: var(--muted); }
 .paint input:focus-visible, .paint select:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; border-color: var(--ink); }
 .paint input[aria-invalid="true"] { border-color: var(--danger); }
+/* Safari sizes each part of a date or time field for its widest value, so a narrow "11"
+   leaves a gap before the slash ("11 /02/2026"). Equal-width digits close it; the parts'
+   own padding goes too. An equal-width "1" sits mid-cell, so "11/08" and "10:30" read as
+   indented; pulling the value left by 0.4em (about 5.5px at 14px) sets dates and times
+   visibly tighter to the left border. */
+.paint :is(input[type="date"], input[type="time"]) { font-variant-numeric: tabular-nums; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit { margin-left: -.4em; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text { font-variant-numeric: normal; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-month-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-day-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-year-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-hour-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-minute-field,
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-meridiem-field { padding: 0; }
 .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: var(--danger); font-size: 13px; }
 .errorlist.nonfield { margin: 0 0 16px; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in oklab, var(--danger) 10%, var(--card)); }
 
@@ -243,7 +266,14 @@ body.paint button.btn[disabled] { opacity: .5; cursor: not-allowed; }
 .calendar-account { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .colours { align-items: center; }
 .paint .colours label.colour { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 500; }
-.paint .colours input[type="color"] { width: 44px; height: 36px; padding: 3px; cursor: pointer; }
+.paint .colours .colour-item { display: inline-flex; align-items: center; gap: 10px; }
+/* The swatch is the colour itself: no white box from the native control around it. */
+.paint .colours input[type="color"] { -webkit-appearance: none; appearance: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: none; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.paint .colours input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.paint .colours input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
+.paint .colours input[type="color"]::-moz-color-swatch { border: 0; border-radius: 8px; }
+.paint .colours input[type="color"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.paint .colours input.hex { width: 10ch; height: 36px; padding: 0 8px; font: 500 13px/1 var(--font); font-variant-numeric: tabular-nums; text-transform: uppercase; }
 
 /* Dialogs: event details and the add-event form open over the page (the "sheet"); confirmations. */
 dialog.sheet, dialog.confirm { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
@@ -353,11 +383,13 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
   .seg a { padding: 11px 14px; }
   body.paint .page .btn, body.paint .sheet .btn, body.paint .confirm .btn, .disclose > summary { min-height: 44px; height: auto; }
   .paint input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]), .paint select { height: 44px; }
-  .paint .colours input[type="color"] { height: 44px; }
+  .paint .colours input[type="color"] { width: 44px; height: 44px; }
 }
 @media (max-width: 560px) {
   .head-tools .seg { flex: 1 1 100%; }
   .head-tools .seg a { flex: 1; text-align: center; }
+  .facts .row { flex-wrap: wrap; }
+  .map-actions { width: 100%; justify-content: flex-start; }
 }
 
 /* ===== Event: details and the add-event form ===== */
@@ -365,7 +397,9 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .event-card .pills { margin-bottom: 8px; }
 .facts .row { min-height: 52px; }
 .facts .row:first-child { border-top: 0; }
-.map-link { flex: none; padding: 12px 0; font-weight: 500; }
+.map-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 16px; }
+.map-link { flex: none; padding: 6px 0; font-weight: 500; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.map-link:hover { text-decoration-thickness: 2px; }
 .tz-note { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .tz-note > summary { cursor: pointer; padding: 6px 0; }
 .tz-note > summary:hover { color: var(--ink); }
@@ -373,7 +407,29 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .paint .tz-form label { margin: 0; }
 .event-card .actions { margin-top: 16px; }
 
-.event-form { display: block; }
+.event-form { display: block; max-width: 580px; margin: 0 auto; }
+.field-title input { font-size: 16px; font-weight: 500; }
+.time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+@media (max-width: 560px) { .time-grid { grid-template-columns: 1fr; } }
+.end-date-toggle-row { margin: -6px 0 16px; }
+.check-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+.check-inline input { width: 16px; height: 16px; margin: 0; flex: none; }
+.check-inline:hover { color: var(--ink); }
+.field-end-date { margin-top: 10px; margin-bottom: 0; }
+
+.who-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--card); min-height: 44px; margin-top: 4px; }
+.who-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.who-selected-avatars { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.who-avatar-chip { font-size: 12px; padding: 2px 8px; }
+.who-toggle-btn { flex: none; }
+.who-drawer { margin-top: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.who-drawer .who-list { margin-bottom: 8px; }
+
+[data-event-form]:not([data-progressive-ready="true"]) .who-summary { display: none; }
+[data-event-form]:not([data-progressive-ready="true"]) .who-drawer[hidden] { display: block !important; }
+
+.field-ride-toggle { margin-top: 8px; margin-bottom: 12px; }
+.field-tentative { margin-top: 4px; margin-bottom: 16px; }
 .paint .opt { margin-left: 4px; color: var(--muted); font-weight: 400; }
 .paint .notice { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius); background: var(--raised); color: var(--ink); }
 .grid3 { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 0 12px; }
@@ -436,6 +492,7 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .msg-body { min-width: 0; }
 .msg-meta { color: var(--muted); font-size: 12px; }
 .msg-meta b { margin-right: 6px; color: var(--ink); font-size: 14px; font-weight: 600; }
+.msg-priority { display: inline-block; margin-inline-start: 6px; padding: 1px 6px; border: 1px solid currentColor; border-radius: 999px; color: var(--danger); font-weight: 600; }
 .paint .bubble { width: fit-content; max-width: 100%; margin-top: 4px; padding: 8px 12px; border-radius: 12px; background: var(--s1, var(--raised)); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-theme="dark"] .paint .bubble { background: color-mix(in oklab, var(--s5, var(--raised)) 35%, var(--card)); }
 .msg.mine { align-self: flex-end; flex-direction: row-reverse; text-align: right; }
@@ -445,6 +502,7 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .paint .chat-error:empty { display: none; }
 .compose { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
 .paint .compose input { flex: 1; min-width: 0; }
+.paint .compose select { width: auto; flex: none; }
 .chat-side .row[aria-current] b { text-decoration: underline; text-underline-offset: 3px; }
 @container page (width >= 900px) {
   .chat { grid-template-columns: minmax(0, 1fr) 300px; height: calc(100vh - 60px - 72px); min-height: 480px; }
@@ -683,3 +741,11 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
   .my-day-actions .btn { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { dialog.my-day[open] { animation: none; } }
+
+/* Day view: the right-click "Add event at …" menu, and focus on a member's day. */
+.slot-menu { position: fixed; z-index: 60; min-width: 180px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.slot-menu[hidden] { display: none; }
+.slot-menu [role="menuitem"] { display: block; padding: 8px 10px; border-radius: var(--radius-control); color: var(--ink); font: 500 14px/20px var(--font); text-decoration: none; white-space: nowrap; }
+.slot-menu [role="menuitem"]:hover, .slot-menu [role="menuitem"]:focus { background: var(--raised); outline: none; }
+.slot-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.daygrid .track:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
