@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase
 
 from events.ai_forms import AIEventSuggestionForm
 from events.ai_suggestions import (
