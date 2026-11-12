@@ -14,11 +14,17 @@ from pytesseract import TesseractError, TesseractNotFoundError
 from accounts.models import Membership, Workspace
 from events.models import Event
 from events.services.event_ocr import (
+    MAX_IMAGE_PIXELS,
     MAX_IMAGE_SIZE_BYTES,
     EventOCRError,
+    _correct_osd_orientation,
+    _has_event_cue,
     _normalize_canvas_and_size,
+    _score_ocr_text,
     extract_text_from_image,
+    normalize_ocr_text,
     parse_event_text,
+    preprocess_image_for_ocr,
     scan_event_image,
     validate_and_load_image,
 )
@@ -428,6 +434,375 @@ class EventOCRServiceUnitTests(TestCase):
         self.assertEqual(result["event"]["start_time"], "15:30")
         self.assertEqual(result["event"]["end_time"], "17:00")
         mock_extract.assert_called_once()
+
+    def test_validate_rejects_bad_mime_empty_stream_disallowed_format_and_huge_pixels(
+        self,
+    ):
+        bad_mime = SimpleUploadedFile(
+            "invite.png", _make_image_bytes(), content_type="text/plain"
+        )
+        with self.assertRaises(EventOCRError):
+            validate_and_load_image(bad_mime)
+
+        zero_sized = SimpleUploadedFile("empty.png", b"", content_type="image/png")
+        with self.assertRaises(EventOCRError):
+            validate_and_load_image(zero_sized)
+
+        class StreamUpload:
+            def __init__(self, data, name="stream.png", content_type="image/png"):
+                self.name = name
+                self.content_type = content_type
+                self._buf = io.BytesIO(data)
+
+            def read(self, size=-1):
+                return self._buf.read(size)
+
+        with self.assertRaises(EventOCRError):
+            validate_and_load_image(StreamUpload(b""))
+
+        with self.assertRaises(EventOCRError):
+            validate_and_load_image(StreamUpload(b"x" * (MAX_IMAGE_SIZE_BYTES + 1)))
+
+        gif_as_png = SimpleUploadedFile(
+            "animated.png",
+            _make_image_bytes(image_format="GIF", mode="P"),
+            content_type="image/png",
+        )
+        with self.assertRaises(EventOCRError):
+            validate_and_load_image(gif_as_png)
+
+        small_upload = _make_uploaded_image(size=(20, 20))
+        self.assertGreater(MAX_IMAGE_PIXELS, 400)
+        with patch("events.services.event_ocr.MAX_IMAGE_PIXELS", 100):
+            with self.assertRaises(EventOCRError):
+                validate_and_load_image(small_upload)
+
+        with patch("events.services.event_ocr.Image.MAX_IMAGE_PIXELS", 10):
+            with self.assertRaises(EventOCRError):
+                validate_and_load_image(_make_uploaded_image(size=(20, 20)))
+
+    def test_normalize_canvas_converts_palette_and_downscales_oversized_images(self):
+        palette_img = Image.new("P", (1200, 600))
+        normalized = _normalize_canvas_and_size(palette_img)
+        self.assertEqual(normalized.mode, "RGB")
+        self.assertEqual(normalized.size, (1200, 600))
+
+        oversized = Image.new("RGB", (3000, 1500), color=(255, 255, 255))
+        scaled = _normalize_canvas_and_size(oversized)
+        self.assertEqual(scaled.size, (2400, 1200))
+
+    @patch("events.services.event_ocr.pytesseract.image_to_osd")
+    def test_osd_orientation_handles_malformed_low_conf_and_string_responses(
+        self, mock_osd
+    ):
+        landscape = Image.new("RGB", (120, 60), color=(255, 255, 255))
+
+        mock_osd.return_value = {"rotate": "invalid", "orientation_conf": "nan"}
+        self.assertEqual(_correct_osd_orientation(landscape).size, (120, 60))
+
+        mock_osd.return_value = {"rotate": 90, "orientation_conf": 0.5}
+        self.assertEqual(_correct_osd_orientation(landscape).size, (120, 60))
+
+        mock_osd.return_value = 12345
+        self.assertEqual(_correct_osd_orientation(landscape).size, (120, 60))
+
+        mock_osd.return_value = "Rotate: 270\nOrientation confidence: 4.5"
+        rotated = _correct_osd_orientation(landscape)
+        self.assertEqual(rotated.size, (60, 120))
+
+    def test_preprocess_inverts_dark_background_and_cue_scoring_helpers(self):
+        dark_img = Image.new("RGB", (120, 80), color=(15, 15, 15))
+        with patch("events.services.event_ocr.pytesseract.image_to_osd") as mock_osd:
+            mock_osd.return_value = {"rotate": 0, "orientation_conf": 0}
+            primary, extras = preprocess_image_for_ocr(dark_img)
+        self.assertEqual(primary.mode, "L")
+        self.assertEqual(len(extras), 1)
+
+        self.assertFalse(_has_event_cue(""))
+        self.assertTrue(_has_event_cue("Doors 18:30"))
+        self.assertTrue(_has_event_cue("Starts 5 pm"))
+        self.assertTrue(_has_event_cue("See 11/20/2026"))
+        self.assertFalse(_has_event_cue("General Flyer Notice"))
+
+        self.assertEqual(_score_ocr_text(""), 0)
+        self.assertGreater(
+            _score_ocr_text("Meeting 11:20"),
+            _score_ocr_text("Meeting 11/20"),
+        )
+        self.assertEqual(normalize_ocr_text(""), "")
+
+    @patch("events.services.event_ocr.pytesseract.image_to_osd")
+    @patch("events.services.event_ocr.pytesseract.image_to_string")
+    def test_extract_text_runs_fallback_passes_rotation_recovery_and_empty_error(
+        self, mock_ocr, mock_osd
+    ):
+        mock_osd.return_value = {"rotate": 0, "orientation_conf": 0}
+        sample_img = Image.new("RGB", (120, 80), color=(255, 255, 255))
+
+        mock_ocr.side_effect = [
+            "Hi",
+            TesseractError(1, "psm 11 failed"),
+            "Winter Concert\nDecember 12, 2026\n6:00 PM - 8:00 PM",
+        ]
+        extracted = extract_text_from_image(sample_img)
+        self.assertIn("Winter Concert", extracted)
+        self.assertEqual(mock_ocr.call_count, 3)
+
+        mock_ocr.reset_mock()
+        mock_ocr.side_effect = [
+            "Xyzzy Qwerty Plugh 12345 67890",
+            "Field Trip\n11/20/2026\n9:00 AM - 2:00 PM",
+        ]
+        rotated_text = extract_text_from_image(sample_img)
+        self.assertIn("Field Trip", rotated_text)
+
+        mock_ocr.reset_mock()
+        mock_ocr.side_effect = ["a 1", "a", "1", "a", "1", "a"]
+        with self.assertRaises(EventOCRError):
+            extract_text_from_image(sample_img)
+
+    def test_date_parsing_ranges_formats_relative_phrases_and_contexts(self):
+        ref = date(2026, 11, 10)
+
+        invalid = parse_event_text(
+            "Book Fair\nFebruary 30, 2026\n10:00 AM", reference_date=ref
+        )
+        self.assertIsNone(invalid["event"]["date"])
+        self.assertTrue(invalid["missing_fields"])
+
+        doc_year = parse_event_text(
+            "2027 School Calendar\nSpring Concert\nMarch 14\n6:30 PM",
+            reference_date=date(2026, 11, 1),
+        )
+        self.assertEqual(doc_year["event"]["date"], "2027-03-14")
+
+        rolled = parse_event_text(
+            "Winter Gala\nJanuary 15\n7:00 PM",
+            reference_date=date(2026, 11, 1),
+        )
+        self.assertEqual(rolled["event"]["date"], "2027-01-15")
+
+        rsvp_same_line = parse_event_text(
+            "Science Fair\nJoin us November 20, 2026! RSVP by November 10, 2026\n"
+            "3:30 PM - 5:00 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(rsvp_same_line["event"]["date"], "2026-11-20")
+
+        cross_month = parse_event_text(
+            "Fall Camp\nNov 28 - Dec 2, 2026\n9:00 AM", reference_date=ref
+        )
+        self.assertEqual(cross_month["event"]["date"], "2026-11-28")
+        self.assertEqual(cross_month["event"]["end_date"], "2026-12-02")
+
+        cross_year = parse_event_text(
+            "Winter Camp\nDec 30 - Jan 2\n9:00 AM", reference_date=ref
+        )
+        self.assertEqual(cross_year["event"]["date"], "2026-12-30")
+        self.assertEqual(cross_year["event"]["end_date"], "2027-01-02")
+
+        same_month_no_year = parse_event_text(
+            "Art Week\nNovember 20-22\n10:00 AM - 4:00 PM", reference_date=ref
+        )
+        self.assertEqual(same_month_no_year["event"]["date"], "2026-11-20")
+        self.assertEqual(same_month_no_year["event"]["end_date"], "2026-11-22")
+
+        reversed_range = parse_event_text(
+            "Camp\nNovember 25-20, 2026\n9:00 AM", reference_date=ref
+        )
+        self.assertIsNone(reversed_range["event"]["end_date"])
+
+        numeric_range = parse_event_text(
+            "Tournament\n11/20/2026 - 11/22/2026\n8:00 AM - 5:00 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(numeric_range["event"]["date"], "2026-11-20")
+        self.assertEqual(numeric_range["event"]["end_date"], "2026-11-22")
+
+        day_month_year = parse_event_text(
+            "Music Night\n20 November 2026\n19:00 - 20:30", reference_date=ref
+        )
+        self.assertEqual(day_month_year["event"]["date"], "2026-11-20")
+
+        day_month_no_year = parse_event_text(
+            "Poetry Reading\n20 Nov\n4:00 PM", reference_date=ref
+        )
+        self.assertEqual(day_month_no_year["event"]["date"], "2026-11-20")
+
+        iso_date = parse_event_text(
+            "PTA Meeting\n2026-11-20\n18:30 - 19:30", reference_date=ref
+        )
+        self.assertEqual(iso_date["event"]["date"], "2026-11-20")
+
+        dd_mm = parse_event_text("Assembly\n20/11/2026\n9:00 AM", reference_date=ref)
+        self.assertEqual(dd_mm["event"]["date"], "2026-11-20")
+
+        short_year = parse_event_text(
+            "Bake Sale\n11/20/26\n00/10/2026\n10:00 AM", reference_date=ref
+        )
+        self.assertEqual(short_year["event"]["date"], "2026-11-20")
+
+        mismatch = parse_event_text(
+            "Soccer Practice\nMonday, November 20, 2026\n4:00 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(mismatch["event"]["date"], "2026-11-20")
+        self.assertTrue(
+            any("weekday" in w.lower() for w in mismatch["field_warnings"]["date"])
+        )
+
+        today_res = parse_event_text("Playdate\ntoday\n3:00 PM", reference_date=ref)
+        self.assertEqual(today_res["event"]["date"], "2026-11-10")
+
+        this_sat = parse_event_text(
+            "Game Day\nthis Saturday\n10:00 AM", reference_date=ref
+        )
+        self.assertEqual(this_sat["event"]["date"], "2026-11-14")
+
+        next_fri = parse_event_text(
+            "Study Group\nnext Friday\n4:00 PM", reference_date=ref
+        )
+        self.assertEqual(next_fri["event"]["date"], "2026-11-13")
+
+        same_weekday = parse_event_text(
+            "Study Group\nnext Tuesday\n4:00 PM", reference_date=ref
+        )
+        self.assertEqual(same_weekday["event"]["date"], "2026-11-17")
+
+        labeled_dateutil = parse_event_text(
+            "Town Hall\nDate: 2026 Nov 20\n6:00 PM", reference_date=ref
+        )
+        self.assertEqual(labeled_dateutil["event"]["date"], "2026-11-20")
+
+        tba = parse_event_text(
+            "Town Hall\nDate: To be announced\n6:00 PM", reference_date=ref
+        )
+        self.assertIsNone(tba["event"]["date"])
+
+    def test_time_parsing_special_tokens_invalid_tokens_and_preferences(self):
+        ref = date(2026, 11, 1)
+
+        noon = parse_event_text(
+            "Luncheon\nNov 20, 2026\nNoon - 2:00 PM", reference_date=ref
+        )
+        self.assertEqual(noon["event"]["start_time"], "12:00")
+        self.assertEqual(noon["event"]["end_time"], "14:00")
+
+        midnight = parse_event_text(
+            "Midnight Countdown\nDec 31, 2026\nStarts at Midnight",
+            reference_date=ref,
+        )
+        self.assertEqual(midnight["event"]["start_time"], "00:00")
+
+        bare_start = parse_event_text(
+            "Morning Workshop\nNov 20, 2026\n10:00 - 12:30 PM", reference_date=ref
+        )
+        self.assertEqual(bare_start["event"]["start_time"], "10:00")
+        self.assertEqual(bare_start["event"]["end_time"], "12:30")
+
+        early_24h = parse_event_text(
+            "Early Check-in\nNov 20, 2026\n00:30", reference_date=ref
+        )
+        self.assertEqual(early_24h["event"]["start_time"], "00:30")
+
+        invalid_times = parse_event_text(
+            "Bad Times\nNov 20, 2026\n3:75 PM\n14:00 PM",
+            reference_date=ref,
+        )
+        self.assertIsNone(invalid_times["event"]["start_time"])
+        self.assertIsNone(invalid_times["event"]["end_time"])
+
+        invalid_range_end = parse_event_text(
+            "Half Invalid\nNov 20, 2026\n3:00 PM - 3:75 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(invalid_range_end["event"]["start_time"], "15:00")
+        self.assertIsNone(invalid_range_end["event"]["end_time"])
+
+        reversed_times = parse_event_text(
+            "Reversed\nNov 20, 2026\n5:00 PM - 3:00 PM",
+            reference_date=ref,
+        )
+        self.assertIsNotNone(reversed_times["event"]["start_time"])
+
+        starts_over_doors = parse_event_text(
+            "School Musical\nNov 20, 2026\nDoors open 6:00 PM\nShow starts 7:00 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(starts_over_doors["event"]["start_time"], "19:00")
+
+    def test_location_title_multi_event_multiple_dates_and_invalid_timezone(self):
+        ref = date(2026, 11, 1)
+
+        multiline_loc = parse_event_text(
+            "Museum Tour\nNov 20, 2026\n10:00 AM\n"
+            "Location: Brooklyn Museum\n200 Eastern Pkwy, Brooklyn, NY 11238",
+            reference_date=ref,
+        )
+        self.assertIn("Brooklyn Museum", multiline_loc["event"]["location"])
+        self.assertIn("200 Eastern Pkwy", multiline_loc["event"]["location"])
+
+        venue_then_addr = parse_event_text(
+            "Band Showcase\nNov 20, 2026\n7:00 PM\n" "PS 321 Auditorium\n180 7th Ave",
+            reference_date=ref,
+        )
+        self.assertIn("PS 321 Auditorium", venue_then_addr["event"]["location"])
+        self.assertIn("180 7th Ave", venue_then_addr["event"]["location"])
+
+        inline_at = parse_event_text(
+            "Family Picnic at Prospect Park\nNov 20, 2026\nMeet at 3:30 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(inline_at["event"]["location"], "Prospect Park")
+
+        labeled_title = parse_event_text(
+            "Oakwood Elementary\nEvent: Spring Recital\n"
+            "Contact admin@school.org\n555-123-4567\nhttps://school.org\n"
+            "May 15, 2027\n6:00 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(labeled_title["event"]["title"], "Spring Recital")
+        self.assertIn("Oakwood Elementary", labeled_title["event"]["location"])
+
+        no_title = parse_event_text(
+            "Nov 20, 2026\n3:30 PM\n123 Main Street", reference_date=ref
+        )
+        self.assertIsNone(no_title["event"]["title"])
+        self.assertIn("title", no_title["missing_fields"])
+
+        no_blank_multi = parse_event_text(
+            "Dec 4, 2026 - Winter Chorus 3:30 PM\n"
+            "Dec 11, 2026 - Band Concert 6:30 PM",
+            reference_date=ref,
+        )
+        self.assertTrue(no_blank_multi["multiple_events"])
+        self.assertEqual(len(no_blank_multi["candidates"]), 2)
+
+        multi_dates = parse_event_text(
+            "Science Expo\nJoin us Nov 20, 2026 or Nov 21, 2026\n3:00 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(multi_dates["event"]["date"], "2026-11-20")
+        self.assertIn("date", multi_dates["field_warnings"])
+
+        rain_only = parse_event_text(
+            "Outdoor Picnic\nRain date: November 27, 2026\n12:00 PM",
+            reference_date=ref,
+        )
+        self.assertEqual(rain_only["event"]["date"], "2026-11-27")
+
+        with self.assertRaises(EventOCRError):
+            parse_event_text(
+                "Fair\nNov 20, 2026\n2:00 PM",
+                timezone_name="Mars/Invalid",
+                reference_date=ref,
+            )
+
+        with self.assertRaises(EventOCRError):
+            parse_event_text(
+                "Just a casual note with no schedule details",
+                reference_date=ref,
+            )
 
 
 class EventOCRViewAndWorkflowTests(TestCase):
