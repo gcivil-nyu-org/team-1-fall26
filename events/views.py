@@ -1,3 +1,4 @@
+import logging
 from datetime import time as dt_time
 from urllib.parse import urlencode
 from uuid import UUID
@@ -33,9 +34,12 @@ from .forms import (
     EventWorkspaceForm,
 )
 from .models import Event
+from .services.event_ocr import EventOCRError, scan_event_image
 from .travel_conflicts import find_travel_checks
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
 from .week import local_day_bounds
+
+logger = logging.getLogger(__name__)
 
 
 def _prefill_time(value):
@@ -223,6 +227,9 @@ def create_event(request, workspace_id=None):
                 reverse("events:workspace_create", args=[workspace.pk])
                 if workspace
                 else reverse("events:create")
+            ),
+            "ocr_scan_url": (
+                reverse("events:scan_ocr", args=[workspace.pk]) if can_save else ""
             ),
             "travel_checks": travel_checks,
             "members": (
@@ -725,3 +732,51 @@ def timezone_names(request):
     response = JsonResponse(sorted(available_timezones()), safe=False)
     patch_cache_control(response, public=True, max_age=86400)
     return response
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def scan_event_ocr(request, workspace_id):
+    """Extract structured draft event details from an uploaded document image."""
+    get_object_or_404(
+        family_workspaces(request.user, caregivers_only=True), pk=workspace_id
+    )
+    ocr_timezone = (
+        request.POST.get("timezone") or ""
+    ).strip() or timezone.get_current_timezone_name()
+    if ocr_timezone not in available_timezones():
+        return JsonResponse(
+            {
+                "status": "error",
+                "error_code": "invalid_timezone",
+                "error": "Choose a valid timezone.",
+            },
+            status=400,
+        )
+
+    uploaded_file = request.FILES.get("document") or request.FILES.get("image")
+    try:
+        result = scan_event_image(uploaded_file, timezone_name=ocr_timezone)
+    except EventOCRError as error:
+        return JsonResponse(
+            {
+                "status": "error",
+                "error_code": error.code,
+                "error": error.message,
+            },
+            status=error.http_status,
+        )
+    except Exception:
+        logger.exception("Unexpected error during OCR event scan.")
+        return JsonResponse(
+            {
+                "status": "error",
+                "error_code": "ocr_failed",
+                "error": (
+                    "We couldn't read this image right now. "
+                    "Try again or enter the event manually."
+                ),
+            },
+            status=500,
+        )
+    return JsonResponse(result)

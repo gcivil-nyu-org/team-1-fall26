@@ -11,6 +11,9 @@ django-axes[ipware]==8.3.1
 django-ipware==8.0.0
 django-otp==1.7.5
 qrcode==8.2
+Pillow==13.0.0
+pytesseract==0.3.13
+python-dateutil==4.0.0
 # Daphne's dependency, pinned to the release candidate because it is the first release
 # that fixes CVE-2026-115877 (HTTP request smuggling in twisted.web, which Daphne serves on).
 # Move to 26.10.0 final when it ships.
