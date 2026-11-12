@@ -1,6 +1,6 @@
 {% extends 'events/_paint_page.html' %}
 {% load paint static %}
-{% block title %}Members of {{ workspace.name }} | Syncmily{% endblock %}
+{% block title %}Add a family member to {{ workspace.name }} | Syncmily{% endblock %}
 {% block content %}
     <p class="crumbs"><a href="{% url 'accounts:workspace_detail' workspace.pk %}">{{ workspace.name }}</a> / Members</p>
     {% include 'events/_flashes.html' %}

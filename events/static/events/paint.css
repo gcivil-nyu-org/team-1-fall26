@@ -44,7 +44,8 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .id small { font-size: 12px; color: var(--muted); }
 .chip { overflow-wrap: break-word; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; line-height: 16px; text-decoration: none; color: var(--paint-ink); transition: filter .15s; }
 .paint .chip { color: var(--paint-ink); }
-.card .chip { scroll-snap-align: start; min-height: 96px; }
+/* Phones: each person's row is only as tall as its busiest day (it was 96px even when free). */
+.card .chip { scroll-snap-align: start; min-height: 40px; }
 .chip .chip-day { font-weight: 600; }
 .chip time { display: block; font-weight: 400; white-space: nowrap; }
 .chip p { font-weight: 500; }
@@ -54,12 +55,17 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
   .days span:first-child { display: none; }
   .card { grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; scroll-snap-type: none; }
   .card .chip { min-height: 104px; }
+  /* Free days take a short strip, not a full block: a busy day still reads as fuller, and a
+     person with a free week takes one short row. 40px keeps a comfortable tap target
+     (WCAG 2.5.8 asks for 24px). */
+  .card .chip.l0 { align-self: start; min-height: 40px; height: 40px; justify-content: center; padding-block: 0; }
   .card .chip .chip-day { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @container week (width >= 900px) {
   .days, .card { grid-template-columns: 168px repeat(7, minmax(0, 1fr)); }
   .days span:first-child { display: block; }
   .card { min-height: 136px; }
+  .card:not(:has(.chip:not(.l0))) { min-height: 0; } /* a free week: one short row */
   .id { grid-column: auto; position: relative; flex-direction: column; align-items: stretch; justify-content: space-between; padding: 14px 16px; }
   .id > div { display: block; }
   .id::after { content: ""; position: absolute; top: 14px; right: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--counter); } /* die-cut hole */
@@ -93,7 +99,7 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 /* Today rail: 07:00 to 24:00 on a fixed-height axis; events are placed by percentage. */
 .rail { background: var(--card); border-radius: var(--radius); padding: 20px; }
 .rail .sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
-.tl-rail { height: 624px; border-left: 1px solid var(--line); margin-left: 44px; position: relative; }
+.tl-rail { border-left: 1px solid var(--line); margin-left: 44px; position: relative; }
 .tl-rail > i { position: absolute; left: -50px; font-style: normal; font-size: 12px; color: var(--muted); transform: translateY(-8px); }
 /* Plans that would collide share the width: --col of --cols columns, 4px apart. */
 .ev { position: absolute; left: calc(12px + (100% - 12px) * var(--col, 0) / var(--cols, 1)); width: calc((100% - 12px) / var(--cols, 1) - 4px); min-height: 24px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 3px; padding: 4px 10px; font-size: 12px; line-height: 16px; text-decoration: none; background: var(--s3); color: var(--paint-ink); }
@@ -120,8 +126,11 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .paint input[aria-invalid="true"] { border-color: var(--danger); }
 /* Safari sizes each part of a date or time field for its widest value, so a narrow "11"
    leaves a gap before the slash ("11 /02/2026"). Equal-width digits close it; the parts'
-   own padding goes too, so the value starts where other fields' text starts. */
+   own padding goes too. An equal-width "1" sits mid-cell, so "11/08" and "10:30" read as
+   indented; pulling the value left by 0.4em (about 5.5px at 14px) sets dates and times
+   visibly tighter to the left border. */
 .paint :is(input[type="date"], input[type="time"]) { font-variant-numeric: tabular-nums; }
+.paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit { margin-left: -.4em; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text { font-variant-numeric: normal; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-fields-wrapper,
@@ -420,10 +429,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 [data-event-form]:not([data-progressive-ready="true"]) .who-drawer[hidden] { display: block !important; }
 
 .field-ride-toggle { margin-top: 8px; margin-bottom: 12px; }
-.more-options { margin: 16px 0; }
-.more-options-summary { font-size: 13px; font-weight: 600; color: var(--muted); }
-.more-options-body { margin-top: 10px; padding: 12px 14px; border-radius: var(--radius); background: var(--raised); border: 1px solid var(--line); }
-.more-options-body .field:last-child { margin-bottom: 0; }
+.field-tentative { margin-top: 4px; margin-bottom: 16px; }
 .paint .opt { margin-left: 4px; color: var(--muted); font-weight: 400; }
 .paint .notice { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--radius); background: var(--raised); color: var(--ink); }
 .grid3 { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 0 12px; }
@@ -486,6 +492,7 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .msg-body { min-width: 0; }
 .msg-meta { color: var(--muted); font-size: 12px; }
 .msg-meta b { margin-right: 6px; color: var(--ink); font-size: 14px; font-weight: 600; }
+.msg-priority { display: inline-block; margin-inline-start: 6px; padding: 1px 6px; border: 1px solid currentColor; border-radius: 999px; color: var(--danger); font-weight: 600; }
 .paint .bubble { width: fit-content; max-width: 100%; margin-top: 4px; padding: 8px 12px; border-radius: 12px; background: var(--s1, var(--raised)); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-theme="dark"] .paint .bubble { background: color-mix(in oklab, var(--s5, var(--raised)) 35%, var(--card)); }
 .msg.mine { align-self: flex-end; flex-direction: row-reverse; text-align: right; }
@@ -495,6 +502,7 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .paint .chat-error:empty { display: none; }
 .compose { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
 .paint .compose input { flex: 1; min-width: 0; }
+.paint .compose select { width: auto; flex: none; }
 .chat-side .row[aria-current] b { text-decoration: underline; text-underline-offset: 3px; }
 @container page (width >= 900px) {
   .chat { grid-template-columns: minmax(0, 1fr) 300px; height: calc(100vh - 60px - 72px); min-height: 480px; }
@@ -741,3 +749,74 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
 .slot-menu [role="menuitem"]:hover, .slot-menu [role="menuitem"]:focus { background: var(--raised); outline: none; }
 .slot-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .daygrid .track:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+/* Add event: Manual Entry / Scan Event tabs + document OCR uploader */
+.event-create-column { min-width: 0; }
+.event-mode-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; max-width: 580px; margin: 0 auto 14px; padding: 4px; border: 1px solid var(--track-edge); border-radius: 10px; background: var(--track); }
+.event-mode-tab { min-height: 40px; padding: 8px 14px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .15s, color .15s, box-shadow .15s; }
+.event-mode-tab:hover:not(.is-active) { color: var(--ink); background: var(--glass-tint); }
+.event-mode-tab.is-active { background: var(--card); color: var(--ink); border-color: var(--glass-glow); box-shadow: 0 1px 3px color-mix(in oklab, var(--paint-ink) 12%, transparent); }
+.event-mode-panel[hidden] { display: none; }
+.ai-suggestion-panel { max-width: 580px; margin: 20px auto 0; }
+
+.ocr-scan-panel { max-width: 580px; margin: 0 auto; }
+.ocr-header { margin-bottom: 16px; }
+.ocr-header .span { display: block; margin-top: 4px; }
+.ocr-dropzone { display: grid; justify-items: center; text-align: center; gap: 8px; padding: 28px 20px; border: 1.5px dashed var(--control); border-radius: var(--radius); background: var(--raised); cursor: pointer; transition: border-color .15s, background-color .15s; }
+.ocr-dropzone:hover, .ocr-dropzone.is-dragover, .ocr-preview-card.is-dragover { border-color: var(--ink); background: color-mix(in oklab, var(--raised) 70%, var(--card)); }
+.ocr-dropzone-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.ocr-dropzone-title { font-size: 15px; font-weight: 600; }
+.ocr-dropzone-sub { font-size: 13px; color: var(--muted); }
+.ocr-dropzone-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+
+.ocr-preview-card { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.ocr-preview-card[hidden], .ocr-loading[hidden], .ocr-error[hidden], .ocr-result[hidden], .ocr-candidates[hidden], .ocr-draft-warnings[hidden], .ocr-form-banner[hidden] { display: none; }
+.ocr-preview-frame { display: flex; align-items: center; justify-content: center; max-height: 260px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--card); }
+.ocr-preview-img { display: block; max-width: 100%; max-height: 256px; object-fit: contain; }
+.ocr-preview-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.ocr-file-meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.ocr-preview-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ocr-extract-actions { display: flex; justify-content: flex-end; }
+body.paint .ocr-extract-btn { width: 100%; min-height: 44px; height: auto; justify-content: center; }
+
+.ocr-loading { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.ocr-spinner { width: 20px; height: 20px; flex: none; border: 2px solid var(--line); border-top-color: var(--ink); border-radius: 50%; animation: ocr-spin .75s linear infinite; }
+@keyframes ocr-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ocr-spinner { animation: none; border-top-color: var(--muted); } }
+.ocr-loading-copy { display: grid; gap: 2px; }
+.ocr-loading-copy small { color: var(--muted); font-size: 12px; }
+
+.ocr-error { margin-top: 16px; margin-bottom: 0; }
+.ocr-error-title { font-weight: 500; }
+.ocr-error-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+.ocr-result { display: grid; gap: 14px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.ocr-result-head h3 { font-size: 16px; line-height: 22px; font-weight: 600; }
+.ocr-candidates { display: grid; gap: 8px; }
+.ocr-candidates-label { font-size: 13px; font-weight: 600; }
+.ocr-candidate-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.ocr-candidate-chip { min-height: 36px; padding: 6px 12px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--card); color: var(--ink); font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; }
+.ocr-candidate-chip:hover { background: var(--raised); }
+.ocr-candidate-chip.is-active { border-color: var(--primary); background: var(--primary); color: var(--on-primary); }
+
+.ocr-warning-box { padding: 10px 12px; border-radius: var(--radius); background: var(--warning-soft); color: var(--warning); font-size: 13px; }
+.ocr-warning-list { display: grid; gap: 4px; margin: 0; padding-left: 18px; }
+.ocr-facts .row, .panel .ocr-facts .row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: baseline; min-height: 40px; }
+.panel .ocr-facts .row[hidden] { display: none; }
+.ocr-facts .k { color: var(--muted); font-size: 13px; font-weight: 500; }
+.ocr-facts .ocr-val { font-weight: 500; overflow-wrap: anywhere; }
+.ocr-facts .ocr-val.is-missing-val { color: var(--muted); font-weight: 400; font-style: italic; }
+.ocr-result-actions { margin-top: 4px; }
+
+.ocr-form-banner { border: 1px solid var(--line); font-size: 13px; }
+.field.is-ocr-missing input { border-color: var(--danger); }
+.field.is-ocr-warning input { border-color: var(--warning); }
+.ocr-field-hint { display: block; margin-top: 6px; font-size: 13px; font-weight: 500; }
+.ocr-field-hint.is-missing { color: var(--danger); }
+.ocr-field-hint.is-warning { color: var(--warning); }
+
+@media (max-width: 560px) {
+  .ocr-dropzone-buttons .btn { width: 100%; }
+  .ocr-facts .row, .panel .ocr-facts .row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .ocr-result-actions .btn { flex: 1; justify-content: center; }
+}
