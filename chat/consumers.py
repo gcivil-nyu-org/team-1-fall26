@@ -35,12 +35,13 @@ class HouseholdChatConsumer(AsyncJsonWebsocketConsumer):
             return False
 
     @database_sync_to_async
-    def save_message(self, content, event_label):
+    def save_message(self, content, event_label, priority):
         message = create_message(
             sender=self.user,
             workspace_id=self.workspace_id,
             content=content,
             event_label=event_label,
+            priority=priority,
         )
 
         return {
@@ -49,6 +50,7 @@ class HouseholdChatConsumer(AsyncJsonWebsocketConsumer):
             "sender": message.sender.get_username(),
             "content": message.content,
             "event_label": message.event_label,
+            "priority": message.priority,
             "created_at": message.created_at.isoformat(),
         }
 
@@ -79,6 +81,7 @@ class HouseholdChatConsumer(AsyncJsonWebsocketConsumer):
             message = await self.save_message(
                 content.get("content"),
                 content.get("event_label", ""),
+                content.get("priority"),
             )
         except ValidationError as exc:
             await self.send_json(

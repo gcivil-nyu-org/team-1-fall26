@@ -19,7 +19,10 @@
                     <div class="msg{% if message.sender_id == request.user.id %} mine{% endif %}"{% if sender.hue %} data-hue="{{ sender.hue }}"{% if sender.custom_color %} style="--hue: {{ sender.custom_color }}"{% endif %}{% endif %}>
                         <span class="dot{% if not sender.hue %} dot-quiet{% endif %}" aria-hidden="true">{{ message.sender|initial }}</span>
                         <div class="msg-body">
-                            <p class="msg-meta"><b translate="no">{% if message.sender_id == request.user.id %}You{% else %}{{ message.sender|person }}{% endif %}</b> {{ message.created_at|clock }}</p>
+                            <p class="msg-meta">
+                                <b translate="no">{% if message.sender_id == request.user.id %}You{% else %}{{ message.sender|person }}{% endif %}</b> {{ message.created_at|clock }}
+                                {% if message.priority == "high" %}<span class="msg-priority">High priority</span>{% endif %}
+                            </p>
                             <p class="bubble">{{ message.content }}</p>
                         </div>
                     </div>
@@ -32,6 +35,11 @@
             <form class="compose" id="chat-form">
                 <label class="sr-only" for="chat-input">Message</label>
                 <input id="chat-input" type="text" placeholder="Message {{ workspace.name }}…" maxlength="2000" autocomplete="off" disabled>
+                <label class="sr-only" for="chat-priority">Message priority</label>
+                <select id="chat-priority" autocomplete="off" disabled>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                </select>
                 <button class="btn" id="chat-send" type="submit" disabled>Send</button>
             </form>
             {{ workspace.id|json_script:"chat-workspace-id" }}

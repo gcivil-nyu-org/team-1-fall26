@@ -27,7 +27,14 @@ def get_authorized_workspace(*, user, workspace_id):
     return workspace
 
 
-def create_message(*, sender, workspace_id, content, event_label=""):
+def create_message(
+    *,
+    sender,
+    workspace_id,
+    content,
+    event_label="",
+    priority=ChatMessage.Priority.NORMAL,
+):
     """Validate and save a message in an authorized workspace."""
     workspace = get_authorized_workspace(
         user=sender,
@@ -53,11 +60,15 @@ def create_message(*, sender, workspace_id, content, event_label=""):
     if len(event_label) > MAX_EVENT_LABEL_LENGTH:
         raise ValidationError("Event label is too long.")
 
+    if not isinstance(priority, str) or priority not in ChatMessage.Priority.values:
+        priority = ChatMessage.Priority.NORMAL
+
     return ChatMessage.objects.create(
         workspace=workspace,
         sender=sender,
         content=content,
         event_label=event_label,
+        priority=priority,
     )
 
 

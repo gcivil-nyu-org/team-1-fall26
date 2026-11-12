@@ -1,0 +1,24 @@
+{% extends 'events/_paint_page.html' %}
+{% load tz paint %}
+{% block title %}Delete event | Syncmily{% endblock %}
+{% block content %}
+{% timezone timezone_name %}
+    <section class="panel narrow" aria-labelledby="delete-heading">
+        <h1 id="delete-heading" data-sheet-hide>Delete event?</h1>
+        {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+        <p>Permanently delete <strong>{{ event.title }}</strong> from {{ event.workspace.name }}’s schedule?</p>
+        <p class="span">
+            {{ event.starts_at|date:"l j F Y" }}, {{ event.starts_at|clock }} to {% if event.starts_at|date:"Y-m-d" != event.ends_at|date:"Y-m-d" %}{{ event.ends_at|date:"l j F Y" }}, {% endif %}{{ event.ends_at|clock }} ({{ timezone_name }})
+        </p>
+        {% if event.location %}<p>{{ event.location }}</p>{% endif %}
+        <p>This cannot be undone. Linked checklists will be kept.</p>
+        <form method="post" action="{% url 'events:delete' event.pk %}?{{ timezone_query }}" data-full-page>
+            {% csrf_token %}
+            <div class="actions start">
+                <a class="btn btn-quiet" href="{% url 'events:detail' event.pk %}?{{ timezone_query }}" data-dialog data-autofocus>Keep event</a>
+                <button class="btn btn-danger" type="submit" name="action" value="delete">Delete event</button>
+            </div>
+        </form>
+    </section>
+{% endtimezone %}
+{% endblock %}

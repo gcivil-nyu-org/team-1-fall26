@@ -3,11 +3,13 @@ from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, TransactionTestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import Membership, Workspace
 from syncmily.asgi import application
 
+from ..models import ChatMessage
 from ..services import create_message, get_household_messages
 
 
@@ -49,6 +51,19 @@ class ChatServiceTests(TestCase):
 
         self.assertEqual(message.content, "Dinner is ready!")
         self.assertEqual(message.workspace_id, self.workspace.id)
+        self.assertEqual(message.priority, ChatMessage.Priority.NORMAL)
+
+    def test_unsupported_priority_is_saved_as_normal(self):
+        for priority in ("urgent", None, ["high"]):
+            with self.subTest(priority=priority):
+                message = create_message(
+                    sender=self.member,
+                    workspace_id=self.workspace.id,
+                    content="Dinner is ready",
+                    priority=priority,
+                )
+                message.refresh_from_db()
+                self.assertEqual(message.priority, ChatMessage.Priority.NORMAL)
 
     def test_accepted_member_can_post(self):
         message = create_message(
@@ -147,8 +162,8 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
         self.assertFalse(connected)
         self.assertEqual(code, 4403)
 
-    def test_member_receives_messages_with_sender_name(self):
-        async def run():
+    def test_message_priority_survives_live_delivery_and_history(self):
+        async def send_and_receive(message):
             communicator = WebsocketCommunicator(
                 application,
                 f"/ws/chat/{self.workspace.id}/",
@@ -158,16 +173,36 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
                 ],
             )
             communicator.scope["user"] = self.member
-            connected, _ = await communicator.connect()
-            await communicator.send_json_to(
-                {"type": "chat_message", "content": "Hi family"}
-            )
-            reply = await communicator.receive_json_from()
-            await communicator.disconnect()
-            return connected, reply
+            try:
+                connected, _ = await communicator.connect()
+                self.assertTrue(connected)
+                await communicator.send_json_to({"type": "chat_message", **message})
+                return await communicator.receive_json_from()
+            finally:
+                await communicator.disconnect()
 
-        connected, reply = async_to_sync(run)()
+        self.client.force_login(self.admin)
+        history_url = reverse("chat:workspace_chat", args=[self.workspace.id])
+        badge = '<span class="msg-priority">High priority</span>'
+        cases = (
+            ({"content": "Dinner is ready", "priority": "normal"}, "normal"),
+            ({"content": "See you soon"}, "normal"),
+            ({"content": "Practice is over", "priority": "urgent"}, "normal"),
+            ({"content": "Pickup location changed", "priority": "high"}, "high"),
+        )
+        for message, expected_priority in cases:
+            with self.subTest(message=message):
+                reply = async_to_sync(send_and_receive)(message)
+                self.assertEqual(reply["content"], message["content"])
+                self.assertEqual(reply["sender"], "socket_kid")
+                self.assertEqual(reply["priority"], expected_priority)
 
-        self.assertTrue(connected)
-        self.assertEqual(reply["content"], "Hi family")
-        self.assertEqual(reply["sender"], "socket_kid")
+                history = self.client.get(history_url)
+                self.assertContains(history, message["content"])
+                self.assertEqual(
+                    history.context["chat_messages"][-1].priority, expected_priority
+                )
+                if expected_priority == "high":
+                    self.assertContains(history, badge, count=1, html=True)
+                else:
+                    self.assertNotContains(history, badge, html=True)
