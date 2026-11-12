@@ -59,7 +59,8 @@
             );
             const hasTimeErrors = Boolean(
                 form.querySelector(
-                    ".field-start_time .errorlist, .field-end_time .errorlist"
+                    ".field-start_time .errorlist, .field-end_time .errorlist, " +
+                    "[data-progressive-times] [data-ocr-missing]"
                 ) ||
                 (startTimeInput &&
                     startTimeInput.getAttribute("aria-invalid") === "true") ||
@@ -75,6 +76,7 @@
         }
 
         function autoSuggestEndTime() {
+            if (form.dataset.ocrSuppressSuggest === "true") return;
             if (!startTimeInput || !endTimeInput) return;
             const startVal = startTimeInput.value.trim();
             if (!startVal) return;
@@ -105,6 +107,8 @@
         }
 
         if (startTimeInput) {
+            startTimeInput.addEventListener("change", updateTimesVisibility);
+            startTimeInput.addEventListener("input", updateTimesVisibility);
             startTimeInput.addEventListener("change", autoSuggestEndTime);
             startTimeInput.addEventListener("input", () => {
                 if (startTimeInput.value.length === 5) {
@@ -114,8 +118,10 @@
         }
 
         if (endTimeInput) {
+            endTimeInput.addEventListener("change", updateTimesVisibility);
             endTimeInput.addEventListener("input", () => {
                 delete endTimeInput.dataset.autoSuggested;
+                updateTimesVisibility();
             });
         }
 
