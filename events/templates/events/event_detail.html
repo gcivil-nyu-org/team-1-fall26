@@ -50,6 +50,11 @@
                         </a>
                     </div>
                 </div>
+                {% if show_trip %}
+                    <div class="trip" data-trip-url="{% url 'events:trip' event.pk %}" data-csrf="{{ csrf_token }}" data-location-script="{% asset 'events/location_autocomplete.js' %}" aria-live="polite">
+                        <p class="trip-loading">Checking the MTA and when to leave…</p>
+                    </div>
+                {% endif %}
 
                     <div class="row"><div class="grow"><b>Getting there</b><small>{{ event.get_transport_mode_display }}</small></div></div>
                 {% endif %}
@@ -101,3 +106,4 @@
     </div>
 {% endtimezone %}
 {% endblock %}
+{% block scripts %}{% endblock %}
