@@ -1,5 +1,5 @@
 import math
-from datetime import time as dt_time
+from datetime import datetime, time as dt_time
 from urllib.parse import urlencode
 from uuid import UUID
 from zoneinfo import ZoneInfo, available_timezones
@@ -367,6 +367,11 @@ def event_detail(request, pk):
             "timezone_name": timezone_name,
             "can_create": can_manage_drivers,
             "driver_form": driver_form,
+            "can_change": can_change_event(event, request.user),
+            "starts_input": _local_input(
+                event.starts_at, ZoneInfo(event.timezone_name)
+            ),
+            "ends_input": _local_input(event.ends_at, ZoneInfo(event.timezone_name)),
             # The leave-by card only makes sense for an upcoming event with a map pin.
             "show_trip": event.has_valid_coordinates
             and event.transport_mode == Event.TransportMode.TRANSIT
@@ -643,3 +648,76 @@ def place_details(request):
     response = JsonResponse(place)
     patch_cache_control(response, private=True, no_store=True)
     return response
+
+
+def can_change_event(event, user):
+    """The person who made it, or a parent in its family. Plans copied from Google
+    Calendar are changed there instead."""
+    if event.source == Event.Source.GOOGLE:
+        return False
+    if event.created_by_id == user.pk:
+        return True
+    return bool(event.workspace_id) and (
+        family_workspaces(user, caregivers_only=True)
+        .filter(pk=event.workspace_id)
+        .exists()
+    )
+
+
+def _local_input(moment, tz):
+    """The value a datetime-local box shows: 2026-11-11T20:52, in the event's zone."""
+    return timezone.localtime(moment, tz).strftime("%Y-%m-%dT%H:%M")
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def change_event_time(request, pk):
+    """Change when an event happens, from the time line on its page."""
+    event = get_object_or_404(family_events(request.user), pk=pk)
+    if not can_change_event(event, request.user):
+        raise PermissionDenied
+    detail_url = reverse("events:detail", args=[event.pk])
+    tz = ZoneInfo(event.timezone_name)
+    try:
+        starts_at = datetime.fromisoformat(request.POST["starts_at"]).replace(tzinfo=tz)
+        ends_at = datetime.fromisoformat(request.POST["ends_at"]).replace(tzinfo=tz)
+    except (KeyError, ValueError):
+        messages.error(request, "Choose a start and end time.")
+        return redirect(detail_url)
+    if ends_at <= starts_at:
+        messages.error(request, "The end has to be after the start.")
+        return redirect(detail_url)
+    event.starts_at, event.ends_at = starts_at, ends_at
+    try:
+        event.full_clean(validate_unique=False)
+        event.save(update_fields=["starts_at", "ends_at", "updated_at"])
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    except DatabaseError:
+        messages.error(request, "The new time couldn't be saved. Please try again.")
+    else:
+        messages.success(request, "Time changed.")
+    return redirect(detail_url)
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def delete_event(request, pk):
+    """Delete an event (after the page asks "Delete this event?")."""
+    event = get_object_or_404(family_events(request.user), pk=pk)
+    if not can_change_event(event, request.user):
+        raise PermissionDenied
+    day = timezone.localtime(event.starts_at, ZoneInfo(event.timezone_name)).date()
+    back = (
+        reverse("events:workspace_list", args=[event.workspace_id])
+        if event.workspace_id
+        else reverse("events:list")
+    )
+    title = event.title
+    try:
+        event.delete()
+    except DatabaseError:
+        messages.error(request, "The event couldn't be deleted. Please try again.")
+        return redirect("events:detail", pk=pk)
+    messages.success(request, f"Deleted “{title}”.")
+    return redirect(f"{back}?{urlencode({'view': 'day', 'date': day})}")

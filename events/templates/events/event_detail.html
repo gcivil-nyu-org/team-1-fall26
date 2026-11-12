@@ -8,9 +8,24 @@
     <div class="split">
         <section class="panel event-card" aria-labelledby="event-heading">
             <h1 id="event-heading" data-sheet-hide>{{ event.title }}</h1>
-            <p class="span when-line">
-                {% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}
-            </p>
+            {% if can_change %}
+                <details class="when-edit">
+                    <summary class="span when-line" title="Change the time"><span>{% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}</span><span class="when-edit-hint">Change</span></summary>
+                    <form class="when-form" method="post" action="{% url 'events:change_time' event.pk %}">
+                        {% csrf_token %}
+                        <label for="when-starts">Starts</label>
+                        <input id="when-starts" type="datetime-local" name="starts_at" value="{{ starts_input }}" required>
+                        <label for="when-ends">Ends</label>
+                        <input id="when-ends" type="datetime-local" name="ends_at" value="{{ ends_input }}" required>
+                        <p class="when-tz">In {{ event.timezone_name }}</p>
+                        <button class="btn" type="submit">Save time</button>
+                    </form>
+                </details>
+            {% else %}
+                <p class="span when-line">
+                    {% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}
+                </p>
+            {% endif %}
             <div class="pills" aria-label="Who’s going">
                 {% for member in people %}
                     <span class="pill" translate="no"{% if member.hue %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>{{ member.user|person }}</span>
@@ -77,6 +92,12 @@
             <div class="actions start">
                 <a class="btn btn-quiet" href="{{ list_url }}?{{ schedule_query }}">See the whole day</a>
                 {% if can_create %}<a class="btn btn-quiet" href="{% url 'events:workspace_create' event.workspace_id %}?{{ schedule_query }}" data-dialog>Add another event that day</a>{% endif %}
+                {% if can_change %}
+                    <form method="post" action="{% url 'events:delete' event.pk %}" data-full-page data-confirm-title="Delete this event?" data-confirm="“{{ event.title }}” is removed for everyone in the family. This can’t be undone.">
+                        {% csrf_token %}
+                        <button class="btn btn-quiet btn-danger" type="submit">Delete event</button>
+                    </form>
+                {% endif %}
             </div>
         </section>
         <aside class="panel"{% if event.workspace %} aria-labelledby="same-day-heading"{% endif %}>

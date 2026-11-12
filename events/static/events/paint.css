@@ -766,6 +766,15 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
   .plans li.leave-mark { z-index: 2; justify-content: flex-end; background: none; }
 }
 
+/* Click the time on an event page to change it */
+.when-edit > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; cursor: pointer; list-style: none; }
+.when-edit > summary::-webkit-details-marker { display: none; }
+.when-edit-hint { font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; color: var(--ink); }
+.when-edit[open] .when-edit-hint { display: none; }
+.when-form { display: grid; grid-template-columns: auto minmax(0, 260px); align-items: center; gap: 8px 12px; margin: 10px 0 4px; padding: 12px; border-radius: var(--radius); background: var(--raised); }
+.when-form .when-tz { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12px; }
+.when-form .btn { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 560px) { .when-form { grid-template-columns: 1fr; } }
 
 /* Leave-by card on event pages (events/_trip_card.html, loaded by trip.js) */
 .trip { margin: 6px 0 10px; padding: 14px 16px; border-radius: var(--radius); background: var(--raised); }
