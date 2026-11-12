@@ -9,12 +9,12 @@ from django.utils import timezone as django_timezone
 from accounts.models import Membership, Workspace
 from calendars.models import CalendarConnection
 
-from ..models import Event, TripStart
+from ..models import Event
 
 NEW_YORK = ZoneInfo("America/New_York")
 
 
-class ChangeAndDeleteEventTests(TestCase):
+class ChangeTimeFromEventPageTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         User = get_user_model()
@@ -98,7 +98,7 @@ class ChangeAndDeleteEventTests(TestCase):
 
         self.client.force_login(self.kid)
         self.assertEqual(
-            self.change("2026-11-20T09:00", "2026-11-20T10:00").status_code, 403
+            self.change("2026-11-20T09:00", "2026-11-20T10:00").status_code, 404
         )
         page = self.client.get(reverse("events:detail", args=[self.event.pk]))
         self.assertNotContains(page, "Delete event")
@@ -117,41 +117,7 @@ class ChangeAndDeleteEventTests(TestCase):
         )
 
         self.assertEqual(
-            self.change("2026-11-20T09:00", "2026-11-20T10:00").status_code, 403
+            self.change("2026-11-20T09:00", "2026-11-20T10:00").status_code, 404
         )
-        self.assertEqual(
-            self.client.post(
-                reverse("events:delete", args=[self.event.pk])
-            ).status_code,
-            403,
-        )
-
-    def test_delete_asks_first_then_removes_it_and_goes_back_to_that_day(self):
-        TripStart.objects.create(user=self.admin, event=self.event)
         page = self.client.get(reverse("events:detail", args=[self.event.pk]))
-        self.assertContains(page, 'data-confirm-title="Delete this event?"')
-
-        response = self.client.post(reverse("events:delete", args=[self.event.pk]))
-
-        self.assertRedirects(
-            response,
-            reverse("events:workspace_list", args=[self.workspace.pk])
-            + "?view=day&date=2026-11-20",
-            fetch_redirect_response=False,
-        )
-        self.assertFalse(Event.objects.filter(pk=self.event.pk).exists())
-        self.assertFalse(TripStart.objects.exists())
-
-    def test_kids_cannot_delete_and_get_only_works_by_post(self):
-        self.assertEqual(
-            self.client.get(reverse("events:delete", args=[self.event.pk])).status_code,
-            405,
-        )
-        self.client.force_login(self.kid)
-        self.assertEqual(
-            self.client.post(
-                reverse("events:delete", args=[self.event.pk])
-            ).status_code,
-            403,
-        )
-        self.assertTrue(Event.objects.filter(pk=self.event.pk).exists())
+        self.assertNotContains(page, 'class="when-edit"')

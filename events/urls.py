@@ -28,5 +28,4 @@ urlpatterns = [
     path("<int:pk>/transport/", views.set_transport_mode, name="set_transport_mode"),
     path("<int:pk>/trip/", views.event_trip, name="trip"),
     path("<int:pk>/time/", views.change_event_time, name="change_time"),
-    path("<int:pk>/delete/", views.delete_event, name="delete"),
 ]

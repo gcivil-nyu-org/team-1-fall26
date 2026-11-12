@@ -560,7 +560,6 @@ def event_detail(request, pk):
             "can_create": can_manage_drivers,
             "can_edit": can_manage_drivers and event.source == Event.Source.SYNCMILY,
             "driver_form": driver_form,
-            "can_change": can_change_event(event, request.user),
             "starts_input": _local_input(
                 event.starts_at, ZoneInfo(event.timezone_name)
             ),
@@ -843,20 +842,6 @@ def place_details(request):
     return response
 
 
-def can_change_event(event, user):
-    """The person who made it, or a parent in its family. Plans copied from Google
-    Calendar are changed there instead."""
-    if event.source == Event.Source.GOOGLE:
-        return False
-    if event.created_by_id == user.pk:
-        return True
-    return bool(event.workspace_id) and (
-        family_workspaces(user, caregivers_only=True)
-        .filter(pk=event.workspace_id)
-        .exists()
-    )
-
-
 def _local_input(moment, tz):
     """The value a datetime-local box shows: 2026-11-11T20:52, in the event's zone."""
     return timezone.localtime(moment, tz).strftime("%Y-%m-%dT%H:%M")
@@ -865,10 +850,15 @@ def _local_input(moment, tz):
 @login_required(login_url="accounts:login")
 @require_POST
 def change_event_time(request, pk):
-    """Change when an event happens, from the time line on its page."""
-    event = get_object_or_404(family_events(request.user), pk=pk)
-    if not can_change_event(event, request.user):
-        raise PermissionDenied
+    """Change when an event happens, straight from the time on its page. Same rule as
+    the Edit event form: a parent in the family, and not a Google Calendar copy."""
+    event = get_object_or_404(
+        Event.objects.filter(
+            workspace__in=family_workspaces(request.user, caregivers_only=True),
+            source=Event.Source.SYNCMILY,
+        ),
+        pk=pk,
+    )
     detail_url = reverse("events:detail", args=[event.pk])
     tz = ZoneInfo(event.timezone_name)
     try:
@@ -891,26 +881,3 @@ def change_event_time(request, pk):
     else:
         messages.success(request, "Time changed.")
     return redirect(detail_url)
-
-
-@login_required(login_url="accounts:login")
-@require_POST
-def delete_event(request, pk):
-    """Delete an event (after the page asks "Delete this event?")."""
-    event = get_object_or_404(family_events(request.user), pk=pk)
-    if not can_change_event(event, request.user):
-        raise PermissionDenied
-    day = timezone.localtime(event.starts_at, ZoneInfo(event.timezone_name)).date()
-    back = (
-        reverse("events:workspace_list", args=[event.workspace_id])
-        if event.workspace_id
-        else reverse("events:list")
-    )
-    title = event.title
-    try:
-        event.delete()
-    except DatabaseError:
-        messages.error(request, "The event couldn't be deleted. Please try again.")
-        return redirect("events:detail", pk=pk)
-    messages.success(request, f"Deleted “{title}”.")
-    return redirect(f"{back}?{urlencode({'view': 'day', 'date': day})}")
