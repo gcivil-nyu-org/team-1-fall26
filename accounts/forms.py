@@ -1,8 +1,40 @@
+import re
+import unicodedata
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
 from .models import Membership, Workspace
+
+RESERVED_USERNAME = re.compile(
+    r"^(admin|administrator|syncmily|support|parent\d*|kid\d*|caregiver\d*)$",
+    re.IGNORECASE,
+)
+RESERVED_USERNAME_MESSAGE = (
+    "That username is reserved. Choose another one; "
+    "family members get names like Parent2 or Kid3 from their invite."
+)
+
+
+def check_username_not_reserved(username):
+    """Only names a person picks go through this; the invite flow's own Parent2 and
+    Kid3 are made by next_member_username and never reach a form.
+    """
+    if RESERVED_USERNAME.match(username):
+        raise forms.ValidationError(RESERVED_USERNAME_MESSAGE)
+
+
+def clean_display_text(value):
+    """Drop control and invisible format characters (line breaks, bidi overrides,
+    zero-width spaces) and collapse the rest of the whitespace.
+    """
+    kept = "".join(
+        " " if char.isspace() else char
+        for char in value
+        if unicodedata.category(char) not in ("Cc", "Cf") or char.isspace()
+    )
+    return " ".join(kept.split())
 
 
 class WorkspaceForm(forms.ModelForm):
@@ -19,10 +51,12 @@ class WorkspaceForm(forms.ModelForm):
         }
 
     def clean_name(self):
-        name = self.cleaned_data["name"].strip()
+        name = clean_display_text(self.cleaned_data["name"])
 
         if not name:
             raise forms.ValidationError("Workspace name cannot be empty.")
+        if len(name) > Workspace._meta.get_field("name").max_length:
+            raise forms.ValidationError("Workspace name is too long.")
 
         return name
 
@@ -87,6 +121,7 @@ class UsernameChangeForm(forms.ModelForm):
             .exists()
         ):
             raise forms.ValidationError("That username is already taken.")
+        check_username_not_reserved(username)
 
         return username
 
@@ -100,12 +135,25 @@ class SignUpForm(UserCreationForm):
         model = get_user_model()
         fields = ("username", "email")
 
+    def clean_username(self):
+        username = super().clean_username()
+        if username:
+            check_username_not_reserved(username.strip())
+        return username
+
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
+        holders = get_user_model().objects.filter(email__iexact=email)
 
-        if get_user_model().objects.filter(email__iexact=email).exists():
+        if holders.filter(is_active=True).exists():
             raise forms.ValidationError(
                 "An account with this email already exists. Sign in instead."
+            )
+        if holders.exists():
+            # A pending invite holds this address; its link sets the password.
+            raise forms.ValidationError(
+                "This email has a pending invitation. Use the invite link "
+                "you were emailed to join, or ask the parent to resend it."
             )
 
         return email

@@ -3,16 +3,18 @@ from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login, update_session_auth_hash
-from django.contrib.auth.views import LoginView
+from django.contrib.auth import get_user_model, login, update_session_auth_hash
+from django.contrib.auth.views import LoginView, PasswordResetView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 from django.core.exceptions import PermissionDenied
+from django.core.mail import BadHeaderError
 from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
+from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -23,6 +25,8 @@ from events.access import family_events, family_workspaces
 from events.briefing import build_family_briefing, build_kid_briefing
 from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
+
+from syncmily.ratelimit import rate_limit
 
 from . import two_step
 from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
@@ -54,17 +58,28 @@ WEEK_RANGE_DAYS = 5 * 366
 
 
 @login_required
+@rate_limit("create_workspace", 5, 3600, key="user")
 def create_workspace(request):
     """
     Allow an authenticated user to create a family workspace.
     The creator is automatically assigned as Primary Admin.
     """
+    # Only POST is turned away: events' page test still opens this form as a member.
+    if request.method == "POST" and get_family_context(request.user) is not None:
+        messages.info(request, "You already belong to a family.")
+        return redirect("accounts:dashboard")
+
     if request.method == "POST":
         form = WorkspaceForm(request.POST)
 
         if form.is_valid():
             try:
                 with transaction.atomic():
+                    # Lock the user so a double click can't create two families.
+                    get_user_model().objects.select_for_update().get(pk=request.user.pk)
+                    if get_family_context(request.user) is not None:
+                        messages.info(request, "You already belong to a family.")
+                        return redirect("accounts:dashboard")
                     workspace = form.save(commit=False)
                     workspace.primary_admin = request.user
                     workspace.save()
@@ -379,7 +394,7 @@ def report_invite(request, membership):
         return
     try:
         send_invitation_email(request, membership)
-    except OSError:
+    except (OSError, BadHeaderError, ValueError):
         messages.warning(
             request,
             f"The email to {membership.user.email} didn't go through. "
@@ -489,6 +504,7 @@ def google_sign_in_enabled():
 
 
 @require_http_methods(["GET", "POST"])
+@rate_limit("signup", 5, 3600, key="ip")
 def signup(request):
     """Let anyone create an account; they set up or join a family afterwards."""
     if request.user.is_authenticated:
@@ -513,6 +529,7 @@ def signup(request):
     )
 
 
+@method_decorator(rate_limit("login", 30, 600, key="ip"), name="dispatch")
 class SignInView(LoginView):
     """The password sign-in, which hands off to the code step when two-step sign-in is
     on.
@@ -539,6 +556,18 @@ class SignInView(LoginView):
                 self.request, user, user.backend, self.get_success_url()
             )
         return super().form_valid(form)
+
+
+@method_decorator(rate_limit("password_reset", 5, 3600, key="ip"), name="dispatch")
+class ResetRequestView(PasswordResetView):
+    """Email a reset link. Invited members who haven't set a password yet and kids
+    without an email have nothing to reset, and the answer is the same either way.
+    """
+
+    template_name = "accounts/password_reset_form.html"
+    email_template_name = "accounts/emails/password_reset.txt"
+    subject_template_name = "accounts/emails/password_reset_subject.txt"
+    success_url = reverse_lazy("accounts:password_reset_done")
 
 
 def _google_login_callback_uri(request):

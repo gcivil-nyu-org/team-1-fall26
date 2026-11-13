@@ -1,0 +1,7 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Page not found | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>We can’t find that page</h1>
+            <p class="lede">The link may be old, or the page may have been removed.</p>
+            <a class="btn btn-quiet btn-wide" href="{% url 'accounts:dashboard' %}">Back to Syncmily</a>
+{% endblock %}
