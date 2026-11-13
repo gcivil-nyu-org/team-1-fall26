@@ -1,4 +1,3 @@
-import unicodedata
 from copy import copy
 from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from uuid import uuid4
@@ -8,6 +7,8 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core import signing
 from django.utils import timezone
+
+from syncmily.text import clean_visible_text
 
 from accounts.models import Workspace
 
@@ -326,9 +327,7 @@ class EventForm(EventTimezoneForm):
 
     def clean_title(self):
         # Drop invisible format characters (zero-width spaces, bidi overrides).
-        title = "".join(
-            ch for ch in self.cleaned_data["title"] if unicodedata.category(ch) != "Cf"
-        ).strip()
+        title = clean_visible_text(self.cleaned_data["title"])
         if not title:
             raise forms.ValidationError("Enter an event title.")
         return title

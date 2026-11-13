@@ -1,15 +1,15 @@
-import unicodedata
 import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from syncmily.text import clean_visible_text
+
 
 def clean_text(value):
     """Drop invisible format characters (zero-width, RTL override) and trim."""
-    value = "".join(ch for ch in value or "" if unicodedata.category(ch) != "Cf")
-    return value.strip()
+    return clean_visible_text(value)
 
 
 class Checklist(models.Model):
