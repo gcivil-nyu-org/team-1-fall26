@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import threading
+import time as time_module
 import re
 import unicodedata
 import warnings
@@ -26,9 +29,20 @@ from PIL import (
 
 logger = logging.getLogger(__name__)
 
+
+def ocr_available():
+    """True when the Tesseract binary is installed on this server."""
+    return shutil.which("tesseract") is not None
+
+
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
-MAX_IMAGE_PIXELS = 40_000_000
+MAX_IMAGE_PIXELS = 12_000_000
 OCR_TIMEOUT_SECONDS = 15
+# One request must finish well inside nginx's 60 s: stop trying fallback passes
+# once this much time has gone.
+OCR_TIME_BUDGET_SECONDS = 25
+# At most two scans decode and run Tesseract at once.
+OCR_SLOTS = threading.BoundedSemaphore(2)
 ALLOWED_IMAGE_FORMATS = frozenset({"JPEG", "PNG", "WEBP"})
 ALLOWED_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp"})
 ALLOWED_MIME_TYPES = frozenset(
@@ -365,12 +379,12 @@ def validate_and_load_image(uploaded_file):
                     )
                 if probed.width * probed.height > MAX_IMAGE_PIXELS:
                     raise EventOCRError(
-                        "file_too_large",
+                        "image_too_large",
                         (
                             "This image resolution is too large to process safely. "
                             "Try a smaller photo."
                         ),
-                        413,
+                        400,
                     )
                 probed.verify()
 
@@ -381,9 +395,9 @@ def validate_and_load_image(uploaded_file):
         raise
     except (Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
         raise EventOCRError(
-            "file_too_large",
+            "image_too_large",
             "This image resolution is too large to process safely.",
-            413,
+            400,
         ) from error
     except (
         UnidentifiedImageError,
@@ -545,6 +559,10 @@ def _score_ocr_text(text):
 def extract_text_from_image(image):
     """Run Tesseract OCR on preprocessed image variants and return normalized text."""
     primary, fallbacks = preprocess_image_for_ocr(image)
+    deadline = time_module.monotonic() + OCR_TIME_BUDGET_SECONDS
+
+    def _out_of_time():
+        return time_module.monotonic() >= deadline
 
     def _run_ocr(target_image, config):
         return pytesseract.image_to_string(
@@ -586,6 +604,8 @@ def extract_text_from_image(image):
         for variant in fallbacks:
             candidates.append((variant, "--oem 3 --psm 6"))
         for variant, config in candidates:
+            if _out_of_time():
+                break
             try:
                 candidate_text = _run_ocr(variant, config)
             except (pytesseract.TesseractError, RuntimeError, OSError):
@@ -601,6 +621,8 @@ def extract_text_from_image(image):
             Image.Transpose.ROTATE_90,
             Image.Transpose.ROTATE_180,
         ):
+            if _out_of_time():
+                break
             rotated = primary.transpose(transpose_op)
             try:
                 candidate_text = _run_ocr(rotated, "--oem 3 --psm 3")
@@ -1745,11 +1767,18 @@ def parse_event_text(text, *, timezone_name=None, reference_date=None):
 
 def scan_event_image(uploaded_file, *, timezone_name=None, reference_date=None):
     """Validate, preprocess, OCR, and parse an uploaded event document image."""
-    image = validate_and_load_image(uploaded_file)
+    if not OCR_SLOTS.acquire(blocking=False):
+        raise EventOCRError(
+            "busy", "Scanning is busy, try again in a moment.", http_status=429
+        )
     try:
-        extracted_text = extract_text_from_image(image)
+        image = validate_and_load_image(uploaded_file)
+        try:
+            extracted_text = extract_text_from_image(image)
+        finally:
+            image.close()
     finally:
-        image.close()
+        OCR_SLOTS.release()
     return parse_event_text(
         extracted_text,
         timezone_name=timezone_name,

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 from datetime import date, time
@@ -9,6 +10,10 @@ from django.utils import timezone
 
 # Groq API configuration
 API_URL = "https://api.groq.com/openai/v1/responses"
+
+logger = logging.getLogger(__name__)
+
+UNAVAILABLE_MESSAGE = "AI suggestions are unavailable right now."
 
 DEFAULT_MODEL = "openai/gpt-oss-20b"
 
@@ -147,7 +152,8 @@ def generate_event_suggestion(
     api_key = os.environ.get("GROQ_API_KEY")
 
     if not api_key:
-        raise EventSuggestionError("AI suggestions are not configured on this server.")
+        logger.error("GROQ_API_KEY is not set; AI suggestions are disabled.")
+        raise EventSuggestionError(UNAVAILABLE_MESSAGE)
 
     # Validate timezone
     try:
@@ -215,7 +221,7 @@ def generate_event_suggestion(
                 "schema": EVENT_SCHEMA,
             }
         },
-        "max_output_tokens": 1000,
+        "max_output_tokens": 3000,
         "store": False,
     }
 
@@ -234,6 +240,9 @@ def generate_event_suggestion(
         response.raise_for_status()
         output = response.json()
 
+        if not isinstance(output, dict):
+            raise EventSuggestionError("The AI response could not be understood.")
+
         # Ensure generation completed successfully
         if output.get("status") != "completed":
             raise EventSuggestionError("AI could not complete the event suggestion.")
@@ -242,11 +251,11 @@ def generate_event_suggestion(
         text_parts = []
 
         for item in output.get("output", []):
-            if item.get("type") != "message":
+            if not isinstance(item, dict) or item.get("type") != "message":
                 continue
 
             for part in item.get("content", []):
-                if part.get("type") == "output_text":
+                if isinstance(part, dict) and part.get("type") == "output_text":
                     text_parts.append(part.get("text", ""))
 
         if not text_parts:
@@ -272,9 +281,9 @@ def generate_event_suggestion(
             ) from error
 
         if status_code in (401, 403):
-            raise EventSuggestionError(
-                "Groq API authentication failed. " "Check your API key."
-            ) from error
+            # Log the status only: never the request headers or the key.
+            logger.error("Groq rejected the API key (HTTP %s).", status_code)
+            raise EventSuggestionError(UNAVAILABLE_MESSAGE) from error
 
         raise EventSuggestionError(
             "The AI service could not generate a suggestion. " "Please try again."
@@ -289,6 +298,7 @@ def generate_event_suggestion(
         ValueError,
         KeyError,
         TypeError,
+        AttributeError,
     ) as error:
         raise EventSuggestionError(
             "The AI response could not be understood."
