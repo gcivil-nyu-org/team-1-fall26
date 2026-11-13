@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
 from .models import Membership, Workspace
+from syncmily.text import clean_visible_text
 
 RESERVED_USERNAME = re.compile(
     r"^(admin|administrator|syncmily|support|parent\d*|kid\d*|caregiver\d*)$",
@@ -26,15 +27,15 @@ def check_username_not_reserved(username):
 
 
 def clean_display_text(value):
-    """Drop control and invisible format characters (line breaks, bidi overrides,
-    zero-width spaces) and collapse the rest of the whitespace.
+    """Turn line breaks and other whitespace into single spaces, then drop
+    invisible format characters (bidi overrides, zero-width spaces) while
+    keeping emoji joiners. Nothing visible left gives an empty string.
     """
-    kept = "".join(
-        " " if char.isspace() else char
-        for char in value
-        if unicodedata.category(char) not in ("Cc", "Cf") or char.isspace()
+    spaced = "".join(
+        " " if char.isspace() or unicodedata.category(char) == "Cc" else char
+        for char in value or ""
     )
-    return " ".join(kept.split())
+    return " ".join(clean_visible_text(spaced).split())
 
 
 class WorkspaceForm(forms.ModelForm):

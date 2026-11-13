@@ -18,3 +18,13 @@ class CleanVisibleTextTests(SimpleTestCase):
         )
         self.assertEqual(clean_visible_text(family), family)
         self.assertEqual(clean_visible_text(scotland), scotland)
+
+
+class FamilyNameEmojiTests(SimpleTestCase):
+    def test_family_name_keeps_emoji_and_drops_header_breaks(self):
+        from accounts.forms import clean_display_text
+
+        self.assertEqual(clean_display_text("Evil\nBcc: x@y.z‮"), "Evil Bcc: x@y.z")
+        family = "The \U0001f468‍\U0001f469‍\U0001f467 crew"
+        self.assertEqual(clean_display_text(family), family)
+        self.assertEqual(clean_display_text("​\r\n‍"), "")
