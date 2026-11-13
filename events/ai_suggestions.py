@@ -282,7 +282,9 @@ def generate_event_suggestion(
 
         if status_code in (401, 403):
             # Log the status only: never the request headers or the key.
-            logger.error("Groq rejected the API key (HTTP %s).", status_code)
+            logger.error(
+                "Groq refused the request as unauthorised (HTTP %s).", status_code
+            )
             raise EventSuggestionError(UNAVAILABLE_MESSAGE) from error
 
         raise EventSuggestionError(
