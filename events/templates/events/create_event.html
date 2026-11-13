@@ -1,20 +1,54 @@
 {% extends 'events/_paint_page.html' %}
 {% load static tz paint %}
-{% block title %}Add event | Syncmily{% endblock %}
+{% block title %}{% if is_edit %}Edit event{% else %}Add event{% endif %} | Syncmily{% endblock %}
 {% block scripts %}
 <script src="{% asset 'events/location_autocomplete.js' %}" defer></script>
 <script src="{% asset 'events/progressive_event_form.js' %}" defer></script>
+<script src="{% asset 'events/event_ocr.js' %}" defer></script>
 {% endblock %}
 {% block content %}
     <div class="head" data-sheet-hide>
-        <h1>Add event</h1>
+        <h1>{% if is_edit %}Edit event{% else %}Add event{% endif %}</h1>
         {% if workspace %}<span class="span">{{ workspace.name }}</span>{% endif %}
     </div>
+
     <div class="layout-form">
-    <form class="panel event-form" data-event-form id="event-form" method="post" action="{{ create_url }}">
-        {% csrf_token %}
-        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
-        {% if form.errors %}
+    <div class="event-create-column" data-event-mode-shell>
+        {% if can_save and not is_edit and ocr_scan_url %}
+            <div class="event-mode-tabs" data-event-mode-tabs role="tablist" aria-label="Choose how to enter event details">
+                <button
+                    type="button"
+                    class="event-mode-tab is-active"
+                    id="tab-manual-entry"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="panel-manual-entry"
+                    data-event-tab="manual">
+                    Manual Entry
+                </button>
+                <button
+                    type="button"
+                    class="event-mode-tab"
+                    id="tab-scan-event"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="panel-scan-event"
+                    data-event-tab="scan"
+                    tabindex="-1">
+                    Scan Event
+                </button>
+            </div>
+        {% endif %}
+
+        <div
+            class="event-mode-panel"
+            id="panel-manual-entry"
+            {% if can_save and not is_edit and ocr_scan_url %}role="tabpanel" aria-labelledby="tab-manual-entry" data-event-tabpanel="manual"{% endif %}>
+            <form class="panel event-form" data-event-form id="event-form" method="post" action="{{ form_url }}">
+                {% csrf_token %}
+                {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+                <div class="notice ocr-form-banner" data-ocr-form-banner role="status" hidden></div>
+                {% if form.errors %}
             <div class="form-error" role="alert" id="event-errors">
                 <p><b>{% if form.non_field_errors %}This event wasn’t saved.{% else %}Check the details marked below.{% endif %}</b></p>
                 {{ form.non_field_errors }}
@@ -130,29 +164,19 @@
             {% endif %}
         </div>
 
-        <details class="disclose more-options" data-more-options {% if form.timezone.errors or form.is_tentative.errors or form.is_tentative.value %}open{% endif %}>
-            <summary class="more-options-summary">More options</summary>
-            <div class="more-options-body">
-                <div class="field check-field">
-                    <div class="check">
-                        {{ form.is_tentative }}
-                        <label for="{{ form.is_tentative.id_for_label }}">Not confirmed yet<small>It shows with a dashed edge until it’s settled.</small></label>
-                    </div>
-                    {{ form.is_tentative.errors }}
-                </div>
-                <div class="field">
-                    <label for="{{ form.timezone.id_for_label }}">Time zone</label>
-                    {{ form.timezone }}
-                    {{ form.timezone.errors }}
-                </div>
+        <div class="field check-field field-tentative">
+            <div class="check">
+                {{ form.is_tentative }}
+                <label for="{{ form.is_tentative.id_for_label }}">Not confirmed yet<small>It shows with a dashed edge until it’s settled.</small></label>
             </div>
-        </details>
+            {{ form.is_tentative.errors }}
+        </div>
 
         {% if event_details %}
             {% timezone timezone_name %}
             <section class="review" id="event-review" aria-labelledby="review-heading">
                 <h2 id="review-heading">Review your event</h2>
-                <p class="span" role="status">{% if form.errors %}Not saved yet. Fix the details above, then check again.{% else %}Looks right? Add it, or change anything above.{% endif %}</p>
+                <p class="span" role="status">{% if form.errors %}Not saved yet. Fix the details above, then check again.{% else %}{% if is_edit %}Looks right? Save your changes, or change anything above.{% else %}Looks right? Add it, or change anything above.{% endif %}{% endif %}</p>
                 <div class="facts">
                     <div class="row"><div class="grow"><b>{{ event_details.title }}</b><small>{{ event_details.starts_at|date:"l j F" }}, {{ event_details.starts_at|clock }} to {% if event_details.starts_at|date:"Y-m-d" != event_details.ends_at|date:"Y-m-d" %}{{ event_details.ends_at|date:"D j M" }}, {% endif %}{{ event_details.ends_at|clock }} ({{ timezone_name }})</small></div></div>
                     <div class="row"><div class="grow"><b>Who’s going</b><small translate="no">{% for participant in form.cleaned_data.participants %}{{ participant|person }}{% if not forloop.last %}, {% endif %}{% empty %}Whole family{% endfor %}</small></div></div>
@@ -176,11 +200,185 @@
 
         <p class="sr-only" data-review-notice role="status"></p>
         <div class="actions">
-            <a class="link-quiet" href="{{ create_url }}" data-dialog>Start over</a>
-            <button class="btn btn-quiet" type="submit" name="action" value="preview">Check details</button>
-            {% if can_save %}<button class="btn" type="submit" name="action" value="save">Add event</button>{% endif %}
+            {% if is_edit %}<a class="link-quiet" href="{% url 'events:detail' event.pk %}?timezone={{ event.timezone_name|urlencode }}" data-dialog>Cancel</a>{% else %}<a class="link-quiet" href="{{ form_url }}" data-dialog>Start over</a>{% endif %}
+                <button class="btn btn-quiet" type="submit" name="action" value="preview">Check details</button>
+                {% if can_save %}<button class="btn" type="submit" name="action" value="save">{% if is_edit %}Save changes{% else %}Add event{% endif %}</button>{% endif %}
+            </div>
+        </form>
+
+        {% if can_save and not is_edit %}
+        <section class="panel ai-suggestion-panel">
+            <h2>Create an event with AI</h2>
+
+            <p class="span">
+                Describe your family event in your own words.
+                Syncmily will suggest the details for you to review.
+            </p>
+
+            <form method="post" action="{{ form_url }}">
+                {% csrf_token %}
+
+                <div class="field">
+                    <label for="{{ ai_form.description.id_for_label }}">
+                        Describe your event
+                    </label>
+                    {{ ai_form.description }}
+                    {{ ai_form.description.errors }}
+                    <small>{{ ai_form.description.help_text }}</small>
+                </div>
+
+                {{ ai_form.non_field_errors }}
+
+                <input
+                    type="hidden"
+                    name="timezone"
+                    value="{{ form.timezone.value|default:timezone_name }}"
+                >
+
+                <div class="actions">
+                    <button
+                        class="btn"
+                        type="submit"
+                        name="action"
+                        value="generate_suggestion">
+                        Generate suggestion
+                    </button>
+                </div>
+            </form>
+
+            {% if ai_suggestion_generated %}
+                <div class="notice" role="status">
+                    <strong>Suggestion ready</strong>
+                    Review and edit the details below before saving.
+                </div>
+            {% endif %}
+
+            {% if ai_missing_fields %}
+                <div class="form-error" role="alert">
+                    <strong>Required information is missing:</strong>
+                    <ul>
+                        {% for field in ai_missing_fields %}
+                            <li>{{ field|title|cut:"_" }}</li>
+                        {% endfor %}
+                    </ul>
+                    <p>Please complete these fields before saving.</p>
+                </div>
+            {% endif %}
+        </section>
+        {% endif %}
         </div>
-    </form>
+
+        {% if can_save and not is_edit and ocr_scan_url %}
+        <section
+            class="panel event-mode-panel ocr-scan-panel"
+            id="panel-scan-event"
+            role="tabpanel"
+            aria-labelledby="tab-scan-event"
+            data-event-tabpanel="scan"
+            data-ocr-panel
+            data-ocr-url="{{ ocr_scan_url }}"
+            hidden>
+            <div class="ocr-header">
+                <h2>Scan a notice, invite, or flyer</h2>
+                <p class="span">Upload a photo or screenshot and Syncmily will extract the event details for you to review before adding.</p>
+            </div>
+
+            <input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-ocr-file-input hidden>
+            <input type="file" accept="image/*" capture="environment" data-ocr-camera-input hidden>
+
+            <div class="ocr-dropzone" data-ocr-dropzone tabindex="0" role="group" aria-label="Upload event document image">
+                <div class="ocr-dropzone-icon" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 16V4m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <p class="ocr-dropzone-title">Drag and drop an image here</p>
+                <p class="ocr-dropzone-sub">Supports JPG, JPEG, PNG, and WebP images up to 10 MB.</p>
+                <div class="ocr-dropzone-buttons">
+                    <button type="button" class="btn btn-quiet" data-ocr-browse>Browse Files</button>
+                    <button type="button" class="btn btn-quiet" data-ocr-camera>Take Photo</button>
+                </div>
+            </div>
+
+            <div class="ocr-preview-card" data-ocr-preview-card hidden>
+                <div class="ocr-preview-frame">
+                    <img class="ocr-preview-img" data-ocr-preview-img src="" alt="Selected event document preview">
+                </div>
+                <div class="ocr-preview-bar">
+                    <span class="ocr-file-meta" data-ocr-file-meta></span>
+                    <div class="ocr-preview-actions">
+                        <button type="button" class="btn btn-quiet btn-small" data-ocr-replace>Replace Image</button>
+                        <button type="button" class="btn btn-quiet btn-small" data-ocr-remove>Remove Image</button>
+                    </div>
+                </div>
+                <div class="ocr-extract-actions">
+                    <button type="button" class="btn ocr-extract-btn" data-ocr-extract>Extract Event Details</button>
+                </div>
+            </div>
+
+            <div class="ocr-loading" data-ocr-loading role="status" aria-live="polite" hidden>
+                <span class="ocr-spinner" aria-hidden="true"></span>
+                <div class="ocr-loading-copy">
+                    <b>Reading your document and finding event details...</b>
+                    <small>Checking orientation and text clarity.</small>
+                </div>
+            </div>
+
+            <div class="form-error ocr-error" data-ocr-error role="alert" hidden>
+                <p class="ocr-error-title" data-ocr-error-message></p>
+                <div class="ocr-error-actions">
+                    <button type="button" class="btn btn-quiet btn-small" data-ocr-switch-manual>Switch to Manual Entry</button>
+                </div>
+            </div>
+
+            <div class="ocr-result" data-ocr-result aria-live="polite" hidden>
+                <div class="ocr-candidates" data-ocr-candidates hidden>
+                    <p class="ocr-candidates-label">Multiple events found. Pick the event you want to add:</p>
+                    <div class="ocr-candidate-list" data-ocr-candidate-list></div>
+                </div>
+
+                <div class="ocr-result-head">
+                    <h3>Event Details Found</h3>
+                </div>
+
+                <div class="ocr-draft-warnings" data-ocr-draft-warnings hidden></div>
+
+                <div class="facts ocr-facts">
+                    <div class="row">
+                        <span class="k">Title</span>
+                        <span class="grow ocr-val" data-ocr-val="title"></span>
+                    </div>
+                    <div class="row">
+                        <span class="k">Date</span>
+                        <span class="grow ocr-val" data-ocr-val="date"></span>
+                    </div>
+                    <div class="row">
+                        <span class="k">Start Time</span>
+                        <span class="grow ocr-val" data-ocr-val="start_time"></span>
+                    </div>
+                    <div class="row" data-ocr-row="end_date" hidden>
+                        <span class="k">End Date</span>
+                        <span class="grow ocr-val" data-ocr-val="end_date"></span>
+                    </div>
+                    <div class="row">
+                        <span class="k">End Time</span>
+                        <span class="grow ocr-val" data-ocr-val="end_time"></span>
+                    </div>
+                    <div class="row">
+                        <span class="k">Location</span>
+                        <span class="grow ocr-val" data-ocr-val="location"></span>
+                    </div>
+                </div>
+
+                <div class="actions ocr-result-actions">
+                    <button type="button" class="btn btn-quiet" data-ocr-switch-manual>Enter manually</button>
+                    <button type="button" class="btn" data-ocr-apply>Continue with These Details</button>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </div>
     <aside class="panel helper" aria-labelledby="event-tips" data-sheet-hide>
         <h2 id="event-tips">Good to know</h2>
         <ol class="tips">

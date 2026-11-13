@@ -49,8 +49,6 @@
         );
         const whoToggleText = form.querySelector(".who-toggle-text");
 
-        const moreOptions = form.querySelector("[data-more-options]");
-
         // Step 2: Date and Time Progressive Logic
         function updateTimesVisibility() {
             if (!timesContainer) return;
@@ -61,7 +59,8 @@
             );
             const hasTimeErrors = Boolean(
                 form.querySelector(
-                    ".field-start_time .errorlist, .field-end_time .errorlist"
+                    ".field-start_time .errorlist, .field-end_time .errorlist, " +
+                    "[data-progressive-times] [data-ocr-missing]"
                 ) ||
                 (startTimeInput &&
                     startTimeInput.getAttribute("aria-invalid") === "true") ||
@@ -77,6 +76,7 @@
         }
 
         function autoSuggestEndTime() {
+            if (form.dataset.ocrSuppressSuggest === "true") return;
             if (!startTimeInput || !endTimeInput) return;
             const startVal = startTimeInput.value.trim();
             if (!startVal) return;
@@ -107,6 +107,8 @@
         }
 
         if (startTimeInput) {
+            startTimeInput.addEventListener("change", updateTimesVisibility);
+            startTimeInput.addEventListener("input", updateTimesVisibility);
             startTimeInput.addEventListener("change", autoSuggestEndTime);
             startTimeInput.addEventListener("input", () => {
                 if (startTimeInput.value.length === 5) {
@@ -116,8 +118,10 @@
         }
 
         if (endTimeInput) {
+            endTimeInput.addEventListener("change", updateTimesVisibility);
             endTimeInput.addEventListener("input", () => {
                 delete endTimeInput.dataset.autoSuggested;
+                updateTimesVisibility();
             });
         }
 
@@ -247,19 +251,6 @@
                     updateWhoSummary();
                 }
             });
-        }
-
-        // Step 6: More Options Auto-Expand on Error
-        if (moreOptions) {
-            const hasMoreOptionsErrors = Boolean(
-                moreOptions.querySelector(".errorlist, [aria-invalid='true']")
-            );
-            const isTentativeChecked = Boolean(
-                form.querySelector('input[name="is_tentative"]:checked')
-            );
-            if (hasMoreOptionsErrors || isTentativeChecked) {
-                moreOptions.open = true;
-            }
         }
 
         // Submission Safeguards

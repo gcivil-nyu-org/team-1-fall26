@@ -1,0 +1,7 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Slow down | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>Slow down for a minute</h1>
+            <p class="lede">{{ message }}</p>
+            <a class="btn btn-quiet btn-wide" href="{% url 'accounts:dashboard' %}">Back to Syncmily</a>
+{% endblock %}

@@ -10,7 +10,9 @@ def find_overlapping_events(
     exclude_event_id=None,
 ):
     """
-    Find events overlapping the requested time for the same participants.
+    Find confirmed events overlapping the requested time for the same
+    participants. Events that only touch (one ends as the other starts) do not
+    overlap, and tentative events never count.
     """
     participant_ids = [participant.pk for participant in participants]
 
@@ -19,6 +21,7 @@ def find_overlapping_events(
 
     conflicts = Event.objects.filter(
         workspace=workspace,
+        is_tentative=False,
         participants__pk__in=participant_ids,
         starts_at__lt=ends_at,
         ends_at__gt=starts_at,

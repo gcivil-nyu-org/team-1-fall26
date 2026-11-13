@@ -98,13 +98,19 @@ class ProgressiveEventFormTests(TestCase):
         self.assertContains(response, "data-progressive-location-details hidden")
         self.assertContains(response, "data-progressive-drivers hidden")
 
-        # More options collapsible closed initially
-        self.assertContains(
-            response, '<details class="disclose more-options" data-more-options'
-        )
-        self.assertNotContains(
-            response, '<details class="disclose more-options" data-more-options open>'
-        )
+        # More options button and disclosure container removed
+        self.assertNotContains(response, "More options")
+        self.assertNotContains(response, "data-more-options")
+        self.assertNotContains(response, "more-options")
+
+        # Time zone label and dropdown removed from event form, rendered as hidden field
+        self.assertNotContains(response, '<label for="id_timezone">')
+        self.assertNotContains(response, 'id="id_timezone"><option')
+        self.assertContains(response, 'type="hidden" name="timezone"')
+
+        # Not confirmed yet checkbox directly visible in main form
+        self.assertContains(response, "Not confirmed yet")
+        self.assertContains(response, 'name="is_tentative"')
 
         # Progressive script included
         self.assertContains(response, "events/progressive_event_form.js")
@@ -150,22 +156,51 @@ class ProgressiveEventFormTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "data-progressive-drivers hidden")
 
-    def test_more_options_auto_expands_on_tentative_or_error(self):
-        # Test tentative opens more-options
+    def test_tentative_checkbox_directly_visible_and_persisted(self):
+        # Preview with tentative shows checked state and review facts
+        # without More Options.
         payload = self.create_payload(is_tentative="on", action="preview")
         response = self.client.post(self.create_url, payload)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response, '<details class="disclose more-options" data-more-options open>'
-        )
+        self.assertContains(response, 'id="id_is_tentative" checked')
+        self.assertContains(response, "Not confirmed yet")
+        self.assertNotContains(response, "More options")
+        self.assertNotContains(response, "data-more-options")
 
-        # Test timezone error opens more-options
-        payload_tz = self.create_payload(timezone="Invalid/Zone", action="preview")
-        response_tz = self.client.post(self.create_url, payload_tz)
-        self.assertEqual(response_tz.status_code, 200)
+        # Save with tentative persists is_tentative=True to database
+        payload_save = self.create_payload(is_tentative="on", action="save")
+        response_save = self.client.post(self.create_url, payload_save)
+        self.assertEqual(response_save.status_code, 302)
+        event = Event.objects.latest("pk")
+        self.assertTrue(event.is_tentative)
+
+    def test_event_creation_without_explicit_timezone_uses_default(self):
+        payload = self.create_payload(action="save")
+        del payload["timezone"]
+        response = self.client.post(self.create_url, payload)
+        self.assertEqual(response.status_code, 302)
+        event = Event.objects.latest("pk")
+        self.assertEqual(event.timezone_name, timezone.get_current_timezone_name())
+
+    def test_modal_and_full_page_do_not_show_timezone_or_more_options(self):
+        # Full-page create view
+        full_page = self.client.get(self.create_url)
+        self.assertEqual(full_page.status_code, 200)
+        self.assertNotContains(full_page, "More options")
+        self.assertNotContains(full_page, '<label for="id_timezone">')
+        self.assertNotContains(full_page, 'id="id_timezone"><option')
+        self.assertContains(full_page, 'type="hidden" name="timezone"')
+        self.assertContains(full_page, "Not confirmed yet")
+
+        # GET with custom timezone in query param (modal / calendar link)
+        modal_get = self.client.get(self.create_url, {"timezone": "America/Chicago"})
+        self.assertEqual(modal_get.status_code, 200)
+        self.assertNotContains(modal_get, "More options")
+        self.assertNotContains(modal_get, '<label for="id_timezone">')
+        self.assertNotContains(modal_get, 'id="id_timezone"><option')
         self.assertContains(
-            response_tz,
-            '<details class="disclose more-options" data-more-options open>',
+            modal_get,
+            'type="hidden" name="timezone" value="America/Chicago"',
         )
 
     def test_requires_transport_unchecked_clears_drivers_on_clean(self):
@@ -214,10 +249,10 @@ class ProgressiveEventFormTests(TestCase):
             form.errors["location"],
         )
 
-    def test_end_time_before_start_time_same_day_rejected(self):
+    def test_end_time_equal_to_start_time_same_day_rejected(self):
         payload = self.create_payload(
             start_time="17:00",
-            end_time="16:00",
+            end_time="17:00",
             action="save",
         )
         response = self.client.post(self.create_url, payload)

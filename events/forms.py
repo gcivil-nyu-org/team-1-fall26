@@ -1,4 +1,5 @@
-from datetime import datetime, time, timedelta
+from copy import copy
+from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from uuid import uuid4
 from zoneinfo import ZoneInfo, available_timezones
 
@@ -7,11 +8,16 @@ from django.contrib.auth import get_user_model
 from django.core import signing
 from django.utils import timezone
 
+from syncmily.text import clean_visible_text
+
 from accounts.models import Workspace
 
 from .access import event_drivers, event_participants, family_workspaces
 from .conflicts import find_overlapping_events
 from .models import Event
+
+MIN_EVENT_DATE = date(1900, 1, 1)
+MAX_EVENT_DATE = date(2100, 12, 31)
 
 # The time-zone menu lists these, plus the current and chosen zones. The full list of
 # about 600 zones was half of every page's HTML (the header date menu repeats it on
@@ -70,6 +76,38 @@ class TimezoneSelect(forms.Select):
             return super().optgroups(name, value, attrs)
         finally:
             self.choices = everything
+
+
+def _clock_text(value):
+    suffix = "AM" if value.hour < 12 else "PM"
+    return f"{value.hour % 12 or 12}:{value.minute:02d} {suffix}"
+
+
+def _exists(naive, zone):
+    """True unless the wall-clock time falls in a spring-forward gap."""
+    round_trip = naive.replace(tzinfo=zone).astimezone(dt_timezone.utc).astimezone(zone)
+    return round_trip.replace(tzinfo=None) == naive
+
+
+def _wall_clock_to_aware(day, wall_time, zone):
+    """
+    Read a wall-clock time in a zone. An ambiguous time (clocks fall back) means
+    its first occurrence; a time that does not exist (clocks spring forward) is an
+    error that names the clock change.
+    """
+    naive = datetime.combine(day, wall_time)
+    aware = naive.replace(tzinfo=zone)  # fold=0: the first occurrence
+    if _exists(naive, zone):
+        return aware
+    later = naive
+    for _ in range(24 * 60):
+        later += timedelta(minutes=1)
+        if _exists(later, zone):
+            break
+    raise forms.ValidationError(
+        f"{_clock_text(naive)} doesn't exist on {day:%b} {day.day}, {day.year} "
+        f"because clocks spring forward; pick {_clock_text(later)} or later."
+    )
 
 
 class EventTimezoneForm(forms.Form):
@@ -287,8 +325,59 @@ class EventForm(EventTimezoneForm):
         ),
     )
 
-    def __init__(self, *args, user=None, workspace=None, **kwargs):
+    def clean_title(self):
+        # Drop invisible format characters (zero-width spaces, bidi overrides).
+        title = clean_visible_text(self.cleaned_data["title"])
+        if not title:
+            raise forms.ValidationError("Enter an event title.")
+        return title
+
+    def _clean_bounded_date(self, name):
+        value = self.cleaned_data.get(name)
+        if value is not None and not MIN_EVENT_DATE <= value <= MAX_EVENT_DATE:
+            raise forms.ValidationError("Choose a date between 1900 and 2100.")
+        return value
+
+    def clean_date(self):
+        return self._clean_bounded_date("date")
+
+    def clean_end_date(self):
+        return self._clean_bounded_date("end_date")
+
+    def __init__(self, *args, user=None, workspace=None, instance=None, **kwargs):
+        self.instance = instance
+        if instance is not None:
+            workspace = instance.workspace
+            selected_timezone = ZoneInfo(instance.timezone_name)
+            starts_at = timezone.localtime(instance.starts_at, selected_timezone)
+            ends_at = timezone.localtime(instance.ends_at, selected_timezone)
+            initial = {
+                name: getattr(instance, name)
+                for name in (
+                    "title",
+                    "location",
+                    "latitude",
+                    "longitude",
+                    "transport_mode",
+                    "is_tentative",
+                    "requires_transport",
+                )
+            }
+            initial.update(
+                date=starts_at.date(),
+                start_time=starts_at.time(),
+                end_date=ends_at.date() if ends_at.date() != starts_at.date() else None,
+                end_time=ends_at.time(),
+                timezone=instance.timezone_name,
+                participants=list(instance.participants.values_list("pk", flat=True)),
+                dropoff_driver=instance.dropoff_driver_id,
+                pickup_driver=instance.pickup_driver_id,
+            )
+            initial.update(kwargs.pop("initial", {}))
+            kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
+
+        self.fields["timezone"].widget = forms.HiddenInput()
 
         self.user = user if user is not None and user.is_authenticated else None
 
@@ -303,14 +392,17 @@ class EventForm(EventTimezoneForm):
 
         self.event = None
 
-        self.fields["submission_token"].initial = signing.dumps(
-            {
-                "id": str(uuid4()),
-                "user": self.user.pk if self.user else None,
-                "workspace": str(workspace.pk) if workspace else None,
-            },
-            salt="events.create",
-        )
+        if instance is None:
+            self.fields["submission_token"].initial = signing.dumps(
+                {
+                    "id": str(uuid4()),
+                    "user": self.user.pk if self.user else None,
+                    "workspace": str(workspace.pk) if workspace else None,
+                },
+                salt="events.create",
+            )
+        else:
+            self.fields.pop("submission_token")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -320,15 +412,24 @@ class EventForm(EventTimezoneForm):
         timezone_name = cleaned_data.get("timezone")
 
         if event_date is not None and timezone_name is not None:
-            datetime_field = forms.DateTimeField()
+            zone = ZoneInfo(timezone_name)
+            end_day = cleaned_data.get("end_date")
+            start_time = cleaned_data.get("start_time")
+            end_time = cleaned_data.get("end_time")
+
+            # An end time earlier than the start with no end date means the
+            # event runs past midnight.
+            if (
+                end_day is None
+                and start_time is not None
+                and end_time is not None
+                and end_time < start_time
+            ):
+                end_day = event_date + timedelta(days=1)
 
             for time_field, timestamp_field, day in (
                 ("start_time", "starts_at", event_date),
-                (
-                    "end_time",
-                    "ends_at",
-                    cleaned_data.get("end_date") or event_date,
-                ),
+                ("end_time", "ends_at", end_day or event_date),
             ):
                 event_time = cleaned_data.get(time_field)
 
@@ -336,13 +437,16 @@ class EventForm(EventTimezoneForm):
                     continue
 
                 try:
-                    with timezone.override(ZoneInfo(timezone_name)):
-                        cleaned_data[timestamp_field] = datetime_field.clean(
-                            datetime.combine(day, event_time)
-                        )
-
+                    cleaned_data[timestamp_field] = _wall_clock_to_aware(
+                        day, event_time, zone
+                    )
                 except forms.ValidationError as error:
                     self.add_error(time_field, error)
+                except (OverflowError, ValueError):
+                    self.add_error(
+                        time_field,
+                        "Choose a date between 1900 and 2100.",
+                    )
 
         # Validate coordinates.
         latitude = cleaned_data.get("latitude")
@@ -388,9 +492,12 @@ class EventForm(EventTimezoneForm):
         cleaned_data["pickup_driver"] = pickup_driver
 
         # Construct the event with all selected details.
-        event = Event(
-            created_by=self.user,
-            workspace=self.workspace,
+        event = (
+            copy(self.instance)
+            if self.instance is not None
+            else Event(created_by=self.user, workspace=self.workspace)
+        )
+        event_values = dict(
             title=cleaned_data["title"],
             timezone_name=cleaned_data["timezone"],
             starts_at=cleaned_data["starts_at"],
@@ -404,6 +511,8 @@ class EventForm(EventTimezoneForm):
             dropoff_driver=dropoff_driver,
             pickup_driver=pickup_driver,
         )
+        for name, value in event_values.items():
+            setattr(event, name, value)
 
         try:
             event.full_clean(
@@ -437,12 +546,13 @@ class EventForm(EventTimezoneForm):
             # already has an overlapping event.
             participants = cleaned_data.get("participants")
 
-            if self.workspace is not None and participants:
+            if self.workspace is not None and participants and not event.is_tentative:
                 conflicts = find_overlapping_events(
                     workspace=self.workspace,
                     starts_at=event.starts_at,
                     ends_at=event.ends_at,
                     participants=participants,
+                    exclude_event_id=event.pk,
                 )
 
                 conflict = conflicts.first()

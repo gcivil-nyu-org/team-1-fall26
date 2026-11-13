@@ -11,7 +11,7 @@
 {% block shell_js %}<script src="{% asset 'events/paint.js' %}" defer></script>{% endblock %}
 {% block legacy_dialog %}{% endblock %}
 {% block dialogs %}{% if shell %}
-    <dialog class="sheet" id="sheet" aria-labelledby="sheet-title" data-location-script="{% asset 'events/location_autocomplete.js' %}" data-progressive-script="{% asset 'events/progressive_event_form.js' %}">
+    <dialog class="sheet" id="sheet" aria-labelledby="sheet-title" data-location-script="{% asset 'events/location_autocomplete.js' %}" data-progressive-script="{% asset 'events/progressive_event_form.js' %}" data-ocr-script="{% asset 'events/event_ocr.js' %}">
         <div class="dlg-head">
             <h2 id="sheet-title">Syncmily</h2>
             <a class="sheet-page" id="sheet-page" href="{{ shell.day_url }}">Open as a page</a>

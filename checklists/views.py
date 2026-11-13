@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
@@ -5,7 +6,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from events.access import family_events
 from events.timeline import family_members
+from syncmily.ratelimit import rate_limit
 
 from .access import (
     caregiver_workspaces,
@@ -16,6 +19,16 @@ from .access import (
 )
 from .forms import ChecklistForm, ChecklistItemForm
 from .models import Checklist, ChecklistItem
+
+MAX_ITEMS_PER_CHECKLIST = 200
+
+
+def _visible_event_ids(user, checklists):
+    """Ids of the linked events this user may see (kids can't see parent-only plans)."""
+    ids = {c.event_id for c in checklists if c.event_id}
+    if not ids:
+        return set()
+    return set(family_events(user).filter(pk__in=ids).values_list("pk", flat=True))
 
 
 def _event_member(event, members):
@@ -53,7 +66,10 @@ def checklist_list(request, workspace_id):
     # A list linked to an event takes the colour of that event's first person.
     members = {member["user"].pk: member for member in family_members([workspace])}
     checklists = list(checklists.prefetch_related("event__participants"))
+    visible = _visible_event_ids(request.user, checklists)
     for checklist in checklists:
+        if checklist.event_id not in visible:
+            checklist.event = None
         checklist.member = _event_member(checklist.event, members)
 
     return render(
@@ -73,6 +89,7 @@ def checklist_list(request, workspace_id):
 
 
 @login_required
+@rate_limit("checklist_create", 60, 60)
 def checklist_create(request, workspace_id):
     workspace = get_manageable_workspace(
         request.user,
@@ -83,6 +100,7 @@ def checklist_create(request, workspace_id):
         form = ChecklistForm(
             request.POST,
             workspace=workspace,
+            user=request.user,
         )
 
         if form.is_valid():
@@ -98,7 +116,7 @@ def checklist_create(request, workspace_id):
                 checklist_id=checklist.pk,
             )
     else:
-        form = ChecklistForm(workspace=workspace)
+        form = ChecklistForm(workspace=workspace, user=request.user)
 
     return render(
         request,
@@ -122,6 +140,9 @@ def checklist_detail(request, checklist_id):
         request.user,
         checklist_id,
     )
+
+    if checklist.event_id and not _visible_event_ids(request.user, [checklist]):
+        checklist.event = None
 
     items = checklist.items.select_related("completed_by").all()
 
@@ -171,6 +192,7 @@ def checklist_edit(request, checklist_id):
             request.POST,
             instance=checklist,
             workspace=checklist.workspace,
+            user=request.user,
         )
 
         if form.is_valid():
@@ -187,6 +209,7 @@ def checklist_edit(request, checklist_id):
         form = ChecklistForm(
             instance=checklist,
             workspace=checklist.workspace,
+            user=request.user,
         )
 
     return render(
@@ -231,6 +254,7 @@ def checklist_delete(request, checklist_id):
 
 @login_required
 @require_POST
+@rate_limit("checklist_item_add", 60, 60)
 def item_add(request, checklist_id):
     checklist = get_manageable_checklist(
         request.user,
@@ -244,19 +268,28 @@ def item_add(request, checklist_id):
             # Serialize item creation for this checklist.
             Checklist.objects.select_for_update().get(pk=checklist.pk)
 
-            item = form.save(commit=False)
-            item.checklist = checklist
+            if checklist.items.count() >= MAX_ITEMS_PER_CHECKLIST:
+                messages.error(
+                    request,
+                    f"A checklist holds up to {MAX_ITEMS_PER_CHECKLIST} items. "
+                    "Remove one before adding another.",
+                )
+            else:
+                item = form.save(commit=False)
+                item.checklist = checklist
 
-            last_position = (
-                ChecklistItem.objects.filter(checklist=checklist)
-                .order_by("-position")
-                .values_list("position", flat=True)
-                .first()
-            )
+                last_position = (
+                    ChecklistItem.objects.filter(checklist=checklist)
+                    .order_by("-position")
+                    .values_list("position", flat=True)
+                    .first()
+                )
 
-            item.position = last_position + 1 if last_position is not None else 0
+                item.position = last_position + 1 if last_position is not None else 0
 
-            item.save()
+                item.save()
+    else:
+        messages.error(request, " ".join(form.errors["description"]))
 
     return redirect(
         "checklists:detail",
@@ -353,7 +386,11 @@ def item_toggle(request, item_id):
             item.checklist_id,
         )
 
-        item.is_completed = not item.is_completed
+        wanted = request.POST.get("completed")
+        if wanted in ("0", "1"):
+            item.is_completed = wanted == "1"
+        else:
+            item.is_completed = not item.is_completed
 
         if item.is_completed:
             item.completed_by = request.user
