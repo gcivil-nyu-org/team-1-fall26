@@ -114,7 +114,6 @@ class EventScheduleForm(EventTimezoneForm):
         choices=[
             ("day", "Day"),
             ("week", "Week"),
-            ("month", "Month"),
             ("upcoming", "Upcoming"),
         ],
         required=False,
@@ -135,19 +134,10 @@ class EventScheduleForm(EventTimezoneForm):
         view = cleaned_data.get("view") or "day"
 
         if view == "upcoming":
-            # From the day you were looking at, or from now when that day is today.
-            starts_at = timezone.now()
-            today = timezone.localdate(timezone=selected_timezone)
-            if cleaned_data.get("date") and selected_date != today:
-                with timezone.override(selected_timezone):
-                    starts_at = forms.DateTimeField().clean(
-                        datetime.combine(selected_date, time.min)
-                    )
             cleaned_data.update(
                 date=selected_date,
                 view=view,
-                starts_at=starts_at,
-                list_from=selected_date if selected_date != today else None,
+                starts_at=timezone.now(),
             )
             return cleaned_data
 
@@ -159,28 +149,15 @@ class EventScheduleForm(EventTimezoneForm):
             days = 7
 
         try:
-            if view == "month":
-                start_date = start_date.replace(day=1)
-                end_date = (start_date + timedelta(days=32)).replace(day=1)
-                previous_date = (start_date - timedelta(days=1)).replace(day=1)
-                # The grid shows whole Monday-to-Sunday weeks, so fetch the days around
-                # the month too.
-                fetch_start = start_date - timedelta(days=start_date.weekday())
-                last_day = end_date - timedelta(days=1)
-                fetch_end = last_day + timedelta(days=7 - last_day.weekday())
-            else:
-                end_date = start_date + timedelta(days=days)
-                previous_date = start_date - timedelta(days=days)
-                fetch_start, fetch_end = start_date, end_date
+            end_date = start_date + timedelta(days=days)
+            previous_date = start_date - timedelta(days=days)
             next_date = end_date
 
             datetime_field = forms.DateTimeField()
 
             with timezone.override(selected_timezone):
-                starts_at = datetime_field.clean(
-                    datetime.combine(fetch_start, time.min)
-                )
-                ends_at = datetime_field.clean(datetime.combine(fetch_end, time.min))
+                starts_at = datetime_field.clean(datetime.combine(start_date, time.min))
+                ends_at = datetime_field.clean(datetime.combine(end_date, time.min))
 
         except (OverflowError, forms.ValidationError):
             self.add_error(

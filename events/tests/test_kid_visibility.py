@@ -138,8 +138,8 @@ class KidEventVisibilityTests(TestCase):
         response = self.client.get(reverse("accounts:dashboard"))
 
         self.assertContains(response, "My day")
-        self.assertContains(response, 'aria-label="Previous week"')
-        self.assertContains(response, 'aria-label="Next week"')
+        self.assertContains(response, ">Previous<")
+        self.assertContains(response, ">Next<")
         rail_titles = {
             item["event"].title for item in response.context["rail"]["items"]
         }

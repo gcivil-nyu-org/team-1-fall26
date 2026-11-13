@@ -64,7 +64,7 @@
 
         // Header menus (date, Colors, account) are <details>: one open at a time, and Escape or a
         // click anywhere else closes them, like every other menu on the web.
-        var menus = Array.prototype.slice.call(document.querySelectorAll(".bar details, details[data-menu]"));
+        var menus = Array.prototype.slice.call(document.querySelectorAll(".bar details"));
         menus.forEach(function (menu) {
             menu.addEventListener("toggle", function () {
                 if (menu.open) menus.forEach(function (other) { if (other !== menu) other.open = false; });
@@ -80,19 +80,6 @@
                 menu.open = false;
                 menu.querySelector("summary").focus();
             });
-        });
-
-        // View shortcuts, as in Google Calendar: D day, W week, M month, L list. Ignored while
-        // typing, with a modifier held, or with a dialog open.
-        document.addEventListener("keydown", function (event) {
-            if (event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return;
-            var target = event.target;
-            if (target.closest && target.closest("input, textarea, select, [contenteditable], dialog[open]")) return;
-            if (document.querySelector("dialog[open]")) return;
-            var link = document.querySelector('.view-pop a[data-shortcut="' + event.key.toUpperCase() + '"]');
-            if (!link || event.key.length !== 1) return;
-            event.preventDefault();
-            window.location.href = link.href;
         });
 
         // On phones the 12h/24h and light/dark switches move into the account menu, so the top

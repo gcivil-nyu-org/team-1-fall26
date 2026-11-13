@@ -136,7 +136,7 @@ def place_side_by_side(items, min_percent=RAIL_MIN_PERCENT):
             item["columns"] = len(cluster["column_ends"])
 
 
-def build_week(events, members, week_start, tz, today, show_weekends=True):
+def build_week(events, members, week_start, tz, today):
     """Rows of seven day chips, one row per member.
 
     Events without participants (a family dinner) land on every member's chip, matching
@@ -145,7 +145,7 @@ def build_week(events, members, week_start, tz, today, show_weekends=True):
     participants.
     """
     days = []
-    for offset in range(DAYS_IN_WEEK if show_weekends else 5):
+    for offset in range(DAYS_IN_WEEK):
         day = week_start + timedelta(days=offset)
         start, end = local_day_bounds(day, tz)
         days.append({"date": day, "start": start, "end": end, "is_today": day == today})
