@@ -89,3 +89,32 @@ def get_household_messages(*, user, workspace_id, limit=50):
     )
 
     return list(reversed(list(messages)))
+
+
+def serialize_message(message):
+    return {
+        "id": message.id,
+        "sender_id": message.sender_id,
+        "sender": message.sender.get_username(),
+        "content": message.content,
+        "event_label": message.event_label,
+        "priority": message.priority,
+        "created_at": message.created_at.isoformat(),
+    }
+
+
+def get_message_page(*, workspace, before_id=None, after_id=None, limit=50):
+    """
+    Up to `limit` messages older than `before_id` or newer than `after_id`,
+    oldest first, plus whether more remain in that direction.
+    """
+    messages = ChatMessage.objects.filter(workspace=workspace).select_related("sender")
+    if after_id is not None:
+        page = list(messages.filter(id__gt=after_id).order_by("id")[: limit + 1])
+        has_more = len(page) > limit
+        return page[:limit], has_more
+    if before_id is not None:
+        messages = messages.filter(id__lt=before_id)
+    page = list(messages.order_by("-id")[: limit + 1])
+    has_more = len(page) > limit
+    return list(reversed(page[:limit])), has_more
