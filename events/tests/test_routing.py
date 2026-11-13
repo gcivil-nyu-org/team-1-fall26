@@ -5,7 +5,8 @@ from zoneinfo import ZoneInfo
 
 import requests
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.core.cache import cache
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone as django_timezone
 
 from accounts.models import Membership, Workspace
@@ -115,11 +116,17 @@ class OpenTripPlannerTests(SimpleTestCase):
         )
 
     @mock.patch("events.routing.requests.post")
+    def test_null_plan_returns_none(self, post):
+        post.return_value = fake_response({"data": {"plan": None}})
+        self.assertIsNone(routing.estimate_transit_seconds(place(), place()))
+
+    @mock.patch("events.routing.requests.post")
     def test_graphql_errors_return_none(self, post):
         post.return_value = fake_response({"errors": [{"message": "boom"}]})
         self.assertIsNone(routing.estimate_transit_seconds(place(), place()))
 
 
+@override_settings(GOOGLE_MAPS_API_KEY="")
 class EstimateTravelTimeTests(SimpleTestCase):
     def test_unsupported_mode_is_unverified(self):
         self.assertEqual(
@@ -170,6 +177,7 @@ class EstimateTravelTimeTests(SimpleTestCase):
         self.assertEqual((result.duration_minutes, result.status), (None, "unverified"))
 
 
+@override_settings(GOOGLE_MAPS_API_KEY="")
 class TravelCheckTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -231,3 +239,94 @@ class TravelCheckTests(TestCase):
         main = self.make("Main", 1)
         self.assertEqual(find_travel_checks(main, [self.kid]), [])
         estimate.assert_not_called()
+
+
+@override_settings(GOOGLE_MAPS_API_KEY="test-key")
+class GoogleRoutesTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+
+    def routes(self, duration="754s"):
+        return fake_response({"routes": [{"duration": duration}]})
+
+    @mock.patch("events.routing.requests.post")
+    def test_parses_duration_and_sends_key_in_header(self, post):
+        post.return_value = self.routes("754s")
+        self.assertEqual(
+            routing.estimate_google_seconds(place(), place(40.8, -73.9), "driving"),
+            754.0,
+        )
+        kwargs = post.call_args.kwargs
+        self.assertEqual(post.call_args.args[0], routing.GOOGLE_ROUTES_URL)
+        self.assertEqual(kwargs["headers"]["X-Goog-Api-Key"], "test-key")
+        self.assertEqual(kwargs["headers"]["X-Goog-FieldMask"], "routes.duration")
+        self.assertEqual(kwargs["json"]["travelMode"], "DRIVE")
+        self.assertNotIn("departureTime", kwargs["json"])
+        self.assertNotIn("test-key", str(kwargs["json"]))
+
+    @mock.patch("events.routing.requests.post")
+    def test_maps_every_mode(self, post):
+        post.return_value = self.routes()
+        for mode, google_mode in routing.GOOGLE_TRAVEL_MODES.items():
+            cache.clear()
+            routing.estimate_google_seconds(place(), place(), mode)
+            self.assertEqual(post.call_args.kwargs["json"]["travelMode"], google_mode)
+
+    @mock.patch("events.routing.requests.post")
+    def test_transit_sends_departure_in_window_only(self, post):
+        post.return_value = self.routes()
+        soon = django_timezone.now() + timedelta(days=2)
+        routing.estimate_google_seconds(place(), place(), "transit", soon)
+        departure = post.call_args.kwargs["json"]["departureTime"]
+        self.assertTrue(departure.endswith("Z"))
+
+        cache.clear()
+        far = django_timezone.now() + timedelta(days=400)
+        routing.estimate_google_seconds(place(), place(), "transit", far)
+        self.assertNotIn("departureTime", post.call_args.kwargs["json"])
+
+    @mock.patch("events.routing.requests.post")
+    def test_no_route_returns_none(self, post):
+        post.return_value = fake_response({})
+        self.assertIsNone(routing.estimate_google_seconds(place(), place(), "walking"))
+
+    @mock.patch("events.routing.requests.post")
+    def test_results_and_misses_are_cached(self, post):
+        post.return_value = self.routes("60s")
+        routing.estimate_google_seconds(place(), place(), "driving")
+        routing.estimate_google_seconds(place(), place(), "driving")
+        self.assertEqual(post.call_count, 1)
+
+        post.return_value = fake_response({})
+        routing.estimate_google_seconds(place(1, 1), place(), "driving")
+        routing.estimate_google_seconds(place(1, 1), place(), "driving")
+        self.assertEqual(post.call_count, 2)
+
+    @override_settings(GOOGLE_MAPS_API_KEY="")
+    @mock.patch("events.routing.requests.post")
+    def test_no_key_skips_google(self, post):
+        self.assertIsNone(routing.estimate_google_seconds(place(), place(), "driving"))
+        post.assert_not_called()
+
+    @mock.patch("events.routing.estimate_transit_seconds")
+    @mock.patch("events.routing.requests.post")
+    def test_travel_time_prefers_google(self, post, otp):
+        post.return_value = self.routes("1200s")
+        result = routing.estimate_travel_time(place(), place(), "transit")
+        self.assertEqual((result.duration_minutes, result.status), (20, "estimated"))
+        otp.assert_not_called()
+
+    @mock.patch("events.routing.estimate_driving_seconds", return_value=600)
+    @mock.patch("events.routing.requests.post", side_effect=requests.ConnectionError)
+    def test_google_failure_falls_back(self, _post, osrm):
+        result = routing.estimate_travel_time(place(), place(), "driving")
+        self.assertEqual(result.duration_minutes, 10)
+        osrm.assert_called_once()
+
+    @mock.patch("events.routing.estimate_valhalla_seconds", return_value=300)
+    @mock.patch("events.routing.requests.post")
+    def test_google_no_route_falls_back(self, post, valhalla):
+        post.return_value = fake_response({"routes": []})
+        result = routing.estimate_travel_time(place(), place(), "walking")
+        self.assertEqual(result.duration_minutes, 5)
+        valhalla.assert_called_once()

@@ -173,6 +173,9 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 # Set this in production to the exact redirect URI registered with Google.
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+# Server-side Google Maps Platform key (Routes API). Empty disables Google
+# routing and travel checks use the open providers instead.
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
 # Fernet keys for encrypting stored OAuth tokens, newest first.
 FIELD_ENCRYPTION_KEYS = [
