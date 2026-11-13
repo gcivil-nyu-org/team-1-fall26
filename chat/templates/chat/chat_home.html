@@ -12,11 +12,12 @@
                 <span class="span">{{ workspace.name }}, {{ members|length }} member{{ members|length|pluralize }}</span>
                 <span class="chat-status" id="chat-status" role="status">Connecting…</span>
             </div>
+            {% if has_older %}<button class="btn btn-quiet btn-small" id="chat-older" type="button">Show older messages</button>{% endif %}
             <div class="msgs" id="chat-messages" role="log" aria-live="polite" aria-label="Messages in {{ workspace.name }}" tabindex="0">
                 {% for message in chat_messages %}
                     {% ifchanged message.created_at|date:"Y-m-d" %}<p class="day-sep" data-day="{{ message.created_at|date:'Y-m-d' }}">{{ message.created_at|day_label }}</p>{% endifchanged %}
                     {% with sender=message.sender_id|member:members %}
-                    <div class="msg{% if message.sender_id == request.user.id %} mine{% endif %}"{% if sender.hue %} data-hue="{{ sender.hue }}"{% if sender.custom_color %} style="--hue: {{ sender.custom_color }}"{% endif %}{% endif %}>
+                    <div class="msg{% if message.sender_id == request.user.id %} mine{% endif %}"{% if sender.hue %} data-hue="{{ sender.hue }}"{% if sender.custom_color %} style="--hue: {{ sender.custom_color }}"{% endif %}{% endif %} data-id="{{ message.id }}">
                         <span class="dot{% if not sender.hue %} dot-quiet{% endif %}" aria-hidden="true">{{ message.sender|initial }}</span>
                         <div class="msg-body">
                             <p class="msg-meta">

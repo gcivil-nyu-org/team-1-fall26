@@ -6,6 +6,11 @@ app_name = "chat"
 urlpatterns = [
     path("", views.chat_home, name="home"),
     path(
+        "<uuid:workspace_id>/messages/",
+        views.message_page,
+        name="messages",
+    ),
+    path(
         "<uuid:workspace_id>/",
         views.workspace_chat,
         name="workspace_chat",

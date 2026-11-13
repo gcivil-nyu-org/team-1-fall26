@@ -249,10 +249,10 @@ class ProgressiveEventFormTests(TestCase):
             form.errors["location"],
         )
 
-    def test_end_time_before_start_time_same_day_rejected(self):
+    def test_end_time_equal_to_start_time_same_day_rejected(self):
         payload = self.create_payload(
             start_time="17:00",
-            end_time="16:00",
+            end_time="17:00",
             action="save",
         )
         response = self.client.post(self.create_url, payload)

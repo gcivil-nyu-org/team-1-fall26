@@ -21,6 +21,7 @@ from django.utils.cache import patch_cache_control
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from accounts.models import MemberColor
+from syncmily.ratelimit import allow, too_many_requests
 
 from .access import family_events, family_workspaces
 from .ai_forms import AIEventSuggestionForm
@@ -34,7 +35,7 @@ from .forms import (
     EventWorkspaceForm,
 )
 from .models import Event
-from .services.event_ocr import EventOCRError, scan_event_image
+from .services.event_ocr import EventOCRError, ocr_available, scan_event_image
 from .travel_conflicts import find_travel_checks
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
 from .week import local_day_bounds
@@ -54,6 +55,8 @@ def _prefill_time(value):
 
 @require_http_methods(["GET", "POST"])
 def create_event(request, workspace_id=None):
+    if request.method == "POST" and not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path(), reverse("accounts:login"))
     if (
         workspace_id is None
         and request.method == "GET"
@@ -99,7 +102,20 @@ def create_event(request, workspace_id=None):
                 initial["start_time"] = start_time
                 initial["end_time"] = dt_time(end_minutes // 60, end_minutes % 60)
 
-    if action == "generate_suggestion" and ai_form.is_valid():
+    if (
+        action == "generate_suggestion"
+        and ai_form.is_valid()
+        and not (
+            allow(request, "ai_suggestion_minute", 5, 60)
+            and allow(request, "ai_suggestion_hour", 20, 3600)
+        )
+    ):
+        ai_form.add_error(
+            None,
+            "You have made too many suggestion requests. "
+            "Wait a few minutes, or fill in the form yourself.",
+        )
+    elif action == "generate_suggestion" and ai_form.is_valid():
         suggestion_timezone = (
             request.POST.get("timezone") or timezone.get_current_timezone_name()
         )
@@ -229,7 +245,9 @@ def create_event(request, workspace_id=None):
                 else reverse("events:create")
             ),
             "ocr_scan_url": (
-                reverse("events:scan_ocr", args=[workspace.pk]) if can_save else ""
+                reverse("events:scan_ocr", args=[workspace.pk])
+                if can_save and ocr_available()
+                else ""
             ),
             "travel_checks": travel_checks,
             "members": (
@@ -752,6 +770,14 @@ def scan_event_ocr(request, workspace_id):
                 "error": "Choose a valid timezone.",
             },
             status=400,
+        )
+
+    if not (
+        allow(request, "ocr_scan_minute", 5, 60)
+        and allow(request, "ocr_scan_hour", 30, 3600)
+    ):
+        return too_many_requests(
+            request, "You have scanned a lot of images. Wait a few minutes."
         )
 
     uploaded_file = request.FILES.get("document") or request.FILES.get("image")

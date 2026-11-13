@@ -404,14 +404,10 @@ class DaylightSavingScheduleTests(TestCase):
             timedelta(hours=6),
         )
 
-    def test_form_rejects_the_ambiguous_and_the_missing_hour_instead_of_guessing(self):
-        # Product choice (open question): 1:30 AM on Nov 1 and 2:30 AM on Mar 8 cannot
-        # be entered.
-        for date, start, end in (
-            ("2026-11-01", "01:30", "03:00"),
-            ("2026-03-08", "02:30", "04:00"),
-        ):
-            with self.subTest(date=date):
-                form = self.form(date, start, end)
-                self.assertFalse(form.is_valid())
-                self.assertIn("start_time", form.errors)
+    def test_form_resolves_the_ambiguous_hour_and_rejects_the_missing_one(self):
+        # 1:30 AM on Nov 1 means its first occurrence; 2:30 AM on Mar 8 does not exist.
+        form = self.form("2026-11-01", "01:30", "03:00")
+        self.assertTrue(form.is_valid(), form.errors)
+        form = self.form("2026-03-08", "02:30", "04:00")
+        self.assertFalse(form.is_valid())
+        self.assertIn("start_time", form.errors)

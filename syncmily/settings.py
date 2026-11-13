@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -129,6 +130,16 @@ AUTHENTICATION_BACKENDS = [
     "syncmily.auth_backends.LockoutBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
+# Per-user/IP limits on expensive or spammable actions (syncmily/ratelimit.py).
+# Off under `manage.py test` so existing tests can loop; rate-limit tests
+# turn it back on with override_settings(RATELIMIT_ENABLED=True).
+RATELIMIT_ENABLED = (
+    os.environ.get(
+        "RATELIMIT_ENABLED", "false" if "test" in sys.argv[1:2] else "true"
+    ).lower()
+    == "true"
+)
+
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=30)
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
@@ -173,6 +184,9 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 # Set this in production to the exact redirect URI registered with Google.
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+# Server-side Google Maps Platform key (Routes API). Empty disables Google
+# routing and travel checks use the open providers instead.
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
 # Fernet keys for encrypting stored OAuth tokens, newest first.
 FIELD_ENCRYPTION_KEYS = [

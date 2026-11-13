@@ -150,16 +150,16 @@ class EventEditingFormTests(TestCase):
             ends_at=self.event.ends_at,
         )
         other.participants.set([self.kid])
-        form = EventForm(self.data, instance=self.event, user=self.owner)
+        data = {k: v for k, v in self.data.items() if k != "is_tentative"}
+        form = EventForm(data, instance=self.event, user=self.owner)
 
         self.assertFalse(form.is_valid())
         self.assertIn("Soccer practice", str(form.non_field_errors()))
 
     def test_edit_rejects_invalid_time_and_dst_transition(self):
         for changes, field in (
-            ({"end_time": "17:00"}, "end_time"),
+            ({"end_time": "18:00"}, "end_time"),
             ({"date": "2026-03-08", "start_time": "02:30"}, "start_time"),
-            ({"date": "2026-11-01", "start_time": "01:30"}, "start_time"),
         ):
             with self.subTest(changes=changes):
                 form = EventForm(
@@ -394,7 +394,7 @@ class EventEditingViewTests(TestCase):
         self.assertEventUnchanged()
 
     def test_invalid_details_stay_on_form_and_do_not_save(self):
-        response = self.client.post(self.url, {**self.data, "end_time": "17:00"})
+        response = self.client.post(self.url, {**self.data, "end_time": "18:00"})
 
         self.assertContains(response, "End time must be after start time.")
         self.assertEqual(response.context["form"]["location"].value(), "Park")

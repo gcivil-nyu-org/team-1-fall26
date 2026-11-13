@@ -5,7 +5,7 @@
 html { background: var(--counter); scroll-padding-top: 76px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: var(--ink); font: 400 14px/20px var(--font); -webkit-font-smoothing: antialiased; }
 .paint h1, .paint h2, .paint h3, .paint p { margin: 0; }
-.paint h1 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.paint h1 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; overflow-wrap: anywhere; min-width: 0; }
 .paint h2 { font-size: 16px; line-height: 24px; font-weight: 600; }
 .paint a { color: inherit; text-underline-offset: 3px; }
 .paint ::selection { background: var(--a2); color: #111; }
@@ -15,7 +15,7 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 
 .page { padding: 24px 32px 48px; container: page / inline-size; }
 .head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 16px; }
-.span { color: var(--muted); }
+.span { color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
 .seg { margin-left: auto; display: flex; gap: 2px; padding: 4px; border-radius: 10px; background: var(--track); border: 1px solid var(--track-edge); box-shadow: inset 0 1px 2px #1a1c1b0d; }
 .seg a { padding: 6px 12px; border: 1px solid transparent; border-radius: 7px; color: var(--muted); text-decoration: none; font-weight: 500; transition: background-color .15s, color .15s; }
 .seg a:hover:not([aria-current]) { background: var(--glass-tint); color: var(--ink); }
@@ -177,7 +177,7 @@ body.paint { --on-deep: var(--card); }
 
 .head-tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .head-tools .seg { margin-left: 0; }
-.paint .crumbs { margin-bottom: 12px; color: var(--muted); }
+.paint .crumbs { margin-bottom: 12px; color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
 .crumbs a { color: var(--muted); }
 .crumbs a:hover { color: var(--ink); }
 .paint .lede { color: var(--muted); margin: 4px 0 20px; max-width: 60ch; }
@@ -481,6 +481,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 /* ===== Household chat ===== */
 .chat { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 .thread { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: var(--radius); background: var(--card); }
+.thread-head .span { overflow-wrap: anywhere; min-width: 0; }
 .thread-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 .paint .thread-head h1 { font-size: 18px; line-height: 24px; }
 .chat-status { margin-left: auto; color: var(--muted); font-size: 12px; }
