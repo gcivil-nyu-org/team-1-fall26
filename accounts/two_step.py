@@ -16,14 +16,18 @@ from io import BytesIO
 import qrcode
 import qrcode.image.svg
 from django.contrib import messages
+from django.contrib.sessions.models import Session
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
+
+from syncmily.ratelimit import rate_limit
 
 PENDING_KEY = "two_step_pending"
 PENDING_MAX_AGE = 300  # seconds to enter the code after the first step
@@ -75,6 +79,7 @@ def _pending_user(request):
 
 
 @require_http_methods(["GET", "POST"])
+@rate_limit("two_step_verify", 20, 600, key="ip")
 def verify(request):
     pending, user = _pending_user(request)
     if user is None:
@@ -114,6 +119,22 @@ def _qr_svg(url):
     return buffer.getvalue().decode()
 
 
+def _end_other_sessions(request):
+    """Sign this user out everywhere else, so a session opened before two-step went on
+    can't keep going without a code.
+    """
+    request.session.cycle_key()
+    current = request.session.session_key
+    stale = [
+        session.session_key
+        for session in Session.objects.filter(expire_date__gt=timezone.now()).exclude(
+            session_key=current
+        )
+        if str(session.get_decoded().get("_auth_user_id")) == str(request.user.pk)
+    ]
+    Session.objects.filter(session_key__in=stale).delete()
+
+
 def _new_backup_codes(user):
     StaticDevice.objects.filter(user=user).delete()
     device = StaticDevice.objects.create(user=user, name="Backup codes", confirmed=True)
@@ -144,6 +165,7 @@ def setup(request):
         if code and device.verify_is_allowed()[0] and device.verify_token(code):
             device.confirmed = True
             device.save(update_fields=["confirmed"])
+            _end_other_sessions(request)
             codes = _new_backup_codes(request.user)
             return render(
                 request, "accounts/two_step_backup_codes.html", {"codes": codes}

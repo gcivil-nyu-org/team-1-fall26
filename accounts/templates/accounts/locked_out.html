@@ -3,6 +3,6 @@
 {% block auth_body %}
             <h1>Too many sign-in attempts</h1>
             <p class="lede">We paused sign-ins for this account from your network after several wrong passwords. Try again in 30 minutes.</p>
-            <p class="auth-note">Forgot your password? Ask the parent who runs your family to help.</p>
+            <p class="auth-note">Forgot your password? <a href="{% url 'accounts:password_reset' %}">Reset it by email</a>. Kids without an email address can ask a parent to help.</p>
             <a class="btn btn-quiet btn-wide" href="{% url 'accounts:login' %}">Back to sign in</a>
 {% endblock %}

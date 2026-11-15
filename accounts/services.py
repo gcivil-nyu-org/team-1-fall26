@@ -1,10 +1,12 @@
 import logging
 import re
+import time
 from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import signing
+from django.core.cache import cache
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.template.loader import render_to_string
@@ -26,6 +28,7 @@ INVITE_MAX_AGE = 7 * 24 * 60 * 60
 # Invites and resends a primary admin can send per hour, so the form can't be
 # used to mail strangers in bulk.
 INVITES_PER_HOUR = 20
+INVITES_PER_DAY = 60
 
 USERNAME_PREFIXES = {
     Membership.Role.PARENT: ("Parent", 2),  # Parent1 is the primary admin.
@@ -77,12 +80,14 @@ def invite_member(*, workspace, invited_by, email, role, attempts=3):
                 user.set_unusable_password()
                 user.save()
 
-                return Membership.objects.create(
+                membership = Membership.objects.create(
                     workspace=workspace,
                     user=user,
                     role=role,
                     invited_by=invited_by,
                 )
+            record_invite_send(invited_by)
+            return membership
         except IntegrityError:
             # Another invite took the same username first; pick the next one.
             if attempt == attempts - 1:
@@ -165,17 +170,41 @@ def invite_url(request, membership):
     )
 
 
+def _send_counter_key(user, seconds):
+    return f"invite-sends:{user.pk}:{seconds}:{int(time.time()) // seconds}"
+
+
+def record_invite_send(user):
+    """Count one invite email against the caller's hourly and daily caps. Resends
+    count too, so one invite can't be used to mail the same address in a loop.
+    """
+    for seconds in (3600, 86400):
+        key = _send_counter_key(user, seconds)
+        if not cache.add(key, 1, seconds):
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.add(key, 1, seconds)
+
+
 def invites_left(user):
-    sent = Membership.objects.filter(
-        invited_by=user,
-        invited_at__gte=timezone.now() - timedelta(hours=1),
-    ).count()
-    return max(INVITES_PER_HOUR - sent, 0)
+    now = timezone.now()
+    rows = Membership.objects.filter(invited_by=user)
+    hour_sent = max(
+        rows.filter(invited_at__gte=now - timedelta(hours=1)).count(),
+        cache.get(_send_counter_key(user, 3600), 0),
+    )
+    day_sent = max(
+        rows.filter(invited_at__gte=now - timedelta(days=1)).count(),
+        cache.get(_send_counter_key(user, 86400), 0),
+    )
+    return max(min(INVITES_PER_HOUR - hour_sent, INVITES_PER_DAY - day_sent), 0)
 
 
 def reissue_invite(membership):
     """Start a fresh invite for a pending member; older links stop working."""
     Membership.objects.filter(pk=membership.pk).update(invited_at=timezone.now())
+    record_invite_send(membership.invited_by)
     membership.refresh_from_db(fields=["invited_at"])
     return membership
 
@@ -212,8 +241,11 @@ def send_invitation_email(request, membership):
         "accept_url": invite_url(request, membership),
     }
 
+    # Names saved before the form cleaned them could hold a line break, which mail
+    # refuses in a subject.
+    name = " ".join(membership.workspace.name.split())
     send_mail(
-        subject=f"Join {membership.workspace.name} on Syncmily",
+        subject=f"Join {name} on Syncmily",
         message=render_to_string("accounts/emails/invite.txt", context),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[membership.user.email],

@@ -208,7 +208,7 @@
 
         {% if can_save and not is_edit %}
         <section class="panel ai-suggestion-panel">
-            <h2>✨ Create an event with AI</h2>
+            <h2>Create an event with AI</h2>
 
             <p class="span">
                 Describe your family event in your own words.
@@ -241,14 +241,14 @@
                         type="submit"
                         name="action"
                         value="generate_suggestion">
-                        ✨ Generate Suggestion
+                        Generate suggestion
                     </button>
                 </div>
             </form>
 
             {% if ai_suggestion_generated %}
                 <div class="notice" role="status">
-                    <strong>Suggestion generated!</strong>
+                    <strong>Suggestion ready</strong>
                     Review and edit the details below before saving.
                 </div>
             {% endif %}

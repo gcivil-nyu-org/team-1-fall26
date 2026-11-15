@@ -58,6 +58,11 @@ map \$arg_v \$syncmily_static_cache {
     default "public, max-age=31536000, immutable";
 }
 
+# Sign-in, sign-up and receipt-scan paths get a request-rate ceiling per client address (this
+# file sits in conf.d, inside the http block). Over the limit nginx answers 429.
+limit_req_zone \$binary_remote_addr zone=syncmily_auth:10m rate=10r/m;
+limit_req_status 429;
+
 server {
     listen 443 ssl;
     http2 on;
@@ -80,6 +85,8 @@ server {
     client_header_timeout 60;
     client_body_timeout   60;
     keepalive_timeout     60;
+    # Receipt and schedule photos promise up to 10 MB; nginx's 1 MB default rejects phone photos.
+    client_max_body_size  12m;
 
     # Pages, CSS and JS were sent uncompressed (a 72 KB page, 89 KB of CSS). gzip cuts them about
     # 4x. Django masks the CSRF token differently on every response, which keeps BREACH off it.
@@ -101,6 +108,26 @@ server {
         proxy_http_version  1.1;
         proxy_set_header    Connection          \$connection_upgrade;
         proxy_set_header    Upgrade             \$http_upgrade;
+        proxy_set_header    Host                \$host;
+        proxy_set_header    X-Real-IP           \$remote_addr;
+        proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto   https;
+    }
+
+    location ~ ^/accounts/(login|signup)/\$ {
+        limit_req zone=syncmily_auth burst=20 nodelay;
+        proxy_pass          http://127.0.0.1:8000;
+        proxy_http_version  1.1;
+        proxy_set_header    Host                \$host;
+        proxy_set_header    X-Real-IP           \$remote_addr;
+        proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto   https;
+    }
+
+    location ~ /scan-ocr/ {
+        limit_req zone=syncmily_auth burst=20 nodelay;
+        proxy_pass          http://127.0.0.1:8000;
+        proxy_http_version  1.1;
         proxy_set_header    Host                \$host;
         proxy_set_header    X-Real-IP           \$remote_addr;
         proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
