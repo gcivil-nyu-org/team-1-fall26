@@ -1,5 +1,5 @@
 Django==5.2.18
-psycopg[binary]==3.3.6
+psycopg[binary]==3.3.8
 channels==4.3.2
 daphne==4.2.3
 google-auth-oauthlib==1.5.0
