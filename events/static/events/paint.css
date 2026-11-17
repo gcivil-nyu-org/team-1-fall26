@@ -821,3 +821,8 @@ body.paint .ocr-extract-btn { width: 100%; min-height: 44px; height: auto; justi
   .ocr-facts .row, .panel .ocr-facts .row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .ocr-result-actions .btn { flex: 1; justify-content: center; }
 }
+
+/* Party fixes: no-family notice on schedule pages; "Save anyway" after a conflict */
+.no-family { display: grid; gap: 10px; justify-items: start; margin-bottom: 16px; }
+.no-family h2 { margin: 0; }
+.overlap-anyway { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-weight: 600; }

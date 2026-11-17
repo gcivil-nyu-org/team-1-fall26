@@ -308,6 +308,9 @@ class EventForm(EventTimezoneForm):
         initial=Event.TransportMode.TRANSIT,
     )
 
+    # Shown only after a scheduling conflict: families do double-book on purpose.
+    allow_overlap = forms.BooleanField(required=False)
+
     is_tentative = forms.BooleanField(
         label="Not confirmed yet",
         required=False,
@@ -546,7 +549,13 @@ class EventForm(EventTimezoneForm):
             # already has an overlapping event.
             participants = cleaned_data.get("participants")
 
-            if self.workspace is not None and participants and not event.is_tentative:
+            self.overlap_conflict = False
+            if (
+                self.workspace is not None
+                and participants
+                and not event.is_tentative
+                and not cleaned_data.get("allow_overlap")
+            ):
                 conflicts = find_overlapping_events(
                     workspace=self.workspace,
                     starts_at=event.starts_at,
@@ -566,12 +575,13 @@ class EventForm(EventTimezoneForm):
 
                     member_names = ", ".join(conflicting_members)
 
+                    self.overlap_conflict = True
                     self.add_error(
                         None,
                         f"Scheduling conflict: {member_names} already "
                         f"has an event called '{conflict.title}' "
                         "during the selected time. "
-                        "Please choose another time.",
+                        "Choose another time, or tick Save anyway to keep both.",
                     )
 
         return cleaned_data

@@ -607,6 +607,8 @@ def event_list(request, workspace_id=None):
         "form": form,
         "schedule_form": form,
         "workspace": workspace,
+        # New sign-ups land here before they have a family; the page says what to do.
+        "has_family": bool(workspace) or family_workspaces(request.user).exists(),
         "timezone_name": timezone.get_current_timezone_name(),
         "can_create": (
             caregiver_workspaces.filter(pk=workspace.pk).exists()

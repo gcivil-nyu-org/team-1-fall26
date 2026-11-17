@@ -5,6 +5,13 @@
 {% block content %}
 {% with view=form.cleaned_data.view %}
     {% include 'events/_flashes.html' %}
+    {% if not has_family %}
+        <section class="panel no-family" aria-labelledby="no-family-heading">
+            <h2 id="no-family-heading">You’re not in a family yet</h2>
+            <p class="span">Plans live inside a family. Create one to start adding events, or ask a parent in your family to send you an invite.</p>
+            <a class="btn" href="{% url 'accounts:create_workspace' %}">Create a family</a>
+        </section>
+    {% endif %}
     <div class="head">
         {% if form.errors %}
             <h1>Schedule</h1>

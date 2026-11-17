@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, update_session_auth_hash
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.views import LoginView, PasswordResetView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
@@ -803,3 +804,16 @@ def _back_to_page(request):
     ):
         next_url = reverse("accounts:dashboard")
     return redirect(next_url)
+
+
+class SignOutView(auth_views.LogoutView):
+    """Signing out stays a POST (another site can't sign people out). Opening the
+    address directly, from a bookmark or an old link, asks first instead of a bare
+    405 page."""
+
+    http_method_names = ["get", "post", "options"]
+
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect("accounts:login")
+        return render(request, "accounts/sign_out.html")
