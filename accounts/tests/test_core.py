@@ -46,6 +46,7 @@ class WorkspaceCreationTests(TestCase):
         self.client.force_login(self.user)
 
         self.client.post(self.create_url, {"name": "Family One"})
+        self.client.force_login(self.other_user)
         self.client.post(self.create_url, {"name": "Family Two"})
 
         workspaces = list(Workspace.objects.all())

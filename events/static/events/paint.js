@@ -115,6 +115,7 @@
             if (body.querySelector("[data-event-form]")) {
                 loadScript(sheet.dataset.locationScript);
                 if (sheet.dataset.progressiveScript) loadScript(sheet.dataset.progressiveScript);
+                if (sheet.dataset.ocrScript) loadScript(sheet.dataset.ocrScript);
             }
             sheet.scrollTop = 0;
             var focus = body.querySelector(".form-error, .errorlist, [aria-invalid='true']");

@@ -2,11 +2,14 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from ..routing import RouteEstimate, estimate_travel_time
 
 
+# These tests cover the open routing providers. Pin the Google key off so a
+# key exported in a developer's shell doesn't send them to Google first.
+@override_settings(GOOGLE_MAPS_API_KEY="")
 class TravelRoutingTests(SimpleTestCase):
     def setUp(self):
         self.start = SimpleNamespace(

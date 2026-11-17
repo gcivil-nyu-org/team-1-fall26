@@ -24,5 +24,6 @@
                 <input type="hidden" name="next" value="{{ next }}">
                 <button class="btn btn-wide" type="submit">Sign in</button>
             </form>
+            <p class="auth-foot"><a href="{% url 'accounts:password_reset' %}">Forgot your password?</a></p>
             <p class="auth-foot">New here? <a href="{% url 'accounts:signup' %}">Create a family</a>. Invited? Open the link in your invitation email.</p>
 {% endblock %}

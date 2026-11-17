@@ -4,6 +4,13 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from syncmily.text import clean_visible_text
+
+
+def clean_text(value):
+    """Drop invisible format characters (zero-width, RTL override) and trim."""
+    return clean_visible_text(value)
+
 
 class Checklist(models.Model):
     id = models.UUIDField(
@@ -40,10 +47,12 @@ class Checklist(models.Model):
     def clean(self):
         super().clean()
 
-        self.title = self.title.strip()
+        raw_title = self.title
+        self.title = clean_text(raw_title)
         errors = {}
 
-        if not self.title:
+        # A blank title already failed the field check; don't report it twice.
+        if raw_title and not self.title:
             errors["title"] = "Checklist title cannot be empty."
 
         if self.event_id and self.workspace_id:

@@ -15,6 +15,11 @@ urlpatterns = [
         name="workspace_create",
     ),
     path(
+        "workspaces/<uuid:workspace_id>/scan-ocr/",
+        views.scan_event_ocr,
+        name="scan_ocr",
+    ),
+    path(
         "workspaces/<uuid:workspace_id>/colors/",
         views.member_colors,
         name="member_colors",
