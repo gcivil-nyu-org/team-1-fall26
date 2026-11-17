@@ -915,3 +915,14 @@ body.paint .ocr-extract-btn { width: 100%; min-height: 44px; height: auto; justi
   .ocr-facts .row, .panel .ocr-facts .row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .ocr-result-actions .btn { flex: 1; justify-content: center; }
 }
+
+/* Time boxes that follow the 12h/24h switch (time_entry.js) */
+.time-entry { display: inline-flex; align-items: center; gap: 4px; }
+.time-entry .time-entry-part { width: 3.2em; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; }
+.time-entry-colon { color: var(--muted); font-weight: 600; }
+.time-entry .time-entry-half { width: auto; min-width: 5.5em; }
+.time-entry .time-entry-half[hidden] { display: none; }
+.time-entry.is-invalid .time-entry-part { border-color: var(--danger); }
+.when-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.when-pair input[type="date"] { width: auto; }
+

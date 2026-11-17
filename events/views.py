@@ -886,9 +886,14 @@ def change_event_time(request, pk):
     )
     detail_url = reverse("events:detail", args=[event.pk])
     tz = ZoneInfo(event.timezone_name)
+
+    def moment(prefix):
+        # Date and time come as separate boxes (the time follows the 12h/24h switch).
+        when = f"{request.POST[prefix + '_date']}T{request.POST[prefix + '_time']}"
+        return datetime.fromisoformat(when).replace(tzinfo=tz)
+
     try:
-        starts_at = datetime.fromisoformat(request.POST["starts_at"]).replace(tzinfo=tz)
-        ends_at = datetime.fromisoformat(request.POST["ends_at"]).replace(tzinfo=tz)
+        starts_at, ends_at = moment("starts"), moment("ends")
     except (KeyError, ValueError):
         messages.error(request, "Choose a start and end time.")
         return redirect(detail_url)

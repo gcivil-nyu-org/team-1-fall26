@@ -13,10 +13,10 @@
                     <summary class="span when-line" title="Change the time"><span>{% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}</span><span class="when-edit-hint">Change</span></summary>
                     <form class="when-form" method="post" action="{% url 'events:change_time' event.pk %}">
                         {% csrf_token %}
-                        <label for="when-starts">Starts</label>
-                        <input id="when-starts" type="datetime-local" name="starts_at" value="{{ starts_input }}" required>
-                        <label for="when-ends">Ends</label>
-                        <input id="when-ends" type="datetime-local" name="ends_at" value="{{ ends_input }}" required>
+                        <label for="when-starts-date">Starts</label>
+                        <span class="when-pair"><input id="when-starts-date" type="date" name="starts_date" value="{{ starts_input|slice:':10' }}" required><input id="when-starts-time" type="time" name="starts_time" value="{{ starts_input|slice:'11:' }}" aria-label="Start time" required></span>
+                        <label for="when-ends-date">Ends</label>
+                        <span class="when-pair"><input id="when-ends-date" type="date" name="ends_date" value="{{ ends_input|slice:':10' }}" required><input id="when-ends-time" type="time" name="ends_time" value="{{ ends_input|slice:'11:' }}" aria-label="End time" required></span>
                         <p class="when-tz">In {{ event.timezone_name }}</p>
                         <button class="btn" type="submit">Save time</button>
                     </form>

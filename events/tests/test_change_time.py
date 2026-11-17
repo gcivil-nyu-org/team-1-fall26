@@ -51,15 +51,21 @@ class ChangeTimeFromEventPageTests(TestCase):
             self.client.force_login(user)
         return self.client.post(
             reverse("events:change_time", args=[self.event.pk]),
-            {"starts_at": starts_at, "ends_at": ends_at},
+            {
+                "starts_date": starts_at[:10],
+                "starts_time": starts_at[11:],
+                "ends_date": ends_at[:10],
+                "ends_time": ends_at[11:],
+            },
         )
 
     def test_page_shows_the_time_as_a_change_form_with_current_values(self):
         response = self.client.get(reverse("events:detail", args=[self.event.pk]))
 
         self.assertContains(response, 'class="when-edit"')
-        self.assertContains(response, 'value="2026-11-20T16:00"')
-        self.assertContains(response, 'value="2026-11-20T17:00"')
+        self.assertContains(response, 'name="starts_date" value="2026-11-20"')
+        self.assertContains(response, 'name="starts_time" value="16:00"')
+        self.assertContains(response, 'name="ends_time" value="17:00"')
         self.assertContains(response, "Delete event")
 
     def test_changing_the_time_uses_the_events_own_time_zone(self):
