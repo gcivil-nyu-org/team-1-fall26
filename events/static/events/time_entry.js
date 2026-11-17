@@ -52,15 +52,31 @@
         colon.className = "time-entry-colon";
         colon.textContent = ":";
         colon.setAttribute("aria-hidden", "true");
-        var half = document.createElement("select");
+        // AM | PM as a two-button toggle; nothing is picked until the person chooses.
+        var meridiem = "";
+        var half = document.createElement("span");
         half.className = "time-entry-half";
+        half.setAttribute("role", "radiogroup");
         half.setAttribute("aria-label", "AM or PM");
-        [["", "AM/PM"], ["AM", "AM"], ["PM", "PM"]].forEach(function (pair) {
-            var option = document.createElement("option");
-            option.value = pair[0];
-            option.textContent = pair[1];
-            half.appendChild(option);
+        var halfButtons = ["AM", "PM"].map(function (text) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.textContent = text;
+            button.setAttribute("role", "radio");
+            button.setAttribute("aria-checked", "false");
+            button.addEventListener("click", function () {
+                setMeridiem(text);
+                store();
+            });
+            half.appendChild(button);
+            return button;
         });
+        function setMeridiem(value) {
+            meridiem = value;
+            halfButtons.forEach(function (button) {
+                button.setAttribute("aria-checked", String(button.textContent === value));
+            });
+        }
         box.append(hour, colon, minute, half);
 
         // The visible boxes take the label's focus and the required check.
@@ -77,7 +93,6 @@
             var time = parse(nativeValue.get.call(input));
             var twelve = twelveHour();
             half.hidden = !twelve;
-            half.required = twelve && hour.required;
             hour.placeholder = twelve ? "h" : "hh";
             if (!time) {
                 if (document.activeElement !== hour && document.activeElement !== minute) {
@@ -87,7 +102,7 @@
             }
             hour.value = twelve ? String(time.hour % 12 || 12) : pad(time.hour);
             minute.value = pad(time.minute);
-            half.value = twelve ? (time.hour < 12 ? "AM" : "PM") : "";
+            setMeridiem(twelve ? (time.hour < 12 ? "AM" : "PM") : "");
         }
 
         // Typed boxes -> "HH:MM" in the real input (empty while incomplete or invalid).
@@ -97,13 +112,17 @@
             var value = "";
             var valid = !isNaN(h) && !isNaN(m) && m >= 0 && m <= 59 && minute.value.length > 0;
             if (valid && twelve) {
-                valid = h >= 1 && h <= 12 && half.value !== "";
-                if (valid) h = (h % 12) + (half.value === "PM" ? 12 : 0);
+                valid = h >= 1 && h <= 12 && meridiem !== "";
+                if (valid) h = (h % 12) + (meridiem === "PM" ? 12 : 0);
             } else if (valid) {
                 valid = h >= 0 && h <= 23;
             }
             if (valid) value = pad(h) + ":" + pad(m);
             var typedSomething = hour.value || minute.value;
+            // Block the form from sending a 12h time without AM or PM.
+            hour.setCustomValidity(
+                twelve && hour.value && minute.value && !meridiem ? "Choose AM or PM" : ""
+            );
             box.classList.toggle("is-invalid", !valid && !!typedSomething && minute.value.length === 2);
             if (value === nativeValue.get.call(input)) return;
             nativeValue.set.call(input, value);
@@ -130,14 +149,13 @@
         });
         minute.addEventListener("input", function () {
             minute.value = minute.value.replace(/\D/g, "");
-            if (minute.value.length === 2 && twelveHour() && !half.value) half.focus();
+            if (minute.value.length === 2 && twelveHour() && !meridiem) halfButtons[0].focus();
             store();
         });
         minute.addEventListener("blur", function () {
             if (minute.value.length === 1) minute.value = "0" + minute.value;
             store();
         });
-        half.addEventListener("change", store);
         hour.addEventListener("blur", store);
         document.addEventListener("syncmily:clock", render);
         render();

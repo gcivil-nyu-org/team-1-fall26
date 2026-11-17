@@ -917,11 +917,15 @@ body.paint .ocr-extract-btn { width: 100%; min-height: 44px; height: auto; justi
 }
 
 /* Time boxes that follow the 12h/24h switch (time_entry.js) */
-.time-entry { display: inline-flex; align-items: center; gap: 4px; }
-.time-entry .time-entry-part { width: 3.2em; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; }
+.time-entry { display: inline-flex; align-items: stretch; gap: 4px; max-width: 100%; }
+body.paint .time-entry .time-entry-part, .time-entry .time-entry-part { flex: none; width: 3.6em; min-width: 0; padding-left: 4px; padding-right: 4px; text-align: center; font-variant-numeric: tabular-nums; }
+.time-entry-colon { align-self: center; }
 .time-entry-colon { color: var(--muted); font-weight: 600; }
-.time-entry .time-entry-half { width: auto; min-width: 5.5em; }
-.time-entry .time-entry-half[hidden] { display: none; }
+.time-entry-half { display: inline-flex; align-items: stretch; margin-left: 4px; padding: 2px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--card); }
+.time-entry-half[hidden] { display: none; }
+body.paint .time-entry-half button, .time-entry-half button { min-height: 0; height: auto; min-width: 2.8em; padding: 0 10px; border: 0; border-radius: calc(var(--radius-control) - 2px); background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; line-height: 1; cursor: pointer; box-shadow: none; }
+body.paint .time-entry-half button[aria-checked="true"], .time-entry-half button[aria-checked="true"] { background: var(--ink); color: var(--card); }
+.time-entry-half button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .time-entry.is-invalid .time-entry-part { border-color: var(--danger); }
 .when-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .when-pair input[type="date"] { width: auto; }
