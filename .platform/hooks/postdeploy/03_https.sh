@@ -59,8 +59,9 @@ map \$arg_v \$syncmily_static_cache {
 }
 
 # Sign-in, sign-up and receipt-scan paths get a request-rate ceiling per client address (this
-# file sits in conf.d, inside the http block). Over the limit nginx answers 429.
-limit_req_zone \$binary_remote_addr zone=syncmily_auth:10m rate=10r/m;
+# file sits in conf.d, inside the http block). Over the limit nginx answers 429. A class on
+# one campus Wi-Fi shares an address, so the ceiling fits a room signing in at once.
+limit_req_zone \$binary_remote_addr zone=syncmily_auth:10m rate=60r/m;
 limit_req_status 429;
 
 server {
@@ -77,9 +78,11 @@ server {
     ssl_session_tickets off;
     server_tokens       off;
 
-    # Browser features Syncmily never uses stay off. The CSP is enforced: every page was checked
-    # in WebKit with it enforced (0 violations, chat connects); inline scripts must stay in static files.
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+    # Browser features Syncmily never uses stay off. Geolocation is allowed for this site only:
+    # "Use my location" starts a trip from where the person is. The CSP is enforced: every page
+    # was checked in WebKit with it enforced (0 violations, chat connects); inline scripts must
+    # stay in static files.
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=(), usb=()" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' wss://$PRIMARY https://photon.komoot.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com; object-src 'none'" always;
     access_log /var/log/nginx/access.log main;
     client_header_timeout 60;
@@ -115,7 +118,7 @@ server {
     }
 
     location ~ ^/accounts/(login|signup)/\$ {
-        limit_req zone=syncmily_auth burst=20 nodelay;
+        limit_req zone=syncmily_auth burst=60 nodelay;
         proxy_pass          http://127.0.0.1:8000;
         proxy_http_version  1.1;
         proxy_set_header    Host                \$host;
@@ -125,7 +128,7 @@ server {
     }
 
     location ~ /scan-ocr/ {
-        limit_req zone=syncmily_auth burst=20 nodelay;
+        limit_req zone=syncmily_auth burst=60 nodelay;
         proxy_pass          http://127.0.0.1:8000;
         proxy_http_version  1.1;
         proxy_set_header    Host                \$host;

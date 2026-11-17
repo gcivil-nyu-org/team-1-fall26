@@ -53,6 +53,7 @@
                 <p><b>{% if form.non_field_errors %}This event wasn’t saved.{% else %}Check the details marked below.{% endif %}</b></p>
                 {{ form.non_field_errors }}
                 {% if form.latitude.errors or form.longitude.errors %}<p>Pick the place again from the suggestions.</p>{% endif %}
+                {% if form.overlap_conflict %}<label class="check overlap-anyway"><input type="checkbox" name="allow_overlap" value="on"> Save anyway and keep both plans</label>{% endif %}
             </div>
         {% endif %}
         {% if not can_save %}

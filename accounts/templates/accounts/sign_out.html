@@ -1,0 +1,11 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Sign out | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>Sign out of Syncmily?</h1>
+            <p class="lede">You’re signed in as {{ request.user.username }}.</p>
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button class="btn btn-wide" type="submit">Sign out</button>
+            </form>
+            <a class="btn btn-quiet btn-wide" href="{% url 'accounts:dashboard' %}">Stay signed in</a>
+{% endblock %}
