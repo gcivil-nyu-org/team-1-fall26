@@ -2,9 +2,12 @@ from django import forms
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
 
+from django.db.models import Q
+
+from events.access import family_events
 from events.models import Event
 
-from .models import Checklist, ChecklistItem
+from .models import Checklist, ChecklistItem, clean_text
 
 
 class ChecklistForm(forms.ModelForm):
@@ -19,17 +22,21 @@ class ChecklistForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, workspace=None, **kwargs):
+    def __init__(self, *args, workspace=None, user=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.fields["event"].required = False
 
         # Only allow events from the current workspace.
-        self.fields["event"].queryset = (
-            Event.objects.filter(workspace=workspace).order_by("-starts_at", "pk")
-            if workspace is not None
-            else Event.objects.none()
-        )
+        events = Event.objects.none()
+        if workspace is not None:
+            events = Event.objects.filter(workspace=workspace)
+            if user is not None:
+                # Only what this person may see; a Google import stays with its owner.
+                events = events.filter(pk__in=family_events(user).values("pk")).exclude(
+                    Q(source=Event.Source.GOOGLE) & ~Q(created_by=user)
+                )
+        self.fields["event"].queryset = events.order_by("-starts_at", "pk")
         self.fields["event"].empty_label = "No event"
         # "Soccer, Wed 28 Oct": several plans can share a title.
         self.fields["event"].label_from_instance = lambda event: (
@@ -38,7 +45,7 @@ class ChecklistForm(forms.ModelForm):
         )
 
     def clean_title(self):
-        title = self.cleaned_data["title"].strip()
+        title = clean_text(self.cleaned_data["title"])
 
         if not title:
             raise forms.ValidationError("Checklist title cannot be empty.")
@@ -59,7 +66,7 @@ class ChecklistItemForm(forms.ModelForm):
         }
 
     def clean_description(self):
-        description = self.cleaned_data["description"].strip()
+        description = clean_text(self.cleaned_data["description"])
 
         if not description:
             raise forms.ValidationError("Checklist item cannot be empty.")

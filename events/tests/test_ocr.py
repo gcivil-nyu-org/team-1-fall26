@@ -850,7 +850,8 @@ class EventOCRViewAndWorkflowTests(TestCase):
         cls.scan_url = reverse("events:scan_ocr", args=[cls.workspace.pk])
         cls.tomorrow = timezone.localdate() + timedelta(days=2)
 
-    def test_create_event_renders_manual_and_scan_tabs_and_controls(self):
+    @patch("events.views.ocr_available", return_value=True)
+    def test_create_event_renders_manual_and_scan_tabs_and_controls(self, _available):
         self.client.force_login(self.caregiver)
         response = self.client.get(self.create_url)
         self.assertEqual(response.status_code, 200)

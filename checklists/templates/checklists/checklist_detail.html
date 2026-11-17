@@ -25,6 +25,7 @@
             <div class="check-row{% if item.is_completed %} done{% endif %}">
                 <form method="post" action="{% url 'checklists:item_toggle' item.pk %}">
                     {% csrf_token %}
+                    <input type="hidden" name="completed" value="{% if item.is_completed %}0{% else %}1{% endif %}">
                     <button class="box" type="submit" role="checkbox" aria-checked="{% if item.is_completed %}true{% else %}false{% endif %}" aria-label="{{ item.description }}"><span aria-hidden="true"></span></button>
                 </form>
                 <div class="grow">

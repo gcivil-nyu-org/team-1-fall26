@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -7,7 +8,7 @@ from events.templatetags.paint import initial, person
 from events.timeline import family_members
 
 from .access import accessible_workspaces
-from .services import get_household_messages
+from .services import get_household_messages, get_message_page, serialize_message
 
 
 @login_required
@@ -62,6 +63,7 @@ def workspace_chat(request, workspace_id):
             "workspace": workspace,
             "workspaces": workspaces,
             "chat_messages": chat_messages,
+            "has_older": len(chat_messages) >= 50,
             "members": members,
             # Names and colours for messages that arrive over the socket (chat_home.js).
             "member_json": {
@@ -75,4 +77,28 @@ def workspace_chat(request, workspace_id):
             },
             "coming_up": coming_up,
         },
+    )
+
+
+@login_required
+def message_page(request, workspace_id):
+    """Older (?before=id) or missed (?after=id) messages as JSON."""
+    workspace = get_object_or_404(
+        accessible_workspaces(request.user),
+        pk=workspace_id,
+    )
+    try:
+        before_id = int(request.GET["before"]) if "before" in request.GET else None
+        after_id = int(request.GET["after"]) if "after" in request.GET else None
+    except ValueError:
+        return JsonResponse({"error": "Invalid message id."}, status=400)
+
+    messages, has_more = get_message_page(
+        workspace=workspace, before_id=before_id, after_id=after_id
+    )
+    return JsonResponse(
+        {
+            "messages": [serialize_message(message) for message in messages],
+            "has_more": has_more,
+        }
     )
