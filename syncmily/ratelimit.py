@@ -14,6 +14,17 @@ from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import render
 
+# Limits counted per client IP. A whole class on campus Wi-Fi reaches us from one public
+# address, so these allow a room of people signing up and signing in at once (about 15
+# people, each a few times). Brute force on one account is still stopped by django-axes,
+# which locks a username after 5 wrong passwords from the same address.
+IP_LIMITS = {
+    "signup": (50, 3600),
+    "login": (150, 600),
+    "password_reset": (30, 3600),
+    "two_step_verify": (60, 600),
+}
+
 
 def client_ip(request):
     """

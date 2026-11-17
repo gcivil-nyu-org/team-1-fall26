@@ -26,7 +26,7 @@ from events.briefing import build_family_briefing, build_kid_briefing
 from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
-from syncmily.ratelimit import rate_limit
+from syncmily.ratelimit import IP_LIMITS, rate_limit
 
 from . import two_step
 from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
@@ -504,7 +504,7 @@ def google_sign_in_enabled():
 
 
 @require_http_methods(["GET", "POST"])
-@rate_limit("signup", 5, 3600, key="ip")
+@rate_limit("signup", *IP_LIMITS["signup"], key="ip")
 def signup(request):
     """Let anyone create an account; they set up or join a family afterwards."""
     if request.user.is_authenticated:
@@ -529,7 +529,7 @@ def signup(request):
     )
 
 
-@method_decorator(rate_limit("login", 30, 600, key="ip"), name="dispatch")
+@method_decorator(rate_limit("login", *IP_LIMITS["login"], key="ip"), name="dispatch")
 class SignInView(LoginView):
     """The password sign-in, which hands off to the code step when two-step sign-in is
     on.
@@ -558,7 +558,10 @@ class SignInView(LoginView):
         return super().form_valid(form)
 
 
-@method_decorator(rate_limit("password_reset", 5, 3600, key="ip"), name="dispatch")
+@method_decorator(
+    rate_limit("password_reset", *IP_LIMITS["password_reset"], key="ip"),
+    name="dispatch",
+)
 class ResetRequestView(PasswordResetView):
     """Email a reset link. Invited members who haven't set a password yet and kids
     without an email have nothing to reset, and the answer is the same either way.

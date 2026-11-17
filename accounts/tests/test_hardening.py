@@ -5,6 +5,8 @@ from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from syncmily.ratelimit import IP_LIMITS
+
 from ..forms import UsernameChangeForm, WorkspaceForm
 from ..models import Membership, Workspace
 from ..services import invite_member
@@ -32,18 +34,20 @@ class RateLimitedEndpointTests(TestCase):
         cache.clear()
 
     def test_signup_is_limited_per_ip(self):
-        codes = [self.client.post(reverse("accounts:signup"), {}).status_code]
-        for _ in range(5):
-            codes.append(self.client.post(reverse("accounts:signup"), {}).status_code)
-        self.assertEqual(codes[:5], [200] * 5)
-        self.assertEqual(codes[5], 429)
+        limit, _ = IP_LIMITS["signup"]
+        codes = [
+            self.client.post(reverse("accounts:signup"), {}).status_code
+            for _ in range(limit + 1)
+        ]
+        self.assertEqual(codes[:limit], [200] * limit)
+        self.assertEqual(codes[limit], 429)
 
     def test_login_post_is_limited_per_ip(self):
         codes = [
             self.client.post(
                 reverse("accounts:login"), {"username": f"u{n}", "password": "x"}
             ).status_code
-            for n in range(31)
+            for n in range(IP_LIMITS["login"][0] + 1)
         ]
         self.assertIn(429, codes)
         self.assertEqual(codes[-1], 429)
@@ -60,7 +64,7 @@ class RateLimitedEndpointTests(TestCase):
     def test_two_step_verify_post_is_limited(self):
         codes = [
             self.client.post(reverse("accounts:two_step_verify"), {"code": "1"})
-            for _ in range(25)
+            for _ in range(IP_LIMITS["two_step_verify"][0] + 1)
         ]
         self.assertEqual(codes[-1].status_code, 429)
 
@@ -68,7 +72,7 @@ class RateLimitedEndpointTests(TestCase):
         url = reverse("accounts:password_reset")
         codes = [
             self.client.post(url, {"email": "a@example.com"}).status_code
-            for _ in range(6)
+            for _ in range(IP_LIMITS["password_reset"][0] + 1)
         ]
         self.assertEqual(codes[-1], 429)
 
