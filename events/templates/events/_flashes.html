@@ -1,3 +1,6 @@
 {% if messages %}
     <div class="flashes">{% for message in messages %}<p class="flash flash-{{ message.tags }}" role="{% if message.level >= 40 %}alert{% else %}status{% endif %}">{{ message }}</p>{% endfor %}</div>
 {% endif %}
+{% with connection=shell.calendar_connection %}{% if connection.sync_error == "access_revoked" and request.resolver_match.view_name != "accounts:workspace_detail" %}
+    <div class="flashes"><p class="flash flash-error" role="alert">Google Calendar stopped syncing {{ connection.sync_failed_at|timesince }} ago: Google no longer accepts Syncmily’s access. {% if connection.workspace_id %}<a href="{% url 'accounts:workspace_detail' connection.workspace_id %}">Reconnect it on the family page</a>.{% else %}Connect it again from your account menu.{% endif %}</p></div>
+{% endif %}{% endwith %}

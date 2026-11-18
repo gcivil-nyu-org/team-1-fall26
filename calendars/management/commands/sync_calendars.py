@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
 from calendars.models import CalendarConnection
-from calendars.sync import sync_connection
+from calendars.sync import record_sync_failure, sync_connection
 
 
 class Command(BaseCommand):
@@ -23,6 +23,7 @@ class Command(BaseCommand):
                 result = sync_connection(connection)
             except Exception as error:
                 failures += 1
+                record_sync_failure(connection, error)
                 self.stderr.write(
                     f"Connection {connection.pk}: failed ({type(error).__name__})"
                 )
