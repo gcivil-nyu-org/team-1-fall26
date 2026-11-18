@@ -15,7 +15,7 @@ from accounts.models import Workspace
 
 from . import google
 from .models import CalendarConnection
-from .sync import sync_connection
+from .sync import record_sync_failure, sync_connection
 
 logger = logging.getLogger(__name__)
 
@@ -162,13 +162,15 @@ def google_callback(request):
 def _sync_and_report(request, connection):
     try:
         result = sync_connection(connection)
-    except RefreshError:
+    except RefreshError as error:
+        record_sync_failure(connection, error)
         messages.error(
             request,
             "Google no longer accepts Syncmily’s access. Disconnect and connect Google"
             " Calendar again.",
         )
     except Exception as error:
+        record_sync_failure(connection, error)
         logger.warning("Google Calendar import failed: %s", type(error).__name__)
         messages.error(
             request,

@@ -4,10 +4,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from events.models import Event
+
+from .models import CalendarConnection
 
 # Import a rolling window: recent past events plus the coming months.
 PAST_DAYS = 30
@@ -164,7 +167,9 @@ def sync_connection(connection, now=None):
         result.deleted, _ = stale.delete()
 
         connection.last_synced_at = now
-        update_fields = ["last_synced_at", "updated_at"]
+        connection.sync_error = CalendarConnection.SyncError.NONE
+        connection.sync_failed_at = None
+        update_fields = ["last_synced_at", "sync_error", "sync_failed_at", "updated_at"]
         if credentials.token and credentials.token != connection.access_token:
             connection.access_token = credentials.token
             expiry = credentials.expiry
@@ -174,3 +179,24 @@ def sync_connection(connection, now=None):
             update_fields += ["access_token", "token_expires_at"]
         connection.save(update_fields=update_fields)
     return result
+
+
+def record_sync_failure(connection, error, now=None):
+    """Remember why the last import failed, so the family page can say so.
+
+    Only the error kind is stored: never the exception text, which can echo request
+    details.
+    """
+    if isinstance(error, RefreshError):
+        kind = CalendarConnection.SyncError.ACCESS_REVOKED
+    else:
+        kind = CalendarConnection.SyncError.FAILED
+    now = now or timezone.now()
+    # A queryset update leaves the connection's other fields (fresh tokens, the
+    # auto-sync switch) as they are in the database.
+    CalendarConnection.objects.filter(pk=connection.pk).update(
+        sync_error=kind, sync_failed_at=now
+    )
+    connection.sync_error = kind
+    connection.sync_failed_at = now
+    return kind

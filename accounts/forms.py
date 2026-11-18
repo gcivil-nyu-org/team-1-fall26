@@ -3,7 +3,7 @@ import unicodedata
 
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import PasswordResetForm, UserCreationForm
 
 from .models import Membership, Workspace
 from syncmily.text import clean_visible_text
@@ -188,3 +188,23 @@ class FamilyHomeForm(forms.Form):
                 "Pick your address from the suggestions so trips know where home is."
             )
         return cleaned
+
+
+class ResetRequestForm(PasswordResetForm):
+    """Django only emails accounts that already have a password, so people who signed
+    up with Google got no email and no error. Every active account with this address
+    gets a link: Google sign-ups use it to set their first password.
+    """
+
+    def get_users(self, email):
+        email_field = get_user_model().get_email_field_name()
+        users = get_user_model()._default_manager.filter(
+            **{f"{email_field}__iexact": email, "is_active": True}
+        )
+        wanted = unicodedata.normalize("NFKC", email).casefold()
+        return (
+            user
+            for user in users
+            if unicodedata.normalize("NFKC", getattr(user, email_field)).casefold()
+            == wanted
+        )
