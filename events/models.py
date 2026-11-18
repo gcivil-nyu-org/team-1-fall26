@@ -216,3 +216,39 @@ class Event(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+
+class TripStart(models.Model):
+    """Where one person starts their trip to one event (leave-by card and marker)."""
+
+    class Mode(models.TextChoices):
+        PREVIOUS = "previous", "Previous event"
+        HOME = "home", "Home"
+        HERE = "here", "Somewhere else"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="trip_starts",
+    )
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="trip_starts",
+    )
+    mode = models.CharField(max_length=10, choices=Mode.choices, default=Mode.PREVIOUS)
+    # Only for "somewhere else": a searched address or the browser's location.
+    label = models.CharField(max_length=255, blank=True, default="")
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "event"], name="one_trip_start_per_person_and_event"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user} to {self.event}: {self.get_mode_display()}"

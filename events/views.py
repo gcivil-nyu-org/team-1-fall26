@@ -1,5 +1,6 @@
 import logging
-from datetime import time as dt_time
+import math
+from datetime import datetime, time as dt_time
 from urllib.parse import urlencode
 from uuid import UUID
 from zoneinfo import ZoneInfo, available_timezones
@@ -10,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
@@ -33,10 +35,13 @@ from .forms import (
     EventScheduleForm,
     EventTimezoneForm,
     EventWorkspaceForm,
+    _wall_clock_to_aware,
 )
-from .models import Event
+from .models import Event, TripStart
 from .services.event_ocr import EventOCRError, ocr_available, scan_event_image
 from .travel_conflicts import find_travel_checks
+from . import places
+from .trip import build_trip, marker_data
 from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
 from .week import local_day_bounds
 
@@ -581,6 +586,14 @@ def event_detail(request, pk):
             "can_create": can_manage_drivers,
             "can_edit": can_manage_drivers and event.source == Event.Source.SYNCMILY,
             "driver_form": driver_form,
+            "starts_input": _local_input(
+                event.starts_at, ZoneInfo(event.timezone_name)
+            ),
+            "ends_input": _local_input(event.ends_at, ZoneInfo(event.timezone_name)),
+            # The leave-by card only makes sense for an upcoming event with a map pin.
+            "show_trip": event.has_valid_coordinates
+            and event.transport_mode == Event.TransportMode.TRANSIT
+            and event.starts_at > timezone.now(),
             "workspace_url": (
                 reverse("accounts:workspace_detail", args=[event.workspace_id])
                 if event.workspace_id
@@ -752,6 +765,172 @@ def timezone_names(request):
     response = JsonResponse(sorted(available_timezones()), safe=False)
     patch_cache_control(response, public=True, max_age=86400)
     return response
+
+
+@login_required(login_url="accounts:login")
+@require_http_methods(["GET", "POST"])
+def event_trip(request, pk):
+    """The live leave-by card for an event (or ?format=json for the timeline marker).
+
+    POST saves where this person starts the trip: their previous event, the family's
+    home, or somewhere else (an address they searched or the browser's location, sent
+    in the body so it never lands in URLs or server logs).
+    """
+    event = get_object_or_404(family_events(request.user), pk=pk)
+    if request.method == "POST":
+        mode = request.POST.get("mode", TripStart.Mode.HERE)
+        if mode not in TripStart.Mode.values:
+            return HttpResponseBadRequest("Choose where the trip starts.")
+        fields = {"mode": mode, "label": "", "latitude": None, "longitude": None}
+        if mode == TripStart.Mode.HERE:
+            try:
+                latitude = float(request.POST["latitude"])
+                longitude = float(request.POST["longitude"])
+            except (KeyError, ValueError):
+                return HttpResponseBadRequest("A location is required.")
+            if not (
+                math.isfinite(latitude)
+                and math.isfinite(longitude)
+                and -90 <= latitude <= 90
+                and -180 <= longitude <= 180
+            ):
+                return HttpResponseBadRequest("That location isn't valid.")
+            # A new place means fresh (paid) Routes lookups; the other modes start
+            # from fixed places whose trips are cached. People pick a place a few
+            # times per event, so this only stops a script. Counted per account,
+            # not per IP: a whole class on campus Wi-Fi shares one address.
+            if not allow(request, "trip_start", TRIP_STARTS_PER_HOUR, 3600, key="user"):
+                return too_many_requests(
+                    request,
+                    "You've changed where trips start a lot. Wait a few minutes.",
+                )
+            label = request.POST.get("label", "").strip()[:255]
+            fields.update(
+                latitude=latitude,
+                longitude=longitude,
+                label=label or "Your current location",
+            )
+        TripStart.objects.update_or_create(
+            user=request.user, event=event, defaults=fields
+        )
+    trip = build_trip(event, request.user)
+    if request.GET.get("format") == "json":
+        response = JsonResponse(marker_data(trip))
+    else:
+        response = render(request, "events/_trip_card.html", trip)
+    patch_cache_control(response, private=True, no_store=True)
+    return response
+
+
+# Searching costs money once Google Places is on; this is plenty for a person typing.
+PLACE_SEARCHES_PER_MINUTE = 60
+# Changing where a trip starts asks Google Routes again (see event_trip).
+TRIP_STARTS_PER_HOUR = 30
+
+
+def _place_search_allowed(user):
+    key = f"place-searches:{user.pk}:{int(timezone.now().timestamp() // 60)}"
+    count = cache.get_or_set(key, 0, 90)
+    if count >= PLACE_SEARCHES_PER_MINUTE:
+        return False
+    cache.incr(key)
+    return True
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def place_suggestions(request):
+    """Google Places suggestions for the location box (POST keeps addresses out of
+    logs). 503 means Google Places isn't set up, so the box uses its free search.
+    """
+    if not places.enabled():
+        return JsonResponse({"error": "unavailable"}, status=503)
+    query = request.POST.get("q", "").strip()[:200]
+    if len(query) < 3:
+        return JsonResponse({"suggestions": []})
+    if not _place_search_allowed(request.user):
+        return JsonResponse({"error": "slow down"}, status=429)
+    try:
+        suggestions = places.suggest(query, request.POST.get("session", ""))
+    except places.PlacesUnavailable:
+        return JsonResponse({"error": "unavailable"}, status=503)
+    response = JsonResponse({"provider": "google", "suggestions": suggestions})
+    patch_cache_control(response, private=True, no_store=True)
+    return response
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def place_details(request):
+    """The exact coordinates of the suggestion someone picked."""
+    if not places.enabled():
+        return JsonResponse({"error": "unavailable"}, status=503)
+    place_id = request.POST.get("id", "")
+    if not places.valid_place_id(place_id):
+        return HttpResponseBadRequest("Choose a place from the suggestions.")
+    if not _place_search_allowed(request.user):
+        return JsonResponse({"error": "slow down"}, status=429)
+    try:
+        place = places.details(place_id, request.POST.get("session", ""))
+    except places.PlacesUnavailable:
+        return JsonResponse({"error": "unavailable"}, status=503)
+    if place is None:
+        return JsonResponse({"error": "no location"}, status=404)
+    response = JsonResponse(place)
+    patch_cache_control(response, private=True, no_store=True)
+    return response
+
+
+def _local_input(moment, tz):
+    """The value a datetime-local box shows: 2026-11-11T20:52, in the event's zone."""
+    return timezone.localtime(moment, tz).strftime("%Y-%m-%dT%H:%M")
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def change_event_time(request, pk):
+    """Change when an event happens, straight from the time on its page. Same rule as
+    the Edit event form: a parent in the family, and not a Google Calendar copy."""
+    event = get_object_or_404(
+        Event.objects.filter(
+            workspace__in=family_workspaces(request.user, caregivers_only=True),
+            source=Event.Source.SYNCMILY,
+        ),
+        pk=pk,
+    )
+    detail_url = reverse("events:detail", args=[event.pk])
+    tz = ZoneInfo(event.timezone_name)
+
+    def moment(prefix):
+        # Date and time come as separate boxes (the time follows the 12h/24h switch).
+        # Same reading as the Edit event form: a time in the spring-forward gap is an
+        # error that names the clock change; a fall-back time is its first occurrence.
+        when = f"{request.POST[prefix + '_date']}T{request.POST[prefix + '_time']}"
+        naive = datetime.fromisoformat(when)
+        return _wall_clock_to_aware(naive.date(), naive.time(), tz)
+
+    try:
+        starts_at, ends_at = moment("starts"), moment("ends")
+    except (KeyError, ValueError, OverflowError):
+        messages.error(request, "Choose a start and end time.")
+        return redirect(detail_url)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+        return redirect(detail_url)
+    if ends_at <= starts_at:
+        messages.error(request, "The end has to be after the start.")
+        return redirect(detail_url)
+    event.starts_at, event.ends_at = starts_at, ends_at
+    try:
+        event.full_clean(validate_unique=False)
+        event.save(update_fields=["starts_at", "ends_at", "updated_at"])
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    except DatabaseError:
+        messages.error(request, "The new time couldn't be saved. Please try again.")
+    else:
+        messages.success(request, "Time changed.")
+    return redirect(detail_url)
 
 
 @login_required(login_url="accounts:login")

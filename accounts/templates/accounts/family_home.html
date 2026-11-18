@@ -1,0 +1,28 @@
+{% extends 'events/_paint_page.html' %}
+{% load paint %}
+{% block title %}Family home | Syncmily{% endblock %}
+{% block content %}
+    {% include 'events/_flashes.html' %}
+    <div class="head">
+        <h1>Family home</h1>
+        <span class="span">{{ workspace.name }}</span>
+    </div>
+    <section class="panel" aria-labelledby="home-heading">
+        <h2 id="home-heading">Where trips start “from home”</h2>
+        <p class="span">On subway and bus events, anyone in the family can start the trip from home to get a live leave-by time. Kids can use it, but only parents see or change the address.</p>
+        <form class="home-form" method="post" data-location-form data-full-page novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+            <label for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
+            {{ form.location }}
+            {{ form.location.errors }}
+            {{ form.latitude }}{{ form.longitude }}
+            <div class="actions">
+                <button class="btn" type="submit" name="action" value="save">Save home</button>
+                {% if workspace.has_home %}<button class="btn btn-quiet" type="submit" name="action" value="clear" formnovalidate>Remove home</button>{% endif %}
+            </div>
+        </form>
+        {% if workspace.has_home %}<p class="span">Saved: {{ workspace.home_location }}</p>{% endif %}
+    </section>
+{% endblock %}
+{% block scripts %}<script src="{% asset 'events/location_autocomplete.js' %}" defer></script>{% endblock %}

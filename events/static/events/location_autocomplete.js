@@ -2,6 +2,26 @@
 "use strict";
 
 (function () {
+    // Google Places (through our server, so the key stays private) when it's set up;
+    // otherwise Photon. "unknown" until the first search finds out.
+    let googleState = "unknown";
+    const SUGGEST_URL = "/events/places/";
+    const DETAILS_URL = "/events/places/details/";
+
+    function newSessionToken() {
+        if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+        return String(Date.now()) + Math.random().toString(16).slice(2);
+    }
+
+    function csrfToken(form) {
+        const input = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (input) return input.value;
+        const holder = form.closest("[data-csrf]");
+        if (holder) return holder.dataset.csrf;
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : "";
+    }
+
     function initializeLocationAutocomplete(form) {
         if (!form || form.dataset.locationAutocompleteInitialized === "true") {
             return;
@@ -42,6 +62,98 @@
         let debounceTimer = null;
         let activeController = null;
         let requestVersion = 0;
+        // One token per search, from first keystroke to the pick (Google bills it once).
+        let sessionToken = newSessionToken();
+
+        function post(url, fields, signal) {
+            const body = new FormData();
+            Object.keys(fields).forEach((key) => body.append(key, fields[key]));
+            return fetch(url, {
+                method: "POST",
+                body,
+                signal,
+                credentials: "same-origin",
+                headers: { "X-CSRFToken": csrfToken(form), Accept: "application/json" }
+            });
+        }
+
+        function useGoogleAttribution() {
+            attribution.textContent = "Powered by Google";
+        }
+
+        async function selectGooglePlace(place) {
+            showMessage("Finding " + place.main + "…");
+            try {
+                const response = await post(DETAILS_URL, {
+                    id: place.id,
+                    session: sessionToken
+                });
+                if (!response.ok) throw new Error(`Places details returned ${response.status}`);
+                const data = await response.json();
+                if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) {
+                    throw new Error("No coordinates");
+                }
+                locationInput.value = data.label;
+                latitudeInput.value = String(data.latitude);
+                longitudeInput.value = String(data.longitude);
+                sessionToken = newSessionToken();
+                clearTimeout(debounceTimer);
+                activeController?.abort();
+                requestVersion += 1;
+                closeSuggestions();
+                locationInput.focus();
+                locationInput.dispatchEvent(new Event("change", { bubbles: true }));
+            } catch (error) {
+                showMessage("Couldn’t get that place. Try another suggestion.");
+                console.error("Google place details failed:", error);
+            }
+        }
+
+        function renderGoogleSuggestions(places) {
+            suggestions.replaceChildren();
+            if (!places.length) {
+                showMessage("No matching locations found.");
+                return;
+            }
+            places.forEach((place) => {
+                const option = document.createElement("button");
+                option.type = "button";
+                option.setAttribute("role", "option");
+                const main = document.createElement("span");
+                main.textContent = place.main;
+                option.appendChild(main);
+                if (place.secondary) {
+                    const secondary = document.createElement("small");
+                    secondary.textContent = ", " + place.secondary;
+                    option.appendChild(secondary);
+                }
+                option.addEventListener("click", () => selectGooglePlace(place));
+                suggestions.appendChild(option);
+            });
+            suggestions.hidden = false;
+            locationInput.setAttribute("aria-expanded", "true");
+        }
+
+        // True when Google answered (with or without results); false to fall back.
+        async function searchGoogle(query, controller, currentVersion) {
+            const response = await post(
+                SUGGEST_URL,
+                { q: query, session: sessionToken },
+                controller.signal
+            );
+            if (response.status === 503) {
+                googleState = "off";
+                return false;
+            }
+            if (!response.ok) throw new Error(`Places returned ${response.status}`);
+            const data = await response.json();
+            googleState = "on";
+            useGoogleAttribution();
+            if (currentVersion === requestVersion && locationInput.value.trim() === query) {
+                renderGoogleSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
+            }
+            return true;
+        }
 
         function clearCoordinates() {
             latitudeInput.value = "";
@@ -156,6 +268,9 @@
             });
 
             try {
+                if (googleState !== "off" && await searchGoogle(query, controller, currentVersion)) {
+                    return;
+                }
                 const response = await fetch(
                     `https://photon.komoot.io/api/?${params.toString()}`,
                     {
@@ -194,7 +309,7 @@
                     );
                 }
 
-                console.error("Photon location search failed:", error);
+                console.error("Location search failed:", error);
             }
         }
 
@@ -235,7 +350,8 @@
     }
 
     function initializeAllLocationForms() {
-        document.querySelectorAll("[data-event-form]").forEach((form) => {
+        // Event forms, plus small place pickers (family home, trip start).
+        document.querySelectorAll("[data-event-form], [data-location-form]").forEach((form) => {
             initializeLocationAutocomplete(form);
         });
     }

@@ -55,6 +55,8 @@
             formatClocks(document.body);
             if (clockSwitch) clockSwitch.setAttribute("aria-checked", String(mode === "24"));
             if (remember) save("syncmily-clock", mode);
+            // Time boxes (time_entry.js) switch between 12h and 24h entry.
+            document.dispatchEvent(new CustomEvent("syncmily:clock", { detail: mode }));
         }
         var localeHour12 = new Intl.DateTimeFormat(navigator.language, { hour: "numeric" }).resolvedOptions().hour12;
         setClock(load("syncmily-clock") || (localeHour12 === false ? "24" : "12"), false);

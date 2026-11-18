@@ -94,7 +94,12 @@ def build_today_rail(events, members, today, tz, now):
             }
         )
     hours = [
-        {"hour": hour % 24, "top": round((hour - first) / (last - first) * 100, 3)}
+        {
+            "hour": hour % 24,
+            "top": round((hour - first) / (last - first) * 100, 3),
+            # The moment each mark stands for, so trip.js can place "Leave by" markers.
+            "at": start + timedelta(hours=hour - first),
+        }
         for hour in range(first, last)
     ]
     place_side_by_side(items, min_percent=RAIL_MIN_PX / height * 100)

@@ -751,6 +751,100 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
 .slot-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .daygrid .track:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 
+
+/* "Leave by" markers on timelines (trip.js fills them in and places them) */
+.leave-mark { display: flex; align-items: center; gap: 6px; padding: 2px 8px; color: var(--muted); font-size: 12px; line-height: 16px; }
+.leave-mark[hidden] { display: none; }
+.leave-mark.is-late, .leave-mark.has-alerts { color: var(--warning); font-weight: 600; }
+.leave-mark .trip-live-dot { margin-right: 0; flex: none; }
+.rail-leave { position: absolute; z-index: 0; left: 8px; right: 4px; top: var(--top, 0); height: var(--h, 0); min-height: 18px; align-items: flex-start; border-left: 2px dashed var(--line); background: linear-gradient(to bottom, var(--raised), transparent); pointer-events: none; }
+@container day (width >= 720px) {
+  .plans li.leave-mark { z-index: 0; align-items: flex-start; border-left: 2px dashed var(--line); background: linear-gradient(to bottom, var(--raised), transparent); pointer-events: none; }
+}
+.home-form { display: grid; gap: 8px; max-width: 520px; margin-top: 12px; position: relative; }
+/* Keep the label readable over short gaps: float it on the right, above the plans. */
+.leave-mark .leave-text { padding: 0 6px; border-radius: 999px; background: var(--card); white-space: nowrap; }
+.rail-leave { z-index: 2; justify-content: flex-end; }
+@container day (width >= 720px) {
+  .plans li.leave-mark { z-index: 2; justify-content: flex-end; background: none; }
+}
+
+/* Click the time on an event page to change it */
+.when-edit > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; cursor: pointer; list-style: none; }
+.when-edit > summary::-webkit-details-marker { display: none; }
+.when-edit-hint { font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; color: var(--ink); }
+.when-edit[open] .when-edit-hint { display: none; }
+.when-form { display: grid; grid-template-columns: auto minmax(0, 260px); align-items: center; gap: 8px 12px; margin: 10px 0 4px; padding: 12px; border-radius: var(--radius); background: var(--raised); }
+.when-form .when-tz { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12px; }
+.when-form .btn { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 560px) { .when-form { grid-template-columns: 1fr; } }
+
+/* Leave-by card on event pages (events/_trip_card.html, loaded by trip.js) */
+.trip { margin: 6px 0 10px; padding: 14px 16px; border-radius: var(--radius); background: var(--raised); }
+.trip-loading { margin: 0; color: var(--muted); font-size: 13px; }
+.trip-kicker { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--muted); font-size: 12px; }
+.trip-leave { margin: 2px 0 0; font-size: 22px; line-height: 28px; letter-spacing: -.01em; }
+.trip-sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.trip-soon { color: var(--info); font-weight: 600; }
+.trip-late, .trip-warn-text { color: var(--danger); font-weight: 600; }
+.trip-live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #1f9d55; flex: none; animation: trip-pulse 1.6s ease-in-out infinite; }
+@keyframes trip-pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .trip-live-dot { animation: none; } }
+
+.trip-route { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.trip-walk { color: var(--muted); font-size: 12px; }
+.trip-sep { color: var(--muted); font-size: 12px; opacity: .6; }
+.trip-badge { --line: var(--accent); --line-text: var(--card); display: inline-grid; place-items: center; flex: none; min-width: 26px; height: 26px; padding: 0; background: var(--line); color: var(--line-text); font: 700 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.trip-badge.is-bullet { width: 26px; border-radius: 50%; }
+.trip-badge.is-diamond { width: 24px; height: 24px; margin: 1px; transform: rotate(45deg); border-radius: 3px; }
+.trip-badge.is-diamond > span { transform: rotate(-45deg); }
+.trip-badge.is-pill { padding: 0 8px; border-radius: 6px; font-size: 12px; letter-spacing: .01em; }
+.trip-badge.is-small { min-width: 20px; height: 20px; font-size: 11px; }
+.trip-badge.is-small.is-bullet { width: 20px; }
+.trip-badge.is-small.is-diamond { width: 18px; height: 18px; }
+.trip-badge.is-small.is-pill { padding: 0 6px; font-size: 10px; }
+
+.trip-legs { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.trip-legs li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+.trip-legs b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.trip-legs small { display: block; color: var(--muted); font-size: 12px; }
+
+.trip-alerts { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; }
+.trip-alert { padding: 6px 10px; border-left: 3px solid var(--warning); border-radius: var(--radius); background: var(--warning-soft); font-size: 12px; }
+.trip-alert.is-blocking { border-left-color: var(--danger); background: var(--danger-soft); }
+.trip-alert.is-planned { border-left-color: var(--info); background: var(--info-soft); }
+.trip-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+
+.trip-start { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.trip-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; list-style: none; }
+.trip-chip::-webkit-details-marker { display: none; }
+.trip-chip[aria-pressed="true"] { border-color: var(--ink); font-weight: 600; }
+.trip-chip:disabled { opacity: .4; cursor: not-allowed; }
+.trip-elsewhere { display: contents; }
+.trip-elsewhere[open] .trip-elsewhere-body { flex-basis: 100%; display: grid; gap: 6px; margin-top: 2px; }
+.trip-place { display: flex; flex-wrap: wrap; gap: 6px; position: relative; }
+.trip-place input[type="text"] { flex: 1 1 180px; min-width: 0; }
+.trip-link { font-size: 12px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+.trip-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 10px; }
+.trip-credit { color: var(--muted); font-size: 11px; }
+.trip-credit a { color: inherit; }
+.trip-error { margin: 8px 0 0; color: var(--danger); font-size: 12px; }
+.trip[aria-busy="true"] .trip-card { opacity: .6; }
+
+/* The leave label lives on the event you're travelling to; the marker is just the bar. */
+.leave-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; margin-top: 2px; padding: 0 6px; border-radius: 999px; background: var(--card); color: var(--ink); font-size: 11px; font-weight: 600; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leave-chip[hidden] { display: none; }
+.leave-chip.is-late { color: var(--danger); }
+.plan .leave-chip, .kid-slot .leave-chip { display: flex; width: fit-content; }
+.ev .leave-chip { margin-left: 6px; }
+.leave-mark { padding: 0; font-size: 0; background: none !important; }
+.plans li.leave-mark { display: none; }
+@container day (width >= 720px) {
+  .plans li.leave-mark { display: block; z-index: 0; border-left: 2px dashed var(--line); background: none; }
+}
+.rail-leave { z-index: 0; min-height: 0; border-left: 2px dashed var(--line); }
+
 /* Add event: Manual Entry / Scan Event tabs + document OCR uploader */
 .event-create-column { min-width: 0; }
 .event-mode-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; max-width: 580px; margin: 0 auto 14px; padding: 4px; border: 1px solid var(--track-edge); border-radius: 10px; background: var(--track); }
@@ -821,6 +915,20 @@ body.paint .ocr-extract-btn { width: 100%; min-height: 44px; height: auto; justi
   .ocr-facts .row, .panel .ocr-facts .row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .ocr-result-actions .btn { flex: 1; justify-content: center; }
 }
+
+/* Time boxes that follow the 12h/24h switch (time_entry.js) */
+.time-entry { display: inline-flex; align-items: stretch; gap: 4px; max-width: 100%; }
+body.paint .time-entry .time-entry-part, .time-entry .time-entry-part { flex: none; width: 3.6em; min-width: 0; padding-left: 4px; padding-right: 4px; text-align: center; font-variant-numeric: tabular-nums; }
+.time-entry-colon { align-self: center; }
+.time-entry-colon { color: var(--muted); font-weight: 600; }
+.time-entry-half { display: inline-flex; align-items: stretch; margin-left: 4px; padding: 2px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--card); }
+.time-entry-half[hidden] { display: none; }
+body.paint .time-entry-half button, .time-entry-half button { min-height: 0; height: auto; min-width: 2.8em; padding: 0 10px; border: 0; border-radius: calc(var(--radius-control) - 2px); background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; line-height: 1; cursor: pointer; box-shadow: none; }
+body.paint .time-entry-half button[aria-checked="true"], .time-entry-half button[aria-checked="true"] { background: var(--ink); color: var(--card); }
+.time-entry-half button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.time-entry.is-invalid .time-entry-part { border-color: var(--danger); }
+.when-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.when-pair input[type="date"] { width: auto; }
 
 /* Party fixes: no-family notice on schedule pages; "Save anyway" after a conflict */
 .no-family { display: grid; gap: 10px; justify-items: start; margin-bottom: 16px; }

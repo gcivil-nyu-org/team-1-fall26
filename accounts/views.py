@@ -30,7 +30,13 @@ from events.week import build_today_rail, build_week, local_day_bounds, week_sta
 from syncmily.ratelimit import IP_LIMITS, rate_limit
 
 from . import two_step
-from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
+from .forms import (
+    FamilyHomeForm,
+    InviteMemberForm,
+    SignUpForm,
+    UsernameChangeForm,
+    WorkspaceForm,
+)
 from .models import BriefingSeen, GoogleIdentity, Membership, Workspace
 from .services import (
     GoogleAccountTaken,
@@ -804,6 +810,46 @@ def _back_to_page(request):
     ):
         next_url = reverse("accounts:dashboard")
     return redirect(next_url)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def family_home(request, workspace_id):
+    """A parent sets (or clears) the family's home, where "from home" trips start.
+
+    Kids use it for their leave-by times but never see the address.
+    """
+    workspace = get_object_or_404(
+        family_workspaces(request.user, caregivers_only=True), pk=workspace_id
+    )
+    initial = {
+        "location": workspace.home_location,
+        "latitude": workspace.home_latitude,
+        "longitude": workspace.home_longitude,
+    }
+    if request.method == "POST" and request.POST.get("action") == "clear":
+        workspace.home_location = ""
+        workspace.home_latitude = workspace.home_longitude = None
+        workspace.save(
+            update_fields=["home_location", "home_latitude", "home_longitude"]
+        )
+        messages.success(request, "Family home removed.")
+        return redirect("accounts:family_home", workspace_id=workspace.pk)
+    form = FamilyHomeForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        workspace.home_location = form.cleaned_data["location"].strip()
+        workspace.home_latitude = form.cleaned_data["latitude"]
+        workspace.home_longitude = form.cleaned_data["longitude"]
+        workspace.save(
+            update_fields=["home_location", "home_latitude", "home_longitude"]
+        )
+        messages.success(request, "Family home saved. Trips can now start from home.")
+        return redirect("accounts:family_home", workspace_id=workspace.pk)
+    return render(
+        request,
+        "accounts/family_home.html",
+        {"workspace": workspace, "form": form},
+    )
 
 
 class SignOutView(auth_views.LogoutView):

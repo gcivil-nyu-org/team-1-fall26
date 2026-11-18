@@ -97,3 +97,22 @@ def asset(path):
     """
     digest = _content_hash.__wrapped__(path) if settings.DEBUG else _content_hash(path)
     return f"{static(path)}?v={digest}"
+
+
+@register.filter
+def leave_marker(event):
+    """True when an event gets a live "Leave by" marker on timelines: subway or bus,
+    a map pin, and still to come."""
+    from events.models import Event
+
+    return (
+        event.transport_mode == Event.TransportMode.TRANSIT
+        and event.has_valid_coordinates
+        and event.starts_at > timezone.now()
+    )
+
+
+@register.filter
+def has_person(people, user):
+    """True when `user` is among the member dicts in `people`."""
+    return any(getattr(person.get("user"), "pk", None) == user.pk for person in people)

@@ -16,6 +16,11 @@
                 <h2 id="members-heading" class="sr-only">Members</h2>
                 {% include 'accounts/_family_rows.html' %}
             </section>
+            <section class="panel" aria-labelledby="home-heading">
+                <h2 id="home-heading">Home</h2>
+                <p class="span">{% if workspace.has_home %}{{ workspace.home_location }}. Trips on subway and bus events can start here.{% else %}Set your home so subway and bus trips can start there.{% endif %}</p>
+                <a class="btn btn-quiet" href="{% url 'accounts:family_home' workspace.pk %}">{% if workspace.has_home %}Change home{% else %}Set family home{% endif %}</a>
+            </section>
             {% if color_members %}
                 <section class="panel" aria-labelledby="colours-heading">
                     <h2 id="colours-heading">Colours</h2>
