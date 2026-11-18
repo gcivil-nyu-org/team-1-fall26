@@ -22,7 +22,7 @@ from django.core.cache import cache
 from django.db.models import Q
 from django.utils import timezone
 
-from . import mta
+from . import mta, upstream
 from .access import family_events, family_workspaces
 from .models import Event, TripStart
 
@@ -306,11 +306,12 @@ def request_routes(origin, destination, arrive_by, addresses=("", ""), depart_at
     cached = cache.get(key)
     if cached is not None:
         return cached
+    upstream.check("google-routes")
 
     def point(latitude, longitude):
         return {"location": {"latLng": {"latitude": latitude, "longitude": longitude}}}
 
-    def ask(start, end):
+    def post(start, end):
         response = requests.post(
             ROUTES_URL,
             json={
@@ -326,10 +327,17 @@ def request_routes(origin, destination, arrive_by, addresses=("", ""), depart_at
                 "X-Goog-Api-Key": settings.GOOGLE_MAPS_API_KEY,
                 "X-Goog-FieldMask": ROUTES_FIELDS,
             },
-            timeout=10,
+            timeout=upstream.TIMEOUT,
         )
         response.raise_for_status()
         return response.json().get("routes") or []
+
+    def ask(start, end):
+        try:
+            return post(start, end)
+        except requests.RequestException as error:
+            upstream.record_failure("google-routes", error)
+            raise
 
     start, end = point(*origin), point(*destination)
     routes = ask(start, end)
@@ -429,21 +437,34 @@ def transitous_options(origin, destination, arrive_by, depart_at=None):
     )
     data = cache.get(key)
     if data is None:
-        response = requests.get(
-            TRANSITOUS_URL,
-            params={
-                "fromPlace": f"{origin[0]},{origin[1]}",
-                "toPlace": f"{destination[0]},{destination[1]}",
-                "time": _utc_z(moment),
-                "arriveBy": "false" if depart_at else "true",
-            },
-            headers={"User-Agent": TRANSITOUS_USER_AGENT},
-            timeout=12,
-        )
-        response.raise_for_status()
+        upstream.check("transitous")
+        try:
+            response = _ask_transitous(origin, destination, moment, depart_at)
+        except requests.RequestException as error:
+            upstream.record_failure("transitous", error)
+            raise
         data = response.json()
         cache.set(key, data, PLAN_CACHE_SECONDS)
+    return _transitous_plans(data, arrive_by, depart_at)
 
+
+def _ask_transitous(origin, destination, moment, depart_at):
+    response = requests.get(
+        TRANSITOUS_URL,
+        params={
+            "fromPlace": f"{origin[0]},{origin[1]}",
+            "toPlace": f"{destination[0]},{destination[1]}",
+            "time": _utc_z(moment),
+            "arriveBy": "false" if depart_at else "true",
+        },
+        headers={"User-Agent": TRANSITOUS_USER_AGENT},
+        timeout=upstream.TIMEOUT,
+    )
+    response.raise_for_status()
+    return response
+
+
+def _transitous_plans(data, arrive_by, depart_at):
     plans = []
     for itinerary in (data.get("itineraries") or []) + (data.get("direct") or []):
         start, end = _when(itinerary.get("startTime")), _when(itinerary.get("endTime"))

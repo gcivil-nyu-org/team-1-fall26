@@ -18,6 +18,8 @@ from pathlib import Path
 import requests
 from django.core.cache import cache
 
+from . import upstream
+
 FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F{feed}"
 ALERTS_URL = (
     "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts.json"
@@ -171,20 +173,23 @@ def feed_for_line(line):
     return LINE_FEEDS.get((line or "").upper())
 
 
-def _snapshot(key, url, parse, timeout=10):
+def _snapshot(key, url, parse, timeout=upstream.TIMEOUT):
     """{"data": ..., "fetched": unix time}, refreshed every FEED_CACHE_SECONDS.
 
     When the MTA can't be reached, the last good copy is returned with "stale": True;
-    with no copy at all the request error is raised.
+    with no copy at all the request error is raised. After an outage the feed isn't
+    asked again for upstream.COOL_OFF_SECONDS, so each page load doesn't wait for it.
     """
     entry = cache.get(key)
     if entry and time.time() - entry["fetched"] < FEED_CACHE_SECONDS:
         return entry
     try:
+        upstream.check(key)
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
         entry = {"data": parse(response.content), "fetched": time.time()}
-    except (requests.RequestException, ValueError, IndexError):
+    except (requests.RequestException, ValueError, IndexError) as error:
+        upstream.record_failure(key, error)
         if not entry:
             raise
         return {**entry, "stale": True}
@@ -339,4 +344,4 @@ def parse_alerts(content):
 
 
 def alerts_snapshot():
-    return _snapshot("mta-alerts", ALERTS_URL, parse_alerts, timeout=15)
+    return _snapshot("mta-alerts", ALERTS_URL, parse_alerts, timeout=(3.05, 10))

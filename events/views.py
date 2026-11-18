@@ -777,6 +777,13 @@ def event_trip(request, pk):
     """
     event = get_object_or_404(family_events(request.user), pk=pk)
     if request.method == "POST":
+        # Each new start point means fresh (paid) Routes lookups. People set one a few
+        # times per event, so this only stops a script. Counted per account, not per
+        # IP: a whole class on campus Wi-Fi shares one address.
+        if not allow(request, "trip_start", TRIP_STARTS_PER_HOUR, 3600, key="user"):
+            return too_many_requests(
+                request, "You've changed where trips start a lot. Wait a few minutes."
+            )
         mode = request.POST.get("mode", TripStart.Mode.HERE)
         if mode not in TripStart.Mode.values:
             return HttpResponseBadRequest("Choose where the trip starts.")
@@ -814,6 +821,8 @@ def event_trip(request, pk):
 
 # Searching costs money once Google Places is on; this is plenty for a person typing.
 PLACE_SEARCHES_PER_MINUTE = 60
+# Changing where a trip starts asks Google Routes again (see event_trip).
+TRIP_STARTS_PER_HOUR = 30
 
 
 def _place_search_allowed(user):
