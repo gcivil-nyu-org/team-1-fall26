@@ -930,3 +930,7 @@ body.paint .time-entry-half button[aria-checked="true"], .time-entry-half button
 .when-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .when-pair input[type="date"] { width: auto; }
 
+/* Party fixes: no-family notice on schedule pages; "Save anyway" after a conflict */
+.no-family { display: grid; gap: 10px; justify-items: start; margin-bottom: 16px; }
+.no-family h2 { margin: 0; }
+.overlap-anyway { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-weight: 600; }

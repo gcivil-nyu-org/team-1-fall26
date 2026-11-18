@@ -27,7 +27,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
-from syncmily.ratelimit import rate_limit
+from syncmily.ratelimit import IP_LIMITS, rate_limit
 
 PENDING_KEY = "two_step_pending"
 PENDING_MAX_AGE = 300  # seconds to enter the code after the first step
@@ -79,7 +79,7 @@ def _pending_user(request):
 
 
 @require_http_methods(["GET", "POST"])
-@rate_limit("two_step_verify", 20, 600, key="ip")
+@rate_limit("two_step_verify", *IP_LIMITS["two_step_verify"], key="ip")
 def verify(request):
     pending, user = _pending_user(request)
     if user is None:

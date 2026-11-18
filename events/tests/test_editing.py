@@ -426,6 +426,34 @@ class EventEditingViewTests(TestCase):
         self.event.refresh_from_db()
         self.assertEqual(self.event.title, "Family dinner")
 
+    def test_conflict_offers_save_anyway_and_ticking_it_keeps_both(self):
+        other = Event.objects.create(
+            workspace=self.workspace,
+            created_by=self.owner,
+            title="Soccer practice",
+            starts_at=self.event.starts_at + timedelta(days=1),
+            ends_at=self.event.ends_at + timedelta(days=1),
+        )
+        other.participants.set([self.parent])
+
+        blocked = self.client.post(self.url, self.data)
+        self.assertContains(blocked, 'name="allow_overlap"')
+        self.assertContains(blocked, "Save anyway")
+
+        saved = self.client.post(self.url, {**self.data, "allow_overlap": "on"})
+
+        self.assertEqual(saved.status_code, 302)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.title, "Updated dinner")
+        self.assertTrue(Event.objects.filter(pk=other.pk).exists())
+
+    def test_save_anyway_is_not_offered_without_a_conflict(self):
+        response = self.client.post(
+            self.url, {**self.data, "title": "", "allow_overlap": "on"}
+        )
+
+        self.assertNotContains(response, 'name="allow_overlap"')
+
     def test_posted_identity_and_workspace_fields_cannot_move_event(self):
         other_workspace = Workspace.objects.create(
             name="Other family", primary_admin=self.outsider
