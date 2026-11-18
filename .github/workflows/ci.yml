@@ -1,0 +1,187 @@
+# CI/CD on GitHub Actions (replaced Travis CI in Nov 2026, with the instructor's OK).
+# Every pull request and every push to develop or main runs black, flake8, Django's deployment
+# checklist and the unit tests under coverage.py, then reports coverage to Coveralls.
+# A daily scheduled run tests main. Green pushes deploy:
+#   main    -> production  (Elastic Beanstalk syncmily-env)
+#   develop -> integration (the env named in the EB_INTEGRATION_ENV repository variable, once
+#              the team creates one; until then develop pushes only test)
+# AWS access uses GitHub's short-lived OIDC token to assume the IAM role named below, which only
+# trusts pushes to main and develop of this repository. No AWS keys are stored in GitHub.
+# Actions are pinned to commit SHAs, as in security.yml.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+  schedule:
+    - cron: "0 11 * * *"  # daily, 06:00 New York (07:00 in summer): tests main
+  workflow_dispatch:  # on main this also redeploys production
+
+permissions:
+  contents: read
+
+concurrency:
+  # Pushes and manual runs of a branch share one queue, so a manual redeploy and a merge
+  # can't race. Superseded pull-request runs are cancelled; push runs finish.
+  group: ci-${{ github.event_name == 'workflow_dispatch' && 'push' || github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Lint (black, flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Scheduled runs start from the default branch (develop); the daily run tests main.
+          ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: black --check .
+      - run: flake8 .
+
+  test:
+    name: Tests and coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18  # production runs RDS PostgreSQL 18
+        env:
+          POSTGRES_DB: syncmily
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_DB: syncmily
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - run: pip install --require-hashes -r requirements.txt
+      - run: pip install -r requirements-dev.txt
+      # Throwaway keys made fresh each run (never the production ones), masked in the log.
+      - name: Generate throwaway keys
+        run: |
+          secret="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          fernet="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+          echo "::add-mask::$secret"
+          echo "::add-mask::$fernet"
+          echo "DJANGO_SECRET_KEY=$secret" >> "$GITHUB_ENV"
+          echo "FIELD_ENCRYPTION_KEYS=$fernet" >> "$GITHUB_ENV"
+      - name: Production settings pass Django's deployment checklist
+        run: DJANGO_DEBUG=false DJANGO_HTTPS=true DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend DJANGO_DEFAULT_FROM_EMAIL=no-reply@syncmily.app python manage.py check --deploy --fail-level WARNING
+      - name: Tests under coverage (including chat and cross-household isolation)
+        run: coverage run manage.py test
+      - run: coverage report
+      - run: coverage xml
+      # Pull requests (forks included) and pushes report under this repository's Coveralls
+      # page. Skipped on forks' own pushes and on the daily run (it checks out main while
+      # GitHub labels it develop). A Coveralls outage never fails the build.
+      - name: Report coverage to Coveralls
+        if: github.repository == 'gcivil-nyu-org/team-1-fall26' && github.event_name != 'schedule'
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329  # v2.3.8
+        with:
+          file: coverage.xml
+          format: cobertura
+          fail-on-error: false
+
+  deploy:
+    name: Deploy to Elastic Beanstalk
+    needs: [lint, test]
+    if: >-
+      github.repository == 'gcivil-nyu-org/team-1-fall26' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/main' ||
+       (github.ref == 'refs/heads/develop' && vars.EB_INTEGRATION_ENV != ''))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # lets the job request the OIDC token AWS checks
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      EB_APP: Syncmily
+      EB_ENV: ${{ github.ref == 'refs/heads/main' && 'syncmily-env' || vars.EB_INTEGRATION_ENV }}
+      EB_BUCKET: elasticbeanstalk-us-east-1-431251892869
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      # A re-run of an old run, or a run that queued behind a newer push, must not put an
+      # older commit back on the server: deploy only if this commit is still the branch head.
+      - name: Deploy only the branch head
+        id: head
+        run: |
+          head="$(git ls-remote origin "$GITHUB_REF" | cut -f1)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$GITHUB_REF is now at ${head::7}; skipping the deploy of older ${GITHUB_SHA::7}"
+          fi
+      - if: steps.head.outputs.current == 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::431251892869:role/syncmily-github-deploy
+          role-session-name: gha-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: us-east-1
+      # The bundle holds the committed files only (git archive), the same set `eb deploy`
+      # uploads, so no .git folder or build leftovers reach the server.
+      - name: Upload the bundle and register the version
+        if: steps.head.outputs.current == 'true'
+        run: |
+          label="gha-${GITHUB_SHA::12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          key="github-actions/$label.zip"
+          git archive --format=zip -o bundle.zip HEAD
+          aws s3 cp --only-show-errors bundle.zip "s3://$EB_BUCKET/$key"
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APP" --version-label "$label" \
+            --description "$GITHUB_REF_NAME ${GITHUB_SHA::7}, GitHub Actions run $GITHUB_RUN_ID" \
+            --source-bundle "S3Bucket=$EB_BUCKET,S3Key=$key" > /dev/null
+          echo "LABEL=$label" >> "$GITHUB_ENV"
+      - name: Deploy and wait until the environment runs it
+        if: steps.head.outputs.current == 'true'
+        run: |
+          start="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          aws elasticbeanstalk update-environment \
+            --environment-name "$EB_ENV" --version-label "$LABEL" > /dev/null
+          status=""
+          for _ in $(seq 1 90); do  # up to 30 minutes
+            sleep 20
+            read -r status health running < <(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENV" \
+              --query 'Environments[0].[Status,Health,VersionLabel]' --output text)
+            echo "status=$status health=$health version=$running"
+            [ "$status" = Ready ] && break
+          done
+          echo "--- Elastic Beanstalk events since $start"
+          aws elasticbeanstalk describe-events --environment-name "$EB_ENV" --start-time "$start" \
+            --query 'sort_by(Events, &EventDate)[].[EventDate,Severity,Message]' --output text
+          errors="$(aws elasticbeanstalk describe-events --environment-name "$EB_ENV" \
+            --start-time "$start" --severity ERROR --query 'length(Events)' --output text)"
+          if [ "$status" != Ready ]; then
+            echo "::error::$EB_ENV is still $status after 30 minutes"; exit 1
+          fi
+          if [ "$running" != "$LABEL" ]; then
+            echo "::error::$EB_ENV runs $running, not $LABEL: the deploy failed and rolled back"; exit 1
+          fi
+          if [ "$errors" != 0 ]; then
+            echo "::error::$EB_ENV logged $errors error event(s) during the deploy"; exit 1
+          fi
+          echo "Deployed $LABEL to $EB_ENV (health $health)"
