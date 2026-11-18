@@ -40,16 +40,54 @@ class GoogleCoolOffTests(SimpleTestCase):
         cache.clear()
         self.arrive_by = datetime(2026, 11, 20, 15, 0, tzinfo=NEW_YORK)
 
-    def test_after_a_timeout_google_is_not_asked_again_for_a_minute(self):
+    def trips(self, count):
+        """`count` different trips (different cache keys)."""
+        return [((40.70 + step / 100, -73.99), UNION_SQ) for step in range(count)]
+
+    def test_a_failed_trip_is_not_asked_again_for_a_minute(self):
         with mock.patch.object(
             trip.requests, "post", side_effect=requests.Timeout("slow")
         ) as post:
             with self.assertRaises(requests.Timeout):
                 trip.request_routes(TIMES_SQ, UNION_SQ, self.arrive_by)
-            # Another trip (a different cache key) fails at once, without a request.
+            with self.assertRaises(upstream.RecentlyUnavailable):
+                trip.request_routes(TIMES_SQ, UNION_SQ, self.arrive_by)
+        self.assertEqual(post.call_count, 1)
+
+    def test_one_failing_trip_does_not_switch_google_off_for_everyone(self):
+        with mock.patch.object(
+            trip.requests, "post", return_value=failing_response(500)
+        ):
+            with self.assertRaises(requests.HTTPError):
+                trip.request_routes(TIMES_SQ, UNION_SQ, self.arrive_by)
+        self.assertFalse(upstream.is_cooling_off("google-routes"))
+        # Someone else's trip is still asked.
+        ok = mock.Mock(status_code=200)
+        ok.json.return_value = {"routes": []}
+        ok.raise_for_status.return_value = None
+        with mock.patch.object(trip.requests, "post", return_value=ok) as post:
+            trip.request_routes(UNION_SQ, TIMES_SQ, self.arrive_by)
+        post.assert_called()
+
+    def test_several_different_failures_mean_google_is_down(self):
+        with mock.patch.object(
+            trip.requests, "post", side_effect=requests.Timeout("slow")
+        ) as post:
+            for origin, destination in self.trips(upstream.OUTAGE_THRESHOLD):
+                with self.assertRaises(requests.Timeout):
+                    trip.request_routes(origin, destination, self.arrive_by)
+            self.assertTrue(upstream.is_cooling_off("google-routes"))
             with self.assertRaises(upstream.RecentlyUnavailable):
                 trip.request_routes(UNION_SQ, TIMES_SQ, self.arrive_by)
-        self.assertEqual(post.call_count, 1)
+        self.assertEqual(post.call_count, upstream.OUTAGE_THRESHOLD)
+
+    def test_a_rate_limit_from_google_counts_at_once(self):
+        with mock.patch.object(
+            trip.requests, "post", return_value=failing_response(429)
+        ):
+            with self.assertRaises(requests.HTTPError):
+                trip.request_routes(TIMES_SQ, UNION_SQ, self.arrive_by)
+        self.assertTrue(upstream.is_cooling_off("google-routes"))
 
     def test_a_bad_request_for_one_trip_does_not_switch_google_off(self):
         with mock.patch.object(
@@ -60,16 +98,6 @@ class GoogleCoolOffTests(SimpleTestCase):
                     trip.request_routes(origin, (40.7, -74.0), self.arrive_by)
         self.assertEqual(post.call_count, 2)
         self.assertFalse(upstream.is_cooling_off("google-routes"))
-
-    def test_server_errors_and_rate_limits_start_the_cool_off(self):
-        for status in (500, 503, 429):
-            cache.clear()
-            with mock.patch.object(
-                trip.requests, "post", return_value=failing_response(status)
-            ):
-                with self.assertRaises(requests.HTTPError):
-                    trip.request_routes(TIMES_SQ, UNION_SQ, self.arrive_by)
-            self.assertTrue(upstream.is_cooling_off("google-routes"), status)
 
     def test_uses_a_short_connect_timeout(self):
         payload = {"routes": []}
@@ -89,15 +117,18 @@ class TransitousCoolOffTests(SimpleTestCase):
         cache.clear()
         self.arrive_by = datetime(2026, 11, 20, 15, 0, tzinfo=NEW_YORK)
 
-    def test_after_a_server_error_transitous_is_skipped(self):
+    def test_a_failed_trip_is_skipped_but_others_are_still_asked(self):
         with mock.patch.object(
             trip.requests, "get", return_value=failing_response(503)
         ) as get:
             with self.assertRaises(requests.HTTPError):
                 trip.transitous_options(TIMES_SQ, UNION_SQ, self.arrive_by)
             with self.assertRaises(upstream.RecentlyUnavailable):
+                trip.transitous_options(TIMES_SQ, UNION_SQ, self.arrive_by)
+            with self.assertRaises(requests.HTTPError):
                 trip.transitous_options(UNION_SQ, TIMES_SQ, self.arrive_by)
-        self.assertEqual(get.call_count, 1)
+        self.assertEqual(get.call_count, 2)
+        self.assertFalse(upstream.is_cooling_off("transitous"))
 
 
 class MtaCoolOffTests(SimpleTestCase):
@@ -201,6 +232,17 @@ class TripStartLimitTests(TestCase):
         for step in range(TRIP_STARTS_PER_HOUR):
             self.post_here(40.70 + step / 1000)
         self.client.force_login(self.admin)  # same test client IP
+        self.assertEqual(self.post_here(40.71).status_code, 200)
+
+    @override_settings(RATELIMIT_ENABLED=True)
+    def test_only_new_places_count_toward_the_limit(self):
+        from ..views import TRIP_STARTS_PER_HOUR
+
+        self.client.force_login(self.kid)
+        for _ in range(TRIP_STARTS_PER_HOUR + 5):
+            # Fixed starting places (cached trips) and typos don't use up the limit.
+            self.client.post(self.url, {"mode": "home"})
+            self.client.post(self.url, {"mode": "here", "latitude": "nope"})
         self.assertEqual(self.post_here(40.71).status_code, 200)
 
 

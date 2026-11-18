@@ -778,13 +778,6 @@ def event_trip(request, pk):
     """
     event = get_object_or_404(family_events(request.user), pk=pk)
     if request.method == "POST":
-        # Each new start point means fresh (paid) Routes lookups. People set one a few
-        # times per event, so this only stops a script. Counted per account, not per
-        # IP: a whole class on campus Wi-Fi shares one address.
-        if not allow(request, "trip_start", TRIP_STARTS_PER_HOUR, 3600, key="user"):
-            return too_many_requests(
-                request, "You've changed where trips start a lot. Wait a few minutes."
-            )
         mode = request.POST.get("mode", TripStart.Mode.HERE)
         if mode not in TripStart.Mode.values:
             return HttpResponseBadRequest("Choose where the trip starts.")
@@ -802,6 +795,15 @@ def event_trip(request, pk):
                 and -180 <= longitude <= 180
             ):
                 return HttpResponseBadRequest("That location isn't valid.")
+            # A new place means fresh (paid) Routes lookups; the other modes start
+            # from fixed places whose trips are cached. People pick a place a few
+            # times per event, so this only stops a script. Counted per account,
+            # not per IP: a whole class on campus Wi-Fi shares one address.
+            if not allow(request, "trip_start", TRIP_STARTS_PER_HOUR, 3600, key="user"):
+                return too_many_requests(
+                    request,
+                    "You've changed where trips start a lot. Wait a few minutes.",
+                )
             label = request.POST.get("label", "").strip()[:255]
             fields.update(
                 latitude=latitude,

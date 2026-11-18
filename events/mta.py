@@ -178,7 +178,8 @@ def _snapshot(key, url, parse, timeout=upstream.TIMEOUT):
 
     When the MTA can't be reached, the last good copy is returned with "stale": True;
     with no copy at all the request error is raised. After an outage the feed isn't
-    asked again for upstream.COOL_OFF_SECONDS, so each page load doesn't wait for it.
+    asked again for upstream.COOL_OFF_SECONDS (the address is fixed, so one failure
+    means the feed is down), so each page load doesn't wait for it.
     """
     entry = cache.get(key)
     if entry and time.time() - entry["fetched"] < FEED_CACHE_SECONDS:
@@ -189,7 +190,7 @@ def _snapshot(key, url, parse, timeout=upstream.TIMEOUT):
         response.raise_for_status()
         entry = {"data": parse(response.content), "fetched": time.time()}
     except (requests.RequestException, ValueError, IndexError) as error:
-        upstream.record_failure(key, error)
+        upstream.record_failure(key, error, threshold=1)
         if not entry:
             raise
         return {**entry, "stale": True}

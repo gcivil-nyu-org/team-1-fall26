@@ -47,6 +47,11 @@
         }
         return fetch(box.dataset.tripUrl, options)
             .then(function (response) {
+                if (response.status === 429) {
+                    var limited = new Error("limited");
+                    limited.limited = true;
+                    throw limited;
+                }
                 if (!response.ok) throw new Error("status " + response.status);
                 return response.text();
             })
@@ -55,7 +60,11 @@
                 // A new start point moves this event's marker too.
                 if (body) refreshMarkers(document);
             })
-            .catch(function () { fail(box, "Couldn’t update the trip just now. Try again in a minute."); })
+            .catch(function (error) {
+                fail(box, error && error.limited
+                    ? "You’ve changed where trips start a lot. Wait a few minutes, then try again."
+                    : "Couldn’t update the trip just now. Try again in a minute.");
+            })
             .finally(function () { box.removeAttribute("aria-busy"); });
     }
 

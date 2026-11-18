@@ -316,7 +316,7 @@ def request_routes(origin, destination, arrive_by, addresses=("", ""), depart_at
     cached = cache.get(key)
     if cached is not None:
         return cached
-    upstream.check("google-routes")
+    upstream.check("google-routes", key)
 
     def point(latitude, longitude):
         return {"location": {"latLng": {"latitude": latitude, "longitude": longitude}}}
@@ -346,7 +346,7 @@ def request_routes(origin, destination, arrive_by, addresses=("", ""), depart_at
         try:
             return post(start, end)
         except requests.RequestException as error:
-            upstream.record_failure("google-routes", error)
+            upstream.record_failure("google-routes", error, key)
             raise
 
     start, end = point(*origin), point(*destination)
@@ -447,11 +447,11 @@ def transitous_options(origin, destination, arrive_by, depart_at=None):
     )
     data = cache.get(key)
     if data is None:
-        upstream.check("transitous")
+        upstream.check("transitous", key)
         try:
             response = _ask_transitous(origin, destination, moment, depart_at)
         except requests.RequestException as error:
-            upstream.record_failure("transitous", error)
+            upstream.record_failure("transitous", error, key)
             raise
         data = response.json()
         cache.set(key, data, PLAN_CACHE_SECONDS)
