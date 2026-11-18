@@ -686,12 +686,16 @@ class TripCardTests(TestCase):
         self.assertNotContains(response, "trip-live-dot")
 
     def test_mta_outage_still_plans_and_says_so(self):
-        self.earlier([self.admin])
-        depart = self.start - timedelta(minutes=20)
+        # Live MTA info only applies within LIVE_LEAD of leaving, so the trip leaves
+        # soon whatever time the tests run (a noon meeting was not live before 9:40 AM).
+        soon = self.event(
+            "Soon", self.now + timedelta(minutes=40), UNION_SQ, [self.admin]
+        )
+        depart = soon.starts_at - timedelta(minutes=15)
         with mock.patch.object(
             trip.requests,
             "get",
-            return_value=fake_response(transitous_payload(depart, self.start)),
+            return_value=fake_response(transitous_payload(depart, soon.starts_at)),
         ), mock.patch.object(
             trip.mta, "alerts_snapshot", side_effect=requests.ConnectionError
         ), mock.patch.object(
@@ -699,7 +703,9 @@ class TripCardTests(TestCase):
         ), mock.patch.object(
             trip.mta, "next_departures", side_effect=requests.ConnectionError
         ):
-            response = self.client.get(self.url())
+            response = self.client.post(
+                self.url(soon), {"mode": "here", "latitude": "40.7", "longitude": "-74"}
+            )
 
         self.assertContains(response, 'class="trip-leave"')
         self.assertContains(response, "Live MTA info unavailable")

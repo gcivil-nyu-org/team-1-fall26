@@ -6,13 +6,18 @@ from calendars.sync import sync_connection
 
 class Command(BaseCommand):
     help = (
-        "Import Google Calendar events for every connection. Schedule it, e.g. every 15"
-        " minutes."
+        "Import Google Calendar events for every connection with automatic sync on."
+        " Schedule it, e.g. every 15 minutes."
     )
 
     def handle(self, *args, **options):
         failures = 0
-        connections = CalendarConnection.objects.select_related("user", "workspace")
+        connections = CalendarConnection.objects.filter(auto_sync=True).select_related(
+            "user", "workspace"
+        )
+        paused = CalendarConnection.objects.filter(auto_sync=False).count()
+        if paused:
+            self.stdout.write(f"Skipped {paused} paused connection(s).")
         for connection in connections:
             try:
                 result = sync_connection(connection)
