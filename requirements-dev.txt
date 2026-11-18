@@ -2,4 +2,4 @@
 # GitHub Actions uploads coverage to Coveralls with coverallsapp/github-action (see ci.yml).
 black==26.10.1
 flake8==7.5.0
-coverage==7.17.0
+coverage==7.17.2
