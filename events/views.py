@@ -911,7 +911,7 @@ def change_event_time(request, pk):
 
     try:
         starts_at, ends_at = moment("starts"), moment("ends")
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, OverflowError):
         messages.error(request, "Choose a start and end time.")
         return redirect(detail_url)
     except ValidationError as error:

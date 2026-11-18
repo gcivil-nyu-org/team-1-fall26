@@ -298,6 +298,15 @@ class ChangeTimeClockChangeTests(TestCase):
         )
         self.assertContains(response, "spring forward")
 
+    def test_a_date_out_of_range_is_an_error_not_a_crash(self):
+        response = self.change("9999-12-31", "23:30", "23:45")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Choose a start and end time.")
+        self.event.refresh_from_db()
+        self.assertEqual(
+            self.event.starts_at, datetime(2027, 3, 13, 16, 0, tzinfo=NEW_YORK)
+        )
+
     def test_a_normal_time_on_the_change_day_still_saves(self):
         self.change("2027-03-14", "09:00", "10:00")
         self.event.refresh_from_db()
