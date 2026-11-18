@@ -59,12 +59,13 @@
 
         {% if rail %}
             <h2>My day <span class="span">{{ today|date:"l j F" }} · {% if rail.items %}{{ rail.items|length }} plan{{ rail.items|length|pluralize }}{% else %}nothing planned{% endif %}</span></h2>
-            <div class="kid-rail" aria-label="Today from 7 AM to midnight">
-                {% for hour in rail.hours %}<i class="kid-hour" style="top:{{ hour.top }}%"><span>{% if hour.hour == 0 %}12 AM{% elif hour.hour < 12 %}{{ hour.hour }} AM{% elif hour.hour == 12 %}12 PM{% else %}{{ hour.hour|add:"-12" }} PM{% endif %}</span></i>{% endfor %}
+            <div class="kid-rail" data-rail aria-label="Today from 7 AM to midnight">
+                {% for hour in rail.hours %}<i class="kid-hour" style="top:{{ hour.top }}%" data-at="{{ hour.at|date:'c' }}"><span>{% if hour.hour == 0 %}12 AM{% elif hour.hour < 12 %}{{ hour.hour }} AM{% elif hour.hour == 12 %}12 PM{% else %}{{ hour.hour|add:"-12" }} PM{% endif %}</span></i>{% endfor %}
                 <i class="kid-hour" style="top:100%"><span>12 AM</span></i>
                 {% for item in rail.items %}
+                    {% if item.event|leave_marker %}{% if not item.people or item.people|has_person:request.user %}<span class="leave-mark rail-leave" aria-hidden="true" data-trip-marker="{% url 'events:trip' item.event.pk %}?format=json" data-event-start="{{ item.event.starts_at|date:'c' }}" hidden></span>{% endif %}{% endif %}
                     <a class="kid-slot{% if item.event.is_tentative %} tent{% endif %}" data-hue="{% if item.member %}{{ item.member.hue }}{% else %}{{ me.hue }}{% endif %}"{% if item.member.custom_color %} style="--hue:{{ item.member.custom_color }};top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"{% else %} style="top:{{ item.top }}%;height:{{ item.height }}%;--col:{{ item.column }};--cols:{{ item.columns }}"{% endif %} href="{% url 'events:detail' item.event.pk %}" data-dialog>
-                        <time>{{ item.event.starts_at|clock }}</time> <b>{{ item.event.title }}</b>
+                        <time>{{ item.event.starts_at|clock }}</time> <b>{{ item.event.title }}</b><span class="leave-chip" data-trip-chip hidden></span>
                     </a>
                 {% endfor %}
                 {% if rail.now_top is not None %}<div class="kid-now" style="top:{{ rail.now_top }}%"><span>Now</span></div>{% endif %}

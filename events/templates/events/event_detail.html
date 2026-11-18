@@ -8,9 +8,24 @@
     <div class="split">
         <section class="panel event-card" aria-labelledby="event-heading">
             <h1 id="event-heading" data-sheet-hide>{{ event.title }}</h1>
-            <p class="span when-line">
-                {% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}
-            </p>
+            {% if can_edit %}
+                <details class="when-edit">
+                    <summary class="span when-line" title="Change the time"><span>{% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}</span><span class="when-edit-hint">Change</span></summary>
+                    <form class="when-form" method="post" action="{% url 'events:change_time' event.pk %}">
+                        {% csrf_token %}
+                        <label for="when-starts-date">Starts</label>
+                        <span class="when-pair"><input id="when-starts-date" type="date" name="starts_date" value="{{ starts_input|slice:':10' }}" required><input id="when-starts-time" type="time" name="starts_time" value="{{ starts_input|slice:'11:' }}" aria-label="Start time" required></span>
+                        <label for="when-ends-date">Ends</label>
+                        <span class="when-pair"><input id="when-ends-date" type="date" name="ends_date" value="{{ ends_input|slice:':10' }}" required><input id="when-ends-time" type="time" name="ends_time" value="{{ ends_input|slice:'11:' }}" aria-label="End time" required></span>
+                        <p class="when-tz">In {{ event.timezone_name }}</p>
+                        <button class="btn" type="submit">Save time</button>
+                    </form>
+                </details>
+            {% else %}
+                <p class="span when-line">
+                    {% if event.starts_at|date:"Y-m-d" == event.ends_at|date:"Y-m-d" %}{{ event.starts_at|date:"l j F" }}, {{ event.starts_at|clock }} to {{ event.ends_at|clock }}{% else %}{{ event.starts_at|date:"D j M" }}, {{ event.starts_at|clock }} to {{ event.ends_at|date:"D j M" }}, {{ event.ends_at|clock }}{% endif %}
+                </p>
+            {% endif %}
             <div class="pills" aria-label="Who’s going">
                 {% for member in people %}
                     <span class="pill" translate="no"{% if member.hue %} data-hue="{{ member.hue }}"{% if member.custom_color %} style="--hue: {{ member.custom_color }}"{% endif %}{% endif %}>{{ member.user|person }}</span>
@@ -50,6 +65,11 @@
                         </a>
                     </div>
                 </div>
+                {% if show_trip %}
+                    <div class="trip" data-trip-url="{% url 'events:trip' event.pk %}" data-csrf="{{ csrf_token }}" data-location-script="{% asset 'events/location_autocomplete.js' %}" aria-live="polite">
+                        <p class="trip-loading">Checking the MTA and when to leave…</p>
+                    </div>
+                {% endif %}
 
                     <div class="row"><div class="grow"><b>Getting there</b><small>{{ event.get_transport_mode_display }}</small></div></div>
                 {% endif %}
@@ -103,3 +123,4 @@
     </div>
 {% endtimezone %}
 {% endblock %}
+{% block scripts %}{% endblock %}

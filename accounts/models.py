@@ -1,3 +1,4 @@
+import math
 import uuid
 
 from django.conf import settings
@@ -35,10 +36,23 @@ class Workspace(models.Model):
         db_default=Palette.PRIMARIES,
     )
 
+    # Where trips start when someone chooses "from home". Only parents set it, and kids
+    # use it without seeing the address.
+    home_location = models.CharField(max_length=255, blank=True, default="")
+    home_latitude = models.FloatField(null=True, blank=True)
+    home_longitude = models.FloatField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+
+    @property
+    def has_home(self):
+        return all(
+            isinstance(value, (int, float)) and math.isfinite(value)
+            for value in (self.home_latitude, self.home_longitude)
+        )
 
 
 class Membership(models.Model):

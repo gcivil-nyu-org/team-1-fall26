@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, update_session_auth_hash
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.views import LoginView, PasswordResetView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
@@ -26,10 +27,16 @@ from events.briefing import build_family_briefing, build_kid_briefing
 from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
-from syncmily.ratelimit import rate_limit
+from syncmily.ratelimit import IP_LIMITS, rate_limit
 
 from . import two_step
-from .forms import InviteMemberForm, SignUpForm, UsernameChangeForm, WorkspaceForm
+from .forms import (
+    FamilyHomeForm,
+    InviteMemberForm,
+    SignUpForm,
+    UsernameChangeForm,
+    WorkspaceForm,
+)
 from .models import BriefingSeen, GoogleIdentity, Membership, Workspace
 from .services import (
     GoogleAccountTaken,
@@ -504,7 +511,7 @@ def google_sign_in_enabled():
 
 
 @require_http_methods(["GET", "POST"])
-@rate_limit("signup", 5, 3600, key="ip")
+@rate_limit("signup", *IP_LIMITS["signup"], key="ip")
 def signup(request):
     """Let anyone create an account; they set up or join a family afterwards."""
     if request.user.is_authenticated:
@@ -529,7 +536,7 @@ def signup(request):
     )
 
 
-@method_decorator(rate_limit("login", 30, 600, key="ip"), name="dispatch")
+@method_decorator(rate_limit("login", *IP_LIMITS["login"], key="ip"), name="dispatch")
 class SignInView(LoginView):
     """The password sign-in, which hands off to the code step when two-step sign-in is
     on.
@@ -558,7 +565,10 @@ class SignInView(LoginView):
         return super().form_valid(form)
 
 
-@method_decorator(rate_limit("password_reset", 5, 3600, key="ip"), name="dispatch")
+@method_decorator(
+    rate_limit("password_reset", *IP_LIMITS["password_reset"], key="ip"),
+    name="dispatch",
+)
 class ResetRequestView(PasswordResetView):
     """Email a reset link. Invited members who haven't set a password yet and kids
     without an email have nothing to reset, and the answer is the same either way.
@@ -800,3 +810,56 @@ def _back_to_page(request):
     ):
         next_url = reverse("accounts:dashboard")
     return redirect(next_url)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def family_home(request, workspace_id):
+    """A parent sets (or clears) the family's home, where "from home" trips start.
+
+    Kids use it for their leave-by times but never see the address.
+    """
+    workspace = get_object_or_404(
+        family_workspaces(request.user, caregivers_only=True), pk=workspace_id
+    )
+    initial = {
+        "location": workspace.home_location,
+        "latitude": workspace.home_latitude,
+        "longitude": workspace.home_longitude,
+    }
+    if request.method == "POST" and request.POST.get("action") == "clear":
+        workspace.home_location = ""
+        workspace.home_latitude = workspace.home_longitude = None
+        workspace.save(
+            update_fields=["home_location", "home_latitude", "home_longitude"]
+        )
+        messages.success(request, "Family home removed.")
+        return redirect("accounts:family_home", workspace_id=workspace.pk)
+    form = FamilyHomeForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        workspace.home_location = form.cleaned_data["location"].strip()
+        workspace.home_latitude = form.cleaned_data["latitude"]
+        workspace.home_longitude = form.cleaned_data["longitude"]
+        workspace.save(
+            update_fields=["home_location", "home_latitude", "home_longitude"]
+        )
+        messages.success(request, "Family home saved. Trips can now start from home.")
+        return redirect("accounts:family_home", workspace_id=workspace.pk)
+    return render(
+        request,
+        "accounts/family_home.html",
+        {"workspace": workspace, "form": form},
+    )
+
+
+class SignOutView(auth_views.LogoutView):
+    """Signing out stays a POST (another site can't sign people out). Opening the
+    address directly, from a bookmark or an old link, asks first instead of a bare
+    405 page."""
+
+    http_method_names = ["get", "post", "options"]
+
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect("accounts:login")
+        return render(request, "accounts/sign_out.html")

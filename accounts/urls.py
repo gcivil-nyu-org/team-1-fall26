@@ -79,6 +79,7 @@ urlpatterns = [
     path(
         "workspaces/<uuid:workspace_id>/palette/", views.set_palette, name="set_palette"
     ),
+    path("workspaces/<uuid:workspace_id>/home/", views.family_home, name="family_home"),
     path(
         "workspaces/<uuid:workspace_id>/my-palette/",
         views.set_my_palette,
@@ -118,7 +119,7 @@ urlpatterns = [
     ),
     path(
         "logout/",
-        auth_views.LogoutView.as_view(),
+        views.SignOutView.as_view(),
         name="logout",
     ),
 ]

@@ -36,19 +36,22 @@
                     {% if lane.user %}<span class="dot" aria-hidden="true">{{ lane.user|initial }}</span><span class="lane-name" translate="no">{{ lane.user|person }}</span>{% else %}<span class="dot dot-quiet" aria-hidden="true"></span><span class="lane-name">Whole family</span>{% endif %}
                     <small>{% if lane.slots %}{{ lane.slots|length }} plan{{ lane.slots|length|pluralize }}{% else %}Free{% endif %}</small>
                 </h3>
-                <div class="track"{% if shell.add_event_url %} tabindex="0" role="group" aria-label="{% if lane.user %}{{ lane.user|person }}’s day{% else %}Whole family’s day{% endif %}. Right-click a time, or press Shift+F10, to add an event." aria-keyshortcuts="Shift+F10"{% endif %}>
+                <div class="track" data-rail{% if shell.add_event_url %} tabindex="0" role="group" aria-label="{% if lane.user %}{{ lane.user|person }}’s day{% else %}Whole family’s day{% endif %}. Right-click a time, or press Shift+F10, to add an event." aria-keyshortcuts="Shift+F10"{% endif %}>
                 <ol class="plans">
                     {% for slot in lane.slots %}
+                        {% if slot.event|leave_marker and lane.user == request.user or slot.event|leave_marker and not lane.user %}
+                            <li class="leave-mark" aria-hidden="true" data-trip-marker="{% url 'events:trip' slot.event.pk %}?format=json" data-event-start="{{ slot.event.starts_at|date:'c' }}" style="--col: {{ slot.column }}; --cols: {{ slot.columns }}" hidden></li>
+                        {% endif %}
                         <li style="--top: {{ slot.top|stringformat:'s' }}%; --h: {{ slot.height|stringformat:'s' }}%; --col: {{ slot.column }}; --cols: {{ slot.columns }}">
                             <a class="plan{% if slot.event.is_tentative %} tent{% endif %}{% if slot.clipped %} cont{% endif %}" href="{% url 'events:detail' slot.event.pk %}?{{ timezone_query }}" data-dialog{% if slot.event.source == 'google' %} title="From Google Calendar"{% endif %}>
-                                <b>{{ slot.event.title }}</b><span class="sr-only">, </span>{% if slot.event.requires_transport %}{% include "events/_driver_summary.html" with event=slot.event %}<span class="sr-only">, </span>{% endif %}{% if slot.event.is_tentative %}<span class="maybe">Not confirmed</span><span class="sr-only">, </span>{% endif %}{% if slot.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<time data-clock="{{ slot.time_clock }}">{{ slot.time_label }}</time>
+                                <b>{{ slot.event.title }}</b><span class="sr-only">, </span>{% if slot.event.requires_transport %}{% include "events/_driver_summary.html" with event=slot.event %}<span class="sr-only">, </span>{% endif %}{% if slot.event.is_tentative %}<span class="maybe">Not confirmed</span><span class="sr-only">, </span>{% endif %}{% if slot.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<time data-clock="{{ slot.time_clock }}">{{ slot.time_label }}</time><span class="leave-chip" data-trip-chip hidden></span>
                             </a>
                         </li>
                     {% empty %}
                         <li class="lane-empty">Nothing planned</li>
                     {% endfor %}
                 </ol>
-                {% for hour in day.hours %}<i class="hl" style="top: {{ hour.top|stringformat:'s' }}%" aria-hidden="true"></i>{% endfor %}
+                {% for hour in day.hours %}<i class="hl" style="top: {{ hour.top|stringformat:'s' }}%" data-at="{{ hour.starts_at|date:'c' }}" aria-hidden="true"></i>{% endfor %}
                 <i class="hl" style="top: 100%" aria-hidden="true"></i>
                 {% if day.now_top is not None %}<i class="now" style="top: {{ day.now_top|stringformat:'s' }}%" aria-hidden="true"></i>{% endif %}
                 </div>

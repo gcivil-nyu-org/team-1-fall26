@@ -158,3 +158,33 @@ class SignUpForm(UserCreationForm):
             )
 
         return email
+
+
+class FamilyHomeForm(forms.Form):
+    """Where "from home" trips start. The coordinates come from picking a suggestion."""
+
+    location = forms.CharField(
+        label="Home address",
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Search your address",
+                "autocomplete": "off",
+                "data-location-search": "",
+            }
+        ),
+    )
+    latitude = forms.FloatField(
+        widget=forms.HiddenInput, min_value=-90, max_value=90, required=False
+    )
+    longitude = forms.FloatField(
+        widget=forms.HiddenInput, min_value=-180, max_value=180, required=False
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("latitude") is None or cleaned.get("longitude") is None:
+            raise forms.ValidationError(
+                "Pick your address from the suggestions so trips know where home is."
+            )
+        return cleaned

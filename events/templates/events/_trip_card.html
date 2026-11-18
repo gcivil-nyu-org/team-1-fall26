@@ -1,0 +1,82 @@
+{% load tz paint %}{% comment %}
+    The live leave-by card on an event page. trip.js fetches it from events:trip, swaps
+    it in, refreshes it every five minutes, and posts the start choices back.
+{% endcomment %}{% if status != "unavailable" %}{% timezone event.timezone_name %}
+<div class="trip-card" data-trip-status="{{ status }}"{% if is_live %} data-trip-refresh{% endif %}>
+    {% if status == "ok" %}
+        <p class="trip-kicker">
+            {% if live_dot %}<span class="trip-live-dot" aria-hidden="true"></span>Live · {{ mta.updated_at|clock }}
+            {% elif is_live %}<span class="trip-warn-text">Live MTA info unavailable</span>
+            {% elif not has_subway %}Timetable
+            {% else %}Planned · live from {{ live_from|clock }}{% endif %}
+        </p>
+        <h2 class="trip-leave">{% if leave_in_minutes <= 0 %}Leave now{% else %}Leave {{ leave_by|clock }}{% endif %}</h2>
+        <p class="trip-sub">
+            {% if leave_in_minutes > 0 and leave_in_minutes < 60 %}<span class="trip-soon">in {{ leave_in_minutes }} min</span> · {% endif %}arrive {{ arrive|clock }}{% if late_minutes %} · <span class="trip-late">{{ late_minutes }} min late</span>{% endif %}
+        </p>
+
+        <div class="trip-route" aria-label="Route">
+            {% for segment in plan.segments %}
+                {% if segment.kind == "walk" %}
+                    <span class="trip-walk">{{ segment.minutes }} min</span>
+                {% else %}
+                    <span class="trip-badge is-{{ segment.badge.shape }}" style="--line:{{ segment.badge.color }};--line-text:{{ segment.badge.text_color }}" title="{{ segment.line_name|default:segment.line }}"><span>{{ segment.badge.text }}</span></span>
+                {% endif %}
+                {% if not forloop.last %}<span class="trip-sep" aria-hidden="true">›</span>{% endif %}
+            {% endfor %}
+        </div>
+
+        <ol class="trip-legs">
+            {% for segment in plan.segments %}{% if segment.kind == "ride" %}
+                <li>
+                    <span class="trip-badge is-{{ segment.badge.shape }} is-small" style="--line:{{ segment.badge.color }};--line-text:{{ segment.badge.text_color }}" aria-hidden="true"><span>{{ segment.badge.text }}</span></span>
+                    <div>
+                        <b>{{ segment.from }} → {{ segment.to }}</b>
+                        <small>{% if segment.live_depart %}{{ segment.live_depart|clock }}{% elif segment.depart %}{{ segment.depart|clock }}{% endif %}{% if segment.live_minutes %} · next {% for minutes in segment.live_minutes|slice:":2" %}{% if minutes == 0 %}now{% else %}{{ minutes }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %} min{% endif %}{% for alert in segment.alerts %} · <span class="trip-warn-text">{{ alert.base_kind }}</span>{% endfor %}</small>
+                    </div>
+                </li>
+            {% endif %}{% endfor %}
+        </ol>
+
+        {% if alerts %}
+            <ul class="trip-alerts">
+                {% for alert in alerts %}<li class="trip-alert{% if alert.blocks %} is-blocking{% elif alert.is_planned %} is-planned{% endif %}">{{ alert.header|truncatechars:120 }}</li>{% endfor %}
+            </ul>
+        {% endif %}
+        {% if switched_because %}<p class="trip-note">Rerouted: {{ switched_because }}.</p>{% endif %}
+        {% if clashes_with_previous %}<p class="trip-note trip-warn-text">Means leaving {{ origin.event.title }} early.</p>{% endif %}
+    {% elif status == "needs_location" %}
+        <h2 class="trip-leave">Where from?</h2>
+        <p class="trip-sub">No earlier plan today.</p>
+    {% elif status == "no_route" %}
+        <p class="trip-sub">No subway or bus trip gets there in time.</p>
+    {% else %}
+        <p class="trip-sub">Couldn’t plan the trip. Trying again shortly.</p>
+    {% endif %}
+
+    <div class="trip-start" role="group" aria-label="Start the trip from">
+        <button type="button" class="trip-chip" data-trip-mode="previous" aria-pressed="{% if origin.mode == 'previous' %}true{% else %}false{% endif %}"{% if not previous %} disabled title="No earlier plan with a place today"{% endif %}>{% if previous %}{{ previous.title|truncatechars:22 }}{% else %}Previous event{% endif %}</button>
+        <button type="button" class="trip-chip" data-trip-mode="home" aria-pressed="{% if origin.mode == 'home' %}true{% else %}false{% endif %}"{% if not home %} disabled title="No family home set yet"{% endif %}>Home</button>
+        <details class="trip-elsewhere"{% if status == "needs_location" %} open{% endif %}>
+            <summary class="trip-chip" aria-pressed="{% if origin.mode == 'here' %}true{% else %}false{% endif %}">{% if origin.mode == 'here' %}{{ origin.label|truncatechars:22 }}{% else %}Elsewhere{% endif %}</summary>
+            <div class="trip-elsewhere-body">
+                <button type="button" class="btn btn-quiet" data-trip-locate>Use my location</button>
+                <form class="trip-place" data-trip-start data-location-form autocomplete="off">
+                    <label class="sr-only" for="trip-place-{{ event.pk }}">Search a place to leave from</label>
+                    <input id="trip-place-{{ event.pk }}" name="location" type="text" placeholder="Search a place" data-location-search>
+                    <input type="hidden" name="latitude">
+                    <input type="hidden" name="longitude">
+                    <button type="submit" class="btn btn-quiet">Go</button>
+                </form>
+            </div>
+        </details>
+        {% if can_set_home and not home %}<a class="trip-link" href="{% url 'accounts:family_home' event.workspace_id %}" data-full-page>Set home</a>{% endif %}
+    </div>
+
+    <div class="trip-foot">
+        <a class="trip-link" href="{{ maps_url }}" target="_blank" rel="noopener noreferrer">Open in Google Maps<span class="sr-only"> (opens a new tab)</span></a>
+        {% if status == "ok" %}<span class="trip-credit">{% if provider == "google" %}Google{% else %}<a href="https://transitous.org" target="_blank" rel="noopener noreferrer">Transitous</a>{% endif %} · MTA</span>{% endif %}
+    </div>
+    <p class="trip-error" role="status" hidden></p>
+</div>
+{% endtimezone %}{% endif %}
