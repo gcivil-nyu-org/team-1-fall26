@@ -1,7 +1,8 @@
-"""The trip card stays fast and cheap when a planner or the MTA misbehaves."""
+"""The trip card stays fast and cheap when a planner or the MTA misbehaves, and the
+quick time change reads clock-change times like the Edit event form."""
 
 import time as time_module
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as datetime_timezone
 from unittest import mock
 from zoneinfo import ZoneInfo
 
@@ -201,3 +202,63 @@ class TripStartLimitTests(TestCase):
             self.post_here(40.70 + step / 1000)
         self.client.force_login(self.admin)  # same test client IP
         self.assertEqual(self.post_here(40.71).status_code, 200)
+
+
+class EventZoneTests(SimpleTestCase):
+    def test_marker_labels_use_the_events_zone(self):
+        moment = datetime(2026, 11, 20, 14, 5, tzinfo=datetime_timezone.utc)
+        paris = mock.Mock(timezone_name="Europe/Paris")
+        labels = trip._clock_labels(moment, trip.event_zone(paris))
+        self.assertEqual(labels, {"label": "3:05 PM", "clock": "15:05"})
+
+    def test_a_bad_zone_falls_back_to_the_servers(self):
+        broken = mock.Mock(timezone_name="Not/AZone")
+        self.assertEqual(
+            trip.event_zone(broken), django_timezone.get_current_timezone()
+        )
+
+
+class ChangeTimeClockChangeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = get_user_model().objects.create_user(username="Ana", password="x")
+        cls.workspace = Workspace.objects.create(name="Reyes", primary_admin=cls.admin)
+
+    def setUp(self):
+        starts = datetime(2027, 3, 13, 16, 0, tzinfo=NEW_YORK)
+        self.event = Event.objects.create(
+            created_by=self.admin,
+            workspace=self.workspace,
+            title="Soccer",
+            starts_at=starts,
+            ends_at=starts + timedelta(hours=1),
+            timezone_name="America/New_York",
+        )
+        self.client.force_login(self.admin)
+
+    def change(self, day, start, end):
+        return self.client.post(
+            reverse("events:change_time", args=[self.event.pk]),
+            {
+                "starts_date": day,
+                "starts_time": start,
+                "ends_date": day,
+                "ends_time": end,
+            },
+            follow=True,
+        )
+
+    def test_a_time_in_the_spring_forward_gap_is_refused_and_named(self):
+        response = self.change("2027-03-14", "02:30", "04:00")
+        self.event.refresh_from_db()
+        self.assertEqual(
+            self.event.starts_at, datetime(2027, 3, 13, 16, 0, tzinfo=NEW_YORK)
+        )
+        self.assertContains(response, "spring forward")
+
+    def test_a_normal_time_on_the_change_day_still_saves(self):
+        self.change("2027-03-14", "09:00", "10:00")
+        self.event.refresh_from_db()
+        self.assertEqual(
+            self.event.starts_at, datetime(2027, 3, 14, 9, 0, tzinfo=NEW_YORK)
+        )

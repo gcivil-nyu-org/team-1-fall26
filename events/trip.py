@@ -15,6 +15,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone as datetime_timezone
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 from django.conf import settings
@@ -216,9 +217,18 @@ def _subway_stop(stop):
 # --- where the trip starts ------------------------------------------------------------
 
 
+def event_zone(event):
+    """The event's own time zone (the card shows times in it), else the server's."""
+    try:
+        return ZoneInfo(event.timezone_name)
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
+        return timezone.get_current_timezone()
+
+
 def previous_event(event, user):
-    """The viewer's last located plan that ends before this one starts, same day."""
-    day_start = timezone.localtime(event.starts_at).replace(
+    """The viewer's last located plan that ends before this one starts, same day
+    (the day in the event's own time zone)."""
+    day_start = timezone.localtime(event.starts_at, event_zone(event)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
     candidates = (
@@ -805,13 +815,14 @@ def marker_data(trip):
         "live": trip["live_dot"],
         "late_minutes": trip["late_minutes"],
         "alerts": len(trip["alerts"]),
-        **_clock_labels(trip["leave_by"]),
+        **_clock_labels(trip["leave_by"], event_zone(trip["event"])),
     }
 
 
-def _clock_labels(moment):
-    """12h and 24h labels; strftime("%-I") doesn't work on Windows."""
-    local = timezone.localtime(moment)
+def _clock_labels(moment, zone=None):
+    """12h and 24h labels, in the event's zone like the card; strftime("%-I") doesn't
+    work on Windows."""
+    local = timezone.localtime(moment, zone)
     suffix = "AM" if local.hour < 12 else "PM"
     return {
         "label": f"{local.hour % 12 or 12}:{local.minute:02d} {suffix}",

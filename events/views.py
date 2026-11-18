@@ -35,6 +35,7 @@ from .forms import (
     EventScheduleForm,
     EventTimezoneForm,
     EventWorkspaceForm,
+    _wall_clock_to_aware,
 )
 from .models import Event, TripStart
 from .services.event_ocr import EventOCRError, ocr_available, scan_event_image
@@ -900,13 +901,19 @@ def change_event_time(request, pk):
 
     def moment(prefix):
         # Date and time come as separate boxes (the time follows the 12h/24h switch).
+        # Same reading as the Edit event form: a time in the spring-forward gap is an
+        # error that names the clock change; a fall-back time is its first occurrence.
         when = f"{request.POST[prefix + '_date']}T{request.POST[prefix + '_time']}"
-        return datetime.fromisoformat(when).replace(tzinfo=tz)
+        naive = datetime.fromisoformat(when)
+        return _wall_clock_to_aware(naive.date(), naive.time(), tz)
 
     try:
         starts_at, ends_at = moment("starts"), moment("ends")
     except (KeyError, ValueError):
         messages.error(request, "Choose a start and end time.")
+        return redirect(detail_url)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
         return redirect(detail_url)
     if ends_at <= starts_at:
         messages.error(request, "The end has to be after the start.")
