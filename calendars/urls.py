@@ -12,5 +12,6 @@ urlpatterns = [
     ),
     path("google/callback/", views.google_callback, name="google_callback"),
     path("google/sync/", views.google_sync, name="google_sync"),
+    path("google/auto-sync/", views.google_auto_sync, name="google_auto_sync"),
     path("google/disconnect/", views.google_disconnect, name="google_disconnect"),
 ]

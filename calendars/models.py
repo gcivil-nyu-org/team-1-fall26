@@ -31,6 +31,9 @@ class CalendarConnection(models.Model):
     scopes = models.TextField(blank=True)
     sync_token = models.TextField(blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
+    # When off, the scheduled import skips this calendar; "Import events now"
+    # still works and imported events stay on the schedule.
+    auto_sync = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

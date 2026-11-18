@@ -196,6 +196,39 @@ def google_sync(request):
 
 @login_required
 @require_POST
+def google_auto_sync(request):
+    connection = get_object_or_404(
+        CalendarConnection,
+        user=request.user,
+        provider=CalendarConnection.Provider.GOOGLE,
+    )
+    choice = request.POST.get("auto_sync")
+    if choice not in ("on", "off"):
+        messages.error(request, "Choose whether automatic sync is on or paused.")
+    else:
+        connection.auto_sync = choice == "on"
+        connection.save(update_fields=["auto_sync", "updated_at"])
+        if connection.auto_sync:
+            messages.success(
+                request,
+                "Automatic sync is on. Google Calendar changes come in every 15"
+                " minutes.",
+            )
+        else:
+            messages.success(
+                request,
+                "Automatic sync is paused. Use Import events now when you want an"
+                " update.",
+            )
+    if connection.workspace_id:
+        return redirect(
+            "accounts:workspace_detail", workspace_id=connection.workspace_id
+        )
+    return redirect("events:choose_workspace")
+
+
+@login_required
+@require_POST
 def google_disconnect(request):
     connection = get_object_or_404(
         CalendarConnection,
