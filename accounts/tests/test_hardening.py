@@ -297,6 +297,48 @@ class PasswordResetTests(TestCase):
             User.objects.get(username="maya").check_password("GreenKite2027!")
         )
 
+    def test_google_sign_ups_can_set_a_password(self):
+        # They have no Syncmily password; Django's form used to skip them silently.
+        user = User(username="googler", email="googler@example.com")
+        user.set_unusable_password()
+        user.save()
+        response = self.client.post(
+            reverse("accounts:password_reset"), {"email": "Googler@Example.com"}
+        )
+        self.assertRedirects(response, reverse("accounts:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        self.assertIn("You signed up with Google", body)
+        link = next(word for word in body.split() if "/accounts/reset/" in word)
+        response = self.client.get(link, follow=True)
+        response = self.client.post(
+            response.request["PATH_INFO"],
+            {"new_password1": "GreenKite2027!", "new_password2": "GreenKite2027!"},
+        )
+        self.assertRedirects(response, reverse("accounts:password_reset_complete"))
+        self.assertTrue(
+            User.objects.get(username="googler").check_password("GreenKite2027!")
+        )
+
+    def test_pending_invites_still_get_no_reset_mail(self):
+        user = User(username="Kid1", email="pending@example.com", is_active=False)
+        user.set_unusable_password()
+        user.save()
+        self.client.post(
+            reverse("accounts:password_reset"), {"email": "pending@example.com"}
+        )
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_password_users_keep_the_usual_wording(self):
+        User.objects.create_user(
+            username="maya", email="maya@example.com", password=PASSWORD
+        )
+        self.client.post(
+            reverse("accounts:password_reset"), {"email": "maya@example.com"}
+        )
+        self.assertIn("reset the password for maya", mail.outbox[0].body)
+        self.assertNotIn("signed up with Google", mail.outbox[0].body)
+
     def test_unknown_email_gets_the_same_answer_and_no_mail(self):
         response = self.client.post(
             reverse("accounts:password_reset"), {"email": "nobody@example.com"}

@@ -33,6 +33,7 @@ from . import two_step
 from .forms import (
     FamilyHomeForm,
     InviteMemberForm,
+    ResetRequestForm,
     SignUpForm,
     UsernameChangeForm,
     WorkspaceForm,
@@ -574,6 +575,7 @@ class ResetRequestView(PasswordResetView):
     without an email have nothing to reset, and the answer is the same either way.
     """
 
+    form_class = ResetRequestForm
     template_name = "accounts/password_reset_form.html"
     email_template_name = "accounts/emails/password_reset.txt"
     subject_template_name = "accounts/emails/password_reset_subject.txt"
