@@ -9,6 +9,9 @@
     <section class="panel">
         <form method="post">
             {% csrf_token %}
+            {% if form.submission_token %}{{ form.submission_token }}{% endif %}
+            {% if form.version %}{{ form.version }}{% endif %}
+            {% if conflict_message %}<div class="form-error" role="alert">{{ conflict_message }}</div>{% endif %}
             {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
             <div class="field">
                 <label for="{{ form.title.id_for_label }}">Name</label>

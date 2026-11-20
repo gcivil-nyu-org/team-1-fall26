@@ -14,6 +14,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 choices=[("normal", "Normal"), ("high", "High")],
                 default="normal",
+                db_default="normal",
                 max_length=6,
             ),
         ),

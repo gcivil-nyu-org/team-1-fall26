@@ -15,6 +15,7 @@ omit = [
     "*/tests/*",
     ".venv/*",
     "manage.py",
+    "scripts/*",
     "syncmily/settings.py",
     "syncmily/wsgi.py",
     "syncmily/asgi.py",

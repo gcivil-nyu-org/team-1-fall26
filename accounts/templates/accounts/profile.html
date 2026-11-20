@@ -43,7 +43,12 @@
                 </form>
             </details>
             {% if request.user.email %}
-                <div class="row"><div class="grow"><b>Email</b><small translate="no">{{ request.user.email }}</small></div></div>
+                <div class="row setting-row">
+                    <div class="grow"><b>Email</b><small><span translate="no">{{ request.user.email }}</span>{% if not email_verified %}. Not confirmed yet: open the link we emailed you. Until then you can’t invite family members.{% endif %}</small></div>
+                    {% if not email_verified %}
+                        <form method="post" action="{% url 'accounts:resend_verification' %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Send a new link</button></form>
+                    {% endif %}
+                </div>
             {% endif %}
             {% if google_sign_in or google_identity %}
                 <div class="row setting-row">
@@ -56,6 +61,7 @@
                         <form method="post" action="{% url 'accounts:google_connect' %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Connect Google</button></form>
                     {% endif %}
                 </div>
+                {% if google_revoked %}<p class="note">Google sign-in turned off when your password changed. Connect Google again if it’s yours.</p>{% endif %}
                 {% if google_identity and not request.user.has_usable_password %}<p class="note">Set a password above before turning off Google sign-in, so you can still get in.</p>{% endif %}
             {% endif %}
         </section>

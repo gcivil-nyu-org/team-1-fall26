@@ -10,24 +10,29 @@ the secrets
 and throttles wrong guesses per device.
 """
 
+import logging
 import time
 from io import BytesIO
 
 import qrcode
 import qrcode.image.svg
 from django.contrib import messages
-from django.contrib.sessions.models import Session
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.utils import timezone
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
+from django_otp import login as otp_login
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
-from syncmily.ratelimit import IP_LIMITS, rate_limit
+from syncmily import seclog
+from syncmily.ratelimit import rate_limit
+
+from .forms import TwoStepCodeForm, TwoStepEnrolForm
+from .otp_storage import code_hashes, hash_code
+from .services import end_user_sessions
 
 PENDING_KEY = "two_step_pending"
 PENDING_MAX_AGE = 300  # seconds to enter the code after the first step
@@ -51,20 +56,40 @@ def begin(request, user, backend, next_url=""):
     return redirect("accounts:two_step_verify")
 
 
-def _verify(user, code):
-    """True if the code is a current app code or an unused backup code (which it then
-    uses up).
-    """
-    code = "".join(code.split())
-    if not code:
+def _use_backup_code(device, code):
+    """django-otp's StaticDevice.verify_token, but matching the stored hash of the
+    code (accounts/otp_storage.py) instead of the code itself."""
+    if not device.verify_is_allowed()[0]:
         return False
+    match = device.token_set.filter(token__in=code_hashes(code)).first()
+    if match is None:
+        device.throttle_increment()
+        return False
+    match.delete()
+    device.throttle_reset(commit=False)
+    device.set_last_used_timestamp(commit=False)
+    device.save()
+    return True
+
+
+def _verify(user, code):
+    """The device that accepted the code (a current app code, or an unused backup
+    code, which it then uses up), or None."""
+    code = "".join((code or "").split())
+    if not code:
+        return None
     for device in TOTPDevice.objects.filter(user=user, confirmed=True):
         if device.verify_is_allowed()[0] and device.verify_token(code):
-            return True
+            return device
     for device in StaticDevice.objects.filter(user=user, confirmed=True):
-        if device.verify_token(code.lower()):
-            return True
-    return False
+        if _use_backup_code(device, code.lower()):
+            return device
+    return None
+
+
+def _posted_code(request):
+    form = TwoStepCodeForm(request.POST)
+    return form.cleaned_data["code"] if form.is_valid() else ""
 
 
 def _pending_user(request):
@@ -79,7 +104,7 @@ def _pending_user(request):
 
 
 @require_http_methods(["GET", "POST"])
-@rate_limit("two_step_verify", *IP_LIMITS["two_step_verify"], key="ip")
+@rate_limit("two_step_verify")
 def verify(request):
     pending, user = _pending_user(request)
     if user is None:
@@ -88,9 +113,20 @@ def verify(request):
 
     error = ""
     if request.method == "POST":
-        if _verify(user, request.POST.get("code", "")):
+        device = _verify(user, _posted_code(request))
+        if device is not None:
             request.session.pop(PENDING_KEY, None)
             login(request, user, backend=pending["backend"])
+            # Marks the session as verified for django-otp (the admin checks it).
+            otp_login(request, device)
+            if isinstance(device, StaticDevice):
+                seclog.event(
+                    "backup_code_used",
+                    request=request,
+                    user=user,
+                    outcome="success",
+                    codes_left=backup_codes_left(user),
+                )
             next_url = pending.get("next") or ""
             if not url_has_allowed_host_and_scheme(
                 next_url, {request.get_host()}, request.is_secure()
@@ -98,6 +134,13 @@ def verify(request):
                 next_url = reverse("accounts:dashboard")
             return redirect(next_url)
         pending["attempts"] += 1
+        seclog.event(
+            "two_step_code_failed",
+            request=request,
+            user=user,
+            outcome="failure",
+            attempts=pending["attempts"],
+        )
         if pending["attempts"] >= MAX_ATTEMPTS:
             request.session.pop(PENDING_KEY, None)
             messages.error(request, "Too many wrong codes. Sign in again.")
@@ -124,29 +167,24 @@ def _end_other_sessions(request):
     can't keep going without a code.
     """
     request.session.cycle_key()
-    current = request.session.session_key
-    stale = [
-        session.session_key
-        for session in Session.objects.filter(expire_date__gt=timezone.now()).exclude(
-            session_key=current
-        )
-        if str(session.get_decoded().get("_auth_user_id")) == str(request.user.pk)
-    ]
-    Session.objects.filter(session_key__in=stale).delete()
+    end_user_sessions(request.user, keep_session_key=request.session.session_key)
 
 
 def _new_backup_codes(user):
+    """Make 10 new backup codes and return them for showing once. Only their hashes
+    are stored (finding otp-secrets-plaintext)."""
     StaticDevice.objects.filter(user=user).delete()
     device = StaticDevice.objects.create(user=user, name="Backup codes", confirmed=True)
     codes = [StaticToken.random_token() for _ in range(BACKUP_CODE_COUNT)]
     StaticToken.objects.bulk_create(
-        StaticToken(device=device, token=code) for code in codes
+        StaticToken(device=device, token=hash_code(code)) for code in codes
     )
     return codes
 
 
 @login_required
 @require_http_methods(["GET", "POST"])
+@rate_limit("two_step_manage")
 def setup(request):
     if is_enabled(request.user):
         return redirect("accounts:profile")
@@ -161,19 +199,31 @@ def setup(request):
 
     error = ""
     if request.method == "POST":
-        code = "".join(request.POST.get("code", "").split())
-        if code and device.verify_is_allowed()[0] and device.verify_token(code):
+        form = TwoStepEnrolForm(request.POST)
+        code = form.cleaned_data["code"] if form.is_valid() else ""
+        password = form.cleaned_data.get("password", "") if form.is_valid() else ""
+        if not (code and device.verify_is_allowed()[0] and device.verify_token(code)):
+            error = (
+                "That code didn’t work. Make sure your phone’s time is set"
+                " automatically, then try the newest code."
+            )
+        elif not request.user.has_usable_password():
+            error = (
+                "Set a password on your profile first. Two-step sign-in asks for it"
+                " before it turns on."
+            )
+        elif not request.user.check_password(password):
+            # A live session alone must not enrol an authenticator (AUTH-13).
+            error = "Enter your current password to turn on two-step sign-in."
+        else:
             device.confirmed = True
             device.save(update_fields=["confirmed"])
+            seclog.event("two_step_enabled", request=request, outcome="success")
             _end_other_sessions(request)
             codes = _new_backup_codes(request.user)
             return render(
                 request, "accounts/two_step_backup_codes.html", {"codes": codes}
             )
-        error = (
-            "That code didn’t work. Make sure your phone’s time is set automatically,"
-            " then try the newest code."
-        )
 
     secret = device.config_url.split("secret=")[1].split("&")[0]
     return render(
@@ -189,16 +239,24 @@ def setup(request):
 
 @login_required
 @require_POST
+@rate_limit("two_step_manage")
 def disable(request):
-    if _verify(request.user, request.POST.get("code", "")):
+    if _verify(request.user, _posted_code(request)):
         TOTPDevice.objects.filter(user=request.user).delete()
         StaticDevice.objects.filter(user=request.user).delete()
+        seclog.event("two_step_disabled", request=request, outcome="success")
         messages.success(
             request,
             "Two-step sign-in is off. You’ll sign in with just your password or"
             " Google.",
         )
     else:
+        seclog.event(
+            "two_step_disable_failed",
+            request=request,
+            outcome="failure",
+            level=logging.WARNING,
+        )
         messages.error(
             request, "That code didn’t work, so two-step sign-in is still on."
         )
@@ -207,14 +265,16 @@ def disable(request):
 
 @login_required
 @require_POST
+@rate_limit("two_step_manage")
 def new_backup_codes(request):
     if not is_enabled(request.user):
         return redirect("accounts:profile")
-    if not _verify(request.user, request.POST.get("code", "")):
+    if not _verify(request.user, _posted_code(request)):
         messages.error(
             request, "That code didn’t work, so your backup codes are unchanged."
         )
         return redirect("accounts:profile")
+    seclog.event("backup_codes_renewed", request=request, outcome="success")
     return render(
         request,
         "accounts/two_step_backup_codes.html",

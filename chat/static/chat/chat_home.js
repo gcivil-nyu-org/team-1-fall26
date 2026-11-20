@@ -254,8 +254,18 @@
                 return;
             }
 
-            status.textContent = "Reconnecting…";
             clearTimeout(offlineTimer);
+
+            if (event.code === 4429) {
+                // The server allows 5 chat windows per person. Wait a minute, then try again.
+                status.textContent = "Too many chat windows are open. Close one and this one will reconnect.";
+                reconnectTimer = setTimeout(connect, 60000);
+                return;
+            }
+
+            // Any other close, including 4400 (too many bad frames) and the server's
+            // hourly socket limit, reconnects with backoff.
+            status.textContent = "Reconnecting…";
             offlineTimer = setTimeout(function () {
                 status.textContent = "Can’t reach chat right now. It will reconnect on its own when you’re back online.";
             }, 15000);

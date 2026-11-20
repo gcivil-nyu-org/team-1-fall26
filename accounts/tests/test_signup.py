@@ -1,6 +1,8 @@
+import threading
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -57,10 +59,22 @@ class SignUpTests(TestCase):
             username="Maya", email="maya@example.com", password=PASSWORD
         )
 
-        self.assertEqual(self.sign_up(email="other@example.com").status_code, 200)
-        response = self.sign_up(username="maya2")
-        self.assertContains(response, "already exists")
+        # Spec 10.2: a taken username or address answers like a fresh sign-up (302)
+        # and creates nothing; the address owner gets an email instead.
+        with self.captureOnCommitCallbacks(execute=True):
+            taken_name = self.sign_up(email="other@example.com")
+        with self.captureOnCommitCallbacks(execute=True):
+            taken_email = self.sign_up(username="maya2")
+        self.assertEqual(taken_name.status_code, 302)
+        self.assertEqual(taken_email.status_code, 302)
         self.assertEqual(get_user_model().objects.count(), 1)
+        for worker in threading.enumerate():
+            if worker is not threading.current_thread() and worker.daemon:
+                worker.join(2)
+        self.assertEqual(
+            sorted(message.to[0] for message in mail.outbox),
+            ["maya@example.com", "other@example.com"],
+        )
 
     def test_signed_in_visitors_go_to_their_dashboard(self):
         user = get_user_model().objects.create_user(username="maya", password=PASSWORD)

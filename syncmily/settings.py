@@ -5,6 +5,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from syncmily import limits
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
@@ -24,7 +26,10 @@ INSTALLED_APPS = [
     "events.apps.EventsConfig",
     "chat.apps.ChatConfig",
     "calendars.apps.CalendarsConfig",
-    "django.contrib.admin",
+    # The project package: shared template tags (safety), models and commands.
+    "syncmily.apps.SyncmilyConfig",
+    # The admin, with staff two-step sign-in (accounts/admin_site.py).
+    "accounts.admin_config.SyncmilyAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -38,11 +43,18 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "syncmily.health.HealthCheckMiddleware",
+    "syncmily.middleware.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "syncmily.middleware.RequestBodyLimitMiddleware",
+    "syncmily.middleware.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Marks sessions that passed the two-step code; the admin requires it.
+    "django_otp.middleware.OTPMiddleware",
+    "syncmily.middleware.WriteRateLimitMiddleware",
+    "syncmily.middleware.PrivatePageCacheMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Last, so it sees every login attempt and can answer with the lockout page.
@@ -78,6 +90,34 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        # Connections are reused through a pool (OPTIONS["pool"]). Django requires
+        # CONN_MAX_AGE = 0 with a pool. Under ASGI each request runs in its own thread,
+        # so per-thread persistent connections pile up until Postgres refuses new ones.
+        "CONN_MAX_AGE": 0,
+        "OPTIONS": {
+            # One shared pool per process. A request that waits more than 5 s for a
+            # free connection gets a 503 with Retry-After (syncmily.errors.handler500).
+            # Keep max_size times the number of processes below the RDS max_connections.
+            "pool": {
+                # 0: open connections on demand, so management commands and a fresh
+                # setup without the database yet do not retry in the background.
+                "min_size": 0,
+                "max_size": int(os.environ.get("POSTGRES_POOL_MAX_SIZE", "20")),
+                "timeout": 5,
+                "max_idle": 300,
+            },
+            "connect_timeout": 5,
+            # Cap one statement at 25 s and a lock wait at 5 s, so a stuck query or a
+            # blocked migration cannot stall every request.
+            "options": "-c statement_timeout=25000 -c lock_timeout=5000",
+            # Verify the RDS certificate and host name. libpq ignores sslmode on a Unix
+            # socket, so local and CI runs that connect over a socket still work.
+            "sslmode": os.environ.get("POSTGRES_SSLMODE", "verify-full"),
+            "sslrootcert": os.environ.get(
+                "POSTGRES_SSLROOTCERT",
+                str(BASE_DIR / "syncmily" / "certs" / "rds-global-bundle.pem"),
+            ),
+        },
     },
 }
 
@@ -108,10 +148,11 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
-# Turn on once the site is served over HTTPS. nginx on the instance terminates
-# TLS and tells Django the original scheme in X-Forwarded-Proto
+# On unless DJANGO_HTTPS=false, so a missing variable fails closed. Local runs and the
+# test job set DJANGO_HTTPS=false. nginx on the instance terminates TLS and tells
+# Django the original scheme in X-Forwarded-Proto
 # (.platform/hooks/postdeploy/03_https.sh).
-if os.environ.get("DJANGO_HTTPS", "false").lower() == "true":
+if os.environ.get("DJANGO_HTTPS", "true").lower() != "false":
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
@@ -140,11 +181,45 @@ RATELIMIT_ENABLED = (
     == "true"
 )
 
+# Logging (spec 10.2): one key=value line per record on stdout, with the request id,
+# user id, client address and route. syncmily.logs cleans every message, so no value can
+# forge a line or leak a token. Quiet under `manage.py test` unless LOG_LEVEL is set.
+LOG_LEVEL = os.environ.get(
+    "DJANGO_LOG_LEVEL", "CRITICAL" if "test" in sys.argv[1:2] else "INFO"
+).upper()
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"context": {"()": "syncmily.logs.ContextFilter"}},
+    "formatters": {
+        "keyvalue": {
+            "()": "syncmily.logs.SafeFormatter",
+            "format": (
+                "time=%(asctime)s level=%(levelname)s logger=%(name)s "
+                "request_id=%(request_id)s user_id=%(user_id)s "
+                "client_ip=%(client_ip)s route=%(route)s "
+                "event=%(event)s outcome=%(outcome)s msg=%(message)s"
+            ),
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "keyvalue",
+            "filters": ["context"],
+            "level": LOG_LEVEL,
+        }
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+}
+
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=30)
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_TEMPLATE = "accounts/locked_out.html"
+# Record at most a username's length, so a huge value is a normal failure (H-FUZZ-04).
+AXES_USERNAME_CALLABLE = "syncmily.auth_backends.axes_username"
 # nginx on the instance appends the client's address to X-Forwarded-For, so the
 # right-most entry is the one a visitor cannot forge.
 AXES_IPWARE_META_PRECEDENCE_ORDER = ["HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"]
@@ -157,10 +232,11 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:dashboard"
 LOGOUT_REDIRECT_URL = "accounts:login"
 
-# Invitation emails print to the terminal until a real mail server is set up.
+# Real mail by default. A missing variable must never write invite and reset links to
+# the server log. For local work, set DJANGO_EMAIL_BACKEND to the console backend.
 EMAIL_BACKEND = os.environ.get(
     "DJANGO_EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend",
+    "django.core.mail.backends.smtp.EmailBackend",
 )
 # A bare address: Elastic Beanstalk's env file is sourced by a shell in the
 # deploy hooks, where "<" and ">" would break it. The display name is added here.
@@ -179,6 +255,46 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_TIMEOUT = 10
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# The default cache holds chat counters, upstream-down flags and cached trips. It is
+# one local-memory cache per process. HTTP rate limits do not live here (they use the
+# RateCounter table), and the cap leaves room for every key a busy day creates.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "OPTIONS": {"MAX_ENTRIES": 10000, "CULL_FREQUENCY": 10},
+    },
+}
+
+# Errors (syncmily/errors.py): the CSRF failure page is branded and never shows why.
+CSRF_FAILURE_VIEW = "syncmily.errors.csrf_failure"
+
+# Content Security Policy. nginx sends the same string (03_https.sh) and a test keeps
+# the two equal; the middleware adds it to any response that skips nginx. The primary
+# host is the first SITE_DOMAINS entry, else the first allowed host.
+_site_domains = [
+    d.strip() for d in os.environ.get("SITE_DOMAINS", "").split(",") if d.strip()
+]
+CSP_PRIMARY_HOST = (_site_domains or ALLOWED_HOSTS or ["localhost"])[0]
+CSP_POLICY = (
+    "default-src 'none'; script-src 'self'; "
+    "style-src 'self' https://fonts.googleapis.com; "
+    "style-src-elem 'self' https://fonts.googleapis.com "
+    "'sha256-NmBAHKlY279x2mY0mfnOU0anE9pVNdbkCyLPbCcMu6g='; "
+    "style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; "
+    "img-src 'self' data: blob:; "
+    "connect-src 'self' wss://$PRIMARY https://photon.komoot.io; manifest-src 'self'; "
+    "form-action 'self' https://accounts.google.com; frame-ancestors 'none'; "
+    "base-uri 'self'; object-src 'none'; report-uri /csp-report/; report-to csp"
+).replace("$PRIMARY", CSP_PRIMARY_HOST)
+# A trial deploy sends the policy as Content-Security-Policy-Report-Only.
+CSP_REPORT_ONLY = os.environ.get("CSP_REPORT_ONLY", "").lower() == "true"
+
+# Request size limits: the numbers live in syncmily/limits.py.
+DATA_UPLOAD_MAX_MEMORY_SIZE = limits.DATA_UPLOAD_MAX_MEMORY_SIZE
+DATA_UPLOAD_MAX_NUMBER_FIELDS = limits.DATA_UPLOAD_MAX_NUMBER_FIELDS
+DATA_UPLOAD_MAX_NUMBER_FILES = limits.DATA_UPLOAD_MAX_NUMBER_FILES
+FILE_UPLOAD_MAX_MEMORY_SIZE = limits.FILE_UPLOAD_MAX_MEMORY_SIZE
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")

@@ -16,6 +16,15 @@ User = get_user_model()
 PASSWORD = "TestPassword123!"
 
 
+def wait_for_mail():
+    """Account emails leave from a worker thread (accounts/mail.py)."""
+    import threading
+
+    for worker in threading.enumerate():
+        if worker is not threading.current_thread() and worker.daemon:
+            worker.join(2)
+
+
 def make_family(admin_name="Parent1"):
     admin = User.objects.create_user(username=admin_name, password=PASSWORD)
     workspace = Workspace.objects.create(name="Reyes family", primary_admin=admin)
@@ -242,34 +251,50 @@ class PendingInviteSignupTests(TestCase):
             email="mateo@example.com",
             role=Membership.Role.PARENT,
         )
-        response = self.client.post(
-            reverse("accounts:signup"),
-            {
-                "username": "mateo",
-                "email": "Mateo@example.com",
-                "password1": "BlueKite2026!",
-                "password2": "BlueKite2026!",
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "invite link")
-        self.assertNotContains(response, "Sign in instead")
+        mail.outbox.clear()
+        # Spec 10.2: sign-up answers like a fresh one and tells the address owner by
+        # email, so the page no longer reveals the pending invite.
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("accounts:signup"),
+                {
+                    "username": "mateo",
+                    "email": "Mateo@example.com",
+                    "password1": "BlueKite2026!",
+                    "password2": "BlueKite2026!",
+                },
+            )
+        self.assertEqual(response.status_code, 302)
         self.assertFalse(User.objects.filter(username="mateo").exists())
+        wait_for_mail()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["mateo@example.com"])
+        self.assertIn("invite link", mail.outbox[0].body)
+        self.assertIn("/accounts/invite/", mail.outbox[0].body)
+        self.assertNotIn("Sign in instead", mail.outbox[0].body)
 
     def test_active_account_keeps_the_sign_in_message(self):
         User.objects.create_user(
             username="maya", email="maya@example.com", password=PASSWORD
         )
-        response = self.client.post(
-            reverse("accounts:signup"),
-            {
-                "username": "maya2",
-                "email": "maya@example.com",
-                "password1": "BlueKite2026!",
-                "password2": "BlueKite2026!",
-            },
-        )
-        self.assertContains(response, "Sign in instead")
+        # Spec 10.2: "Sign in instead" moves from the page into an email to the
+        # account owner; the page answers like a fresh sign-up.
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("accounts:signup"),
+                {
+                    "username": "maya2",
+                    "email": "maya@example.com",
+                    "password1": "BlueKite2026!",
+                    "password2": "BlueKite2026!",
+                },
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(User.objects.filter(username="maya2").exists())
+        wait_for_mail()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["maya@example.com"])
+        self.assertIn("Sign in instead", mail.outbox[0].body)
 
 
 class PasswordResetTests(TestCase):
@@ -393,7 +418,11 @@ class SessionsAfterTwoStepTests(TestCase):
 
         device = TOTPDevice.objects.get(user=user)
         old_key = self.client.session.session_key
-        self.client.post(reverse("accounts:two_step_setup"), {"code": app_code(device)})
+        # Enrolment needs the current password too (finding factor-enrol-no-reauth).
+        self.client.post(
+            reverse("accounts:two_step_setup"),
+            {"code": app_code(device), "password": PASSWORD},
+        )
         self.assertNotEqual(self.client.session.session_key, old_key)
         self.assertEqual(Session.objects.count(), 1)
         response = other.get(reverse("accounts:profile"))

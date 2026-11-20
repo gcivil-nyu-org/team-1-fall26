@@ -215,7 +215,10 @@ class TwoStepSetupTests(TestCase):
         self.client.get(self.setup_url)
         device = TOTPDevice.objects.get(user=self.user)
 
-        response = self.client.post(self.setup_url, {"code": app_code(device)})
+        # Enrolment needs the current password too (finding factor-enrol-no-reauth).
+        response = self.client.post(
+            self.setup_url, {"code": app_code(device), "password": PASSWORD}
+        )
 
         self.assertTrue(two_step.is_enabled(self.user))
         self.assertEqual(len(response.context["codes"]), two_step.BACKUP_CODE_COUNT)

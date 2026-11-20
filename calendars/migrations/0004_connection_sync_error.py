@@ -21,6 +21,7 @@ class Migration(migrations.Migration):
                     ("failed", "The import failed"),
                 ],
                 default="",
+                db_default="",
                 max_length=20,
             ),
         ),

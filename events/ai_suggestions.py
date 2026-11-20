@@ -8,6 +8,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import requests
 from django.utils import timezone
 
+from syncmily.text import clean_visible_text, normalize_text, truncate_graphemes
+
+from . import upstream
+
 # Groq API configuration
 API_URL = "https://api.groq.com/openai/v1/responses"
 
@@ -16,6 +20,16 @@ logger = logging.getLogger(__name__)
 UNAVAILABLE_MESSAGE = "AI suggestions are unavailable right now."
 
 DEFAULT_MODEL = "openai/gpt-oss-20b"
+
+# Groq answers in a few seconds; nginx and Daphne give up at 60. The whole call, body
+# included, ends after 25 seconds, and the answer is small.
+DEADLINE = upstream.Deadline(3.05, 20, total=25, max_bytes=256 * 1024)
+BREAKER = "groq"
+
+
+def ai_enabled():
+    """True when a Groq key is set; without one the AI panel stays hidden."""
+    return bool(os.environ.get("GROQ_API_KEY"))
 
 
 # Structured output schema for event extraction
@@ -69,7 +83,9 @@ def _validate_suggestion(data):
             raise EventSuggestionError(f"Invalid value for {field}.")
 
         if isinstance(value, str):
-            value = value.strip() or None
+            # Model output is untrusted: clean it like typed text, so no bidi
+            # override, zero-width or control character reaches the form.
+            value = clean_visible_text(value) or None
 
         result[field] = value
 
@@ -101,6 +117,9 @@ def _validate_suggestion(data):
 
     if result["location"] and len(result["location"]) > 255:
         raise EventSuggestionError("Suggested location is too long.")
+    for field in ("title", "location"):
+        if result[field]:
+            result[field] = truncate_graphemes(result[field], 255)
 
     # Identify missing required event information
     missing_fields = [
@@ -143,7 +162,8 @@ def generate_event_suggestion(
     if not isinstance(description, str):
         raise EventSuggestionError("Invalid event description.")
 
-    description = description.strip()
+    # Normalize first, so invisible characters and odd line breaks never reach Groq.
+    description = normalize_text(description, multiline=True).strip()
 
     if not 10 <= len(description) <= 2000:
         raise EventSuggestionError("Describe the event in 10 to 2000 characters.")
@@ -152,7 +172,9 @@ def generate_event_suggestion(
     api_key = os.environ.get("GROQ_API_KEY")
 
     if not api_key:
-        logger.error("GROQ_API_KEY is not set; AI suggestions are disabled.")
+        # Not an error: the panel is hidden without a key, so only a forged request
+        # gets here.
+        logger.info("GROQ_API_KEY is not set; AI suggestions are disabled.")
         raise EventSuggestionError(UNAVAILABLE_MESSAGE)
 
     # Validate timezone
@@ -207,11 +229,13 @@ def generate_event_suggestion(
             DEFAULT_MODEL,
         ),
         "instructions": instructions,
+        # The description goes in as one JSON string: a line break or an invisible
+        # character in it can't start a header line of its own.
         "input": (
             f"Reference datetime: "
             f"{current_time.isoformat()}\n"
             f"Timezone: {timezone_name}\n"
-            f"Event description:\n{description}"
+            f"Event description (one JSON string):\n{json.dumps(description)}"
         ),
         "text": {
             "format": {
@@ -226,6 +250,7 @@ def generate_event_suggestion(
     }
 
     try:
+        upstream.check(BREAKER)
         # Send the event description to Groq
         response = requests.post(
             API_URL,
@@ -234,7 +259,7 @@ def generate_event_suggestion(
                 "Content-Type": "application/json",
             },
             json=payload,
-            timeout=30,
+            timeout=DEADLINE,
         )
 
         response.raise_for_status()
@@ -267,34 +292,10 @@ def generate_event_suggestion(
         # Validate before using in Django's EventForm
         return _validate_suggestion(data)
 
-    except requests.Timeout as error:
-        raise EventSuggestionError(
-            "AI took too long to respond. Please try again."
-        ) from error
-
-    except requests.HTTPError as error:
-        status_code = error.response.status_code if error.response is not None else None
-
-        if status_code == 429:
-            raise EventSuggestionError(
-                "The free AI request limit was reached. " "Please try again later."
-            ) from error
-
-        if status_code in (401, 403):
-            # Log the status only: never the request headers or the key.
-            logger.error(
-                "Groq refused the request as unauthorised (HTTP %s).", status_code
-            )
-            raise EventSuggestionError(UNAVAILABLE_MESSAGE) from error
-
-        raise EventSuggestionError(
-            "The AI service could not generate a suggestion. " "Please try again."
-        ) from error
-
     except requests.RequestException as error:
-        raise EventSuggestionError(
-            "The AI service is unavailable. " "Please try again."
-        ) from error
+        # Remember an outage: after a few failures Groq isn't called for a minute.
+        upstream.record_failure(BREAKER, error)
+        raise _suggestion_error(error) from error
 
     except (
         ValueError,
@@ -305,3 +306,35 @@ def generate_event_suggestion(
         raise EventSuggestionError(
             "The AI response could not be understood."
         ) from error
+
+
+def _suggestion_error(error):
+    """The EventSuggestionError that tells the person what went wrong."""
+    if isinstance(error, upstream.RecentlyUnavailable):
+        return EventSuggestionError(
+            "The AI service is busy right now. Please try again in a minute."
+        )
+
+    if isinstance(error, requests.Timeout):
+        return EventSuggestionError("AI took too long to respond. Please try again.")
+
+    if isinstance(error, requests.HTTPError):
+        status_code = error.response.status_code if error.response is not None else None
+
+        if status_code == 429:
+            return EventSuggestionError(
+                "The free AI request limit was reached. Please try again later."
+            )
+
+        if status_code in (401, 403):
+            # Log the status only: never the request headers or the key.
+            logger.error(
+                "Groq refused the request as unauthorised (HTTP %s).", status_code
+            )
+            return EventSuggestionError(UNAVAILABLE_MESSAGE)
+
+        return EventSuggestionError(
+            "The AI service could not generate a suggestion. Please try again."
+        )
+
+    return EventSuggestionError("The AI service is unavailable. Please try again.")

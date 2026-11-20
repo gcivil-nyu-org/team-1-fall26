@@ -20,6 +20,7 @@
             </ul>
         </div>
     {% endif %}
+    {% if more_plans %}<p class="notice">This day has {{ more_plans }} more plan{{ more_plans|pluralize }} than this page shows. <a href="?{{ week_query }}">See the week</a>.</p>{% endif %}
     <div class="daygrid" style="--lanes: {{ day.lanes|length }}; --span: {{ day.span_hours|stringformat:'s' }}"{% if shell.add_event_url %} data-add-at="{{ shell.add_event_url }}?{{ create_query }}"{% endif %}>
         <div class="hours" aria-hidden="true">
             <div class="corner"></div>
@@ -34,7 +35,7 @@
             <section class="lane{% if not lane.user %} lane-family{% endif %}" aria-labelledby="lane-{{ forloop.counter }}"{% if lane.user %} data-hue="{{ lane.hue }}"{% if lane.custom_color %} style="--hue: {{ lane.custom_color }}"{% endif %}{% endif %}>
                 <h3 class="colhead" id="lane-{{ forloop.counter }}">
                     {% if lane.user %}<span class="dot" aria-hidden="true">{{ lane.user|initial }}</span><span class="lane-name" translate="no">{{ lane.user|person }}</span>{% else %}<span class="dot dot-quiet" aria-hidden="true"></span><span class="lane-name">Whole family</span>{% endif %}
-                    <small>{% if lane.slots %}{{ lane.slots|length }} plan{{ lane.slots|length|pluralize }}{% else %}Free{% endif %}</small>
+                    <small>{% if lane.total %}{{ lane.total }} plan{{ lane.total|pluralize }}{% else %}Free{% endif %}</small>
                 </h3>
                 <div class="track" data-rail{% if shell.add_event_url %} tabindex="0" role="group" aria-label="{% if lane.user %}{{ lane.user|person }}’s day{% else %}Whole family’s day{% endif %}. Right-click a time, or press Shift+F10, to add an event." aria-keyshortcuts="Shift+F10"{% endif %}>
                 <ol class="plans">
@@ -51,6 +52,7 @@
                         <li class="lane-empty">Nothing planned</li>
                     {% endfor %}
                 </ol>
+                {% if lane.more %}<p class="lane-more"><a href="?{{ week_query }}">+{{ lane.more }} more</a></p>{% endif %}
                 {% for hour in day.hours %}<i class="hl" style="top: {{ hour.top|stringformat:'s' }}%" data-at="{{ hour.starts_at|date:'c' }}" aria-hidden="true"></i>{% endfor %}
                 <i class="hl" style="top: 100%" aria-hidden="true"></i>
                 {% if day.now_top is not None %}<i class="now" style="top: {{ day.now_top|stringformat:'s' }}%" aria-hidden="true"></i>{% endif %}
