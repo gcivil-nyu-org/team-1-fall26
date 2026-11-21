@@ -1,6 +1,8 @@
 # CI/CD on GitHub Actions (replaced Travis CI in Nov 2026, with the instructor's OK).
 # Every pull request and every push to develop or main runs black, flake8, Django's deployment
-# checklist and the unit tests under coverage.py, then reports coverage to Coveralls.
+# checklist, a missing-migration check and the unit tests under coverage.py, then reports coverage
+# to Coveralls. The Security workflow (pip-audit, Semgrep, gitleaks) runs as the `security` job
+# below, and a deploy waits for it.
 # A daily scheduled run tests main. Green pushes deploy:
 #   main    -> production  (Elastic Beanstalk syncmily-env)
 #   develop -> integration (the env named in the EB_INTEGRATION_ENV repository variable, once
@@ -34,6 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          persist-credentials: false
           # Scheduled runs start from the default branch (develop); the daily run tests main.
           ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
@@ -41,7 +44,7 @@ jobs:
           python-version: "3.14"
           cache: pip
           cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt
+      - run: pip install --require-hashes -r requirements-dev.txt
       - run: black --check .
       - run: flake8 .
 
@@ -56,16 +59,27 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports: ["5432:5432"]
+        # Share the server's Unix socket with the runner: libpq ignores sslmode on a socket,
+        # so the tests run against the same verify-full settings as production.
+        volumes:
+          - /var/run/postgresql:/var/run/postgresql
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       POSTGRES_DB: syncmily
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST: localhost
+      POSTGRES_HOST: /var/run/postgresql
       POSTGRES_PORT: "5432"
+      # Settings default to HTTPS on; the test client talks plain HTTP.
+      DJANGO_HTTPS: "false"
+      # Shorter fuzz runs on every push (the nightly workflow runs 200 examples), and no
+      # wall-clock assertions on a shared runner.
+      FUZZ_EXAMPLES: "20"
+      CI_SLOW: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
@@ -74,8 +88,8 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
-      - run: pip install --require-hashes -r requirements.txt
-      - run: pip install -r requirements-dev.txt
+      # One call, so hash checking covers both files.
+      - run: pip install --require-hashes -r requirements.txt -r requirements-dev.txt
       # Throwaway keys made fresh each run (never the production ones), masked in the log.
       - name: Generate throwaway keys
         run: |
@@ -87,6 +101,8 @@ jobs:
           echo "FIELD_ENCRYPTION_KEYS=$fernet" >> "$GITHUB_ENV"
       - name: Production settings pass Django's deployment checklist
         run: DJANGO_DEBUG=false DJANGO_HTTPS=true DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend DJANGO_DEFAULT_FROM_EMAIL=no-reply@syncmily.app python manage.py check --deploy --fail-level WARNING
+      - name: No model change without its migration
+        run: python manage.py makemigrations --check --dry-run
       - name: Tests under coverage (including chat and cross-household isolation)
         run: coverage run manage.py test
       - run: coverage report
@@ -102,9 +118,15 @@ jobs:
           format: cobertura
           fail-on-error: false
 
+  security:
+    name: Security scans
+    permissions:
+      contents: read
+    uses: ./.github/workflows/security.yml
+
   deploy:
     name: Deploy to Elastic Beanstalk
-    needs: [lint, test]
+    needs: [lint, test, security]
     if: >-
       github.repository == 'gcivil-nyu-org/team-1-fall26' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
@@ -123,6 +145,9 @@ jobs:
       EB_BUCKET: elasticbeanstalk-us-east-1-431251892869
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The branch-head check below runs `git ls-remote` anonymously; the repository is public.
+          persist-credentials: false
       # A re-run of an old run, or a run that queued behind a newer push, must not put an
       # older commit back on the server: deploy only if this commit is still the branch head.
       - name: Deploy only the branch head
@@ -155,6 +180,16 @@ jobs:
             --description "$GITHUB_REF_NAME ${GITHUB_SHA::7}, GitHub Actions run $GITHUB_RUN_ID" \
             --source-bundle "S3Bucket=$EB_BUCKET,S3Key=$key" > /dev/null
           echo "LABEL=$label" >> "$GITHUB_ENV"
+      # The only rollback for a bad migration is a restore, so take a snapshot first (main only).
+      # The deploy role needs rds:CreateDBSnapshot and rds:DescribeDBSnapshots.
+      - name: Snapshot the database before migrating
+        if: steps.head.outputs.current == 'true' && github.ref == 'refs/heads/main'
+        run: |
+          snapshot="pre-deploy-${GITHUB_SHA::12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          aws rds create-db-snapshot --db-instance-identifier syncmily-db \
+            --db-snapshot-identifier "$snapshot" > /dev/null
+          aws rds wait db-snapshot-available --db-snapshot-identifier "$snapshot"
+          echo "Snapshot $snapshot is available"
       - name: Deploy and wait until the environment runs it
         if: steps.head.outputs.current == 'true'
         run: |

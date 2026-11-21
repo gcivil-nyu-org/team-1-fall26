@@ -594,9 +594,10 @@
                     .then((response) => {
                         if (controller.signal.aborted) return null;
                         if (
-                            response.redirected &&
-                            new URL(response.url, window.location.href).pathname ===
-                                "/accounts/login/"
+                            response.status === 401 ||
+                            (response.redirected &&
+                                new URL(response.url, window.location.href).pathname ===
+                                    "/accounts/login/")
                         ) {
                             throw new Error(
                                 "Your session expired. Reload the page and sign in to scan documents."
@@ -617,7 +618,8 @@
                             }
                             if (!response.ok || data.status === "error") {
                                 throw new Error(
-                                    data.error ||
+                                    data.message ||
+                                        data.error ||
                                         "We couldn't read enough information from this image. " +
                                             "Try taking a clearer photo or enter the event manually."
                                 );

@@ -226,10 +226,10 @@ class TripStartLimitTests(TestCase):
 
     @override_settings(RATELIMIT_ENABLED=True)
     def test_counts_per_account_so_a_shared_wifi_is_fine(self):
-        from ..views import TRIP_STARTS_PER_HOUR
-
+        # Every account also counts on its address, so one address shares a ceiling
+        # (GAP3-006). A few changes from a classmate on the same wifi still work.
         self.client.force_login(self.kid)
-        for step in range(TRIP_STARTS_PER_HOUR):
+        for step in range(10):
             self.post_here(40.70 + step / 1000)
         self.client.force_login(self.admin)  # same test client IP
         self.assertEqual(self.post_here(40.71).status_code, 200)

@@ -1,11 +1,11 @@
 from django.core.cache import cache
-from django.test import RequestFactory, SimpleTestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 
 from syncmily import ratelimit
 
 
 @override_settings(RATELIMIT_ENABLED=True)
-class RateLimitTests(SimpleTestCase):
+class RateLimitTests(TestCase):
     def setUp(self):
         cache.clear()
         self.rf = RequestFactory()

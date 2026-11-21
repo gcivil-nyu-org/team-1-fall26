@@ -18,16 +18,85 @@ service, not the request. A 4xx for one request never counts.
 """
 
 import hashlib
+import time
 
 import requests
 from django.core.cache import cache
+from requests.adapters import HTTPAdapter
+from urllib3 import exceptions as urllib3_exceptions
 
 COOL_OFF_SECONDS = 60
 OUTAGE_THRESHOLD = 3
 
-# (connect, read) seconds. Connecting to a healthy service takes well under a second;
-# the read allowance covers a slow answer without holding a worker for long.
-TIMEOUT = (3.05, 8)
+MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+
+
+class Deadline(tuple):
+    """A (connect, read) timeout that also carries a total time limit and a size cap.
+
+    requests applies the read timeout to every wait for data, so a server that sends
+    one byte every few seconds never trips it. Pass a Deadline as `timeout=` and the
+    adapter patch below stops the whole call after `total` seconds, and stops reading
+    after `max_bytes`. Anything that only reads a tuple (requests, tests) sees the
+    plain (connect, read) pair.
+    """
+
+    def __new__(cls, connect, read, total=None, max_bytes=MAX_RESPONSE_BYTES):
+        self = super().__new__(cls, (connect, read))
+        self.total = float(total if total is not None else connect + read)
+        self.max_bytes = max_bytes
+        return self
+
+
+# Connecting to a healthy service takes well under a second; the read allowance covers
+# a slow answer without holding a worker for long. The whole call, headers and body,
+# ends after 10 seconds. The cap is above the biggest MTA feed.
+TIMEOUT = Deadline(3.05, 8, total=10, max_bytes=8 * 1024 * 1024)
+
+
+class ResponseTooLarge(requests.RequestException):
+    """The answer was bigger than the Deadline allows."""
+
+
+_original_send = HTTPAdapter.send
+
+
+def _enforce_deadline(adapter, request, stream=False, timeout=None, **kwargs):
+    """HTTPAdapter.send that reads the body itself when the timeout is a Deadline."""
+    if stream or not isinstance(timeout, Deadline):
+        return _original_send(
+            adapter, request, stream=stream, timeout=timeout, **kwargs
+        )
+    started = time.monotonic()
+    response = _original_send(adapter, request, stream=True, timeout=timeout, **kwargs)
+    body = bytearray()
+    try:
+        # read1 returns what has arrived; read(n) would wait until n bytes came in.
+        while True:
+            chunk = response.raw.read1(16384, decode_content=True)
+            if not chunk:
+                break
+            body.extend(chunk)
+            if len(body) > timeout.max_bytes:
+                raise ResponseTooLarge("The response was too large.")
+            if time.monotonic() - started > timeout.total:
+                raise requests.Timeout("The call took longer than its deadline.")
+    except urllib3_exceptions.ReadTimeoutError as error:
+        response.close()
+        raise requests.ReadTimeout(error) from error
+    except urllib3_exceptions.HTTPError as error:
+        response.close()
+        raise requests.ConnectionError(error) from error
+    except BaseException:
+        response.close()
+        raise
+    response._content = bytes(body)
+    response._content_consumed = True
+    response.close()
+    return response
+
+
+HTTPAdapter.send = _enforce_deadline
 
 
 class RecentlyUnavailable(requests.ConnectionError):

@@ -16,6 +16,11 @@ updates:
     open-pull-requests-limit: 5
     cooldown:
       default-days: 7
+    ignore:
+      # Stay on the Django 5.2 LTS line: without this rule Dependabot only offers Django 6.x
+      # and never the 5.2.x security patches.
+      - dependency-name: django
+        update-types: ["version-update:semver-major"]
     groups:
       # One PR for routine minor/patch bumps instead of one per package.
       minor-and-patch:

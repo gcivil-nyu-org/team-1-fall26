@@ -4,6 +4,8 @@ colour = fuller day.
 
 from datetime import datetime, time, timedelta, timezone as datetime_timezone
 
+from syncmily.limits import RENDER
+
 from .timeline import lane_user_ids
 
 DAYS_IN_WEEK = 7
@@ -66,7 +68,7 @@ def build_today_rail(events, members, today, tz, now):
     day_start, day_end = local_day_bounds(today, tz)
     window = rail_window(events, day_start, day_end)
     if window is None:
-        return {"items": [], "hours": [], "now_top": None, "height": 0}
+        return {"items": [], "hours": [], "now_top": None, "height": 0, "more": 0}
     first, last = window
     start = (day_start + timedelta(hours=first)).astimezone(datetime_timezone.utc)
     end = (day_start + timedelta(hours=last)).astimezone(datetime_timezone.utc)
@@ -79,8 +81,12 @@ def build_today_rail(events, members, today, tz, now):
 
     by_id = {member["user"].pk: member for member in members}
     items = []
+    more = 0
     for event in events:
         if not (event.starts_at < end and event.ends_at > start):
+            continue
+        if len(items) >= RENDER.plans_per_response:
+            more += 1
             continue
         people = [by_id[pk] for pk in lane_user_ids(event, by_id)]
         top = percent(event.starts_at)
@@ -104,7 +110,13 @@ def build_today_rail(events, members, today, tz, now):
     ]
     place_side_by_side(items, min_percent=RAIL_MIN_PX / height * 100)
     now_top = percent(now) if start <= now < end else None
-    return {"items": items, "hours": hours, "now_top": now_top, "height": height}
+    return {
+        "items": items,
+        "hours": hours,
+        "now_top": now_top,
+        "height": height,
+        "more": more,
+    }
 
 
 # A plan is drawn at least RAIL_MIN_PX tall, so short plans that touch in time can still
@@ -133,12 +145,14 @@ def place_side_by_side(items, min_percent=RAIL_MIN_PERCENT):
             ends.append(bottom)
         else:
             ends[column] = bottom
-        item["column"] = column
+        # Past the cap, extra plans share the last column rather than shrinking
+        # everything to slivers.
+        item["column"] = min(column, RENDER.overlap_columns - 1)
         cluster["items"].append(item)
         cluster["end"] = max(cluster["end"], bottom)
     for cluster in clusters:
         for item in cluster["items"]:
-            item["columns"] = len(cluster["column_ends"])
+            item["columns"] = min(len(cluster["column_ends"]), RENDER.overlap_columns)
 
 
 def build_week(events, members, week_start, tz, today):

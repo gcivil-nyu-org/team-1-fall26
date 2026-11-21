@@ -6,6 +6,8 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from accounts.models import Workspace
+
 from .. import places, views
 
 PLACE_ID = "ChIJmQJIxlVYwokRLgeuocVOGVU"
@@ -50,6 +52,8 @@ class PlacesSearchTests(TestCase):
 
     def setUp(self):
         cache.clear()
+        # Only members of a family search places.
+        Workspace.objects.get_or_create(name="Ana family", primary_admin=self.user)
         self.client.force_login(self.user)
 
     @override_settings(GOOGLE_MAPS_API_KEY="")
@@ -124,7 +128,7 @@ class PlacesSearchTests(TestCase):
 
         self.assertEqual(response.status_code, 503)
 
-    @override_settings(GOOGLE_MAPS_API_KEY="test-key")
+    @override_settings(GOOGLE_MAPS_API_KEY="test-key", RATELIMIT_ENABLED=True)
     def test_searches_are_rate_limited(self):
         with mock.patch.object(
             views, "PLACE_SEARCHES_PER_MINUTE", 2

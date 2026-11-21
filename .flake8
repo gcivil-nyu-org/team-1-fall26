@@ -3,5 +3,8 @@
 max-line-length = 88
 extend-ignore = E203, W503
 # palette.py writes CSS from long template strings; wrapping them would change the CSS.
-per-file-ignores = docs/design/palette.py:E501,F541
+per-file-ignores =
+    docs/design/palette.py:E501,F541
+    # Long strings in the security tests that black cannot wrap.
+    syncmily/tests/security/*.py:E501
 exclude = .git, .venv, __pycache__, */migrations/*, staticfiles, transit-routing

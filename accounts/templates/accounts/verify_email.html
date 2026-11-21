@@ -1,0 +1,10 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Confirm your email | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>Confirm your email</h1>
+            <p class="lede">Confirm that <span translate="no">{{ email }}</span> is your address. Then you can invite your family.</p>
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-wide" type="submit">Confirm my address</button>
+            </form>
+{% endblock %}

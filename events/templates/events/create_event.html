@@ -48,6 +48,7 @@
                 {% csrf_token %}
                 {% for field in form.hidden_fields %}{{ field }}{% endfor %}
                 <div class="notice ocr-form-banner" data-ocr-form-banner role="status" hidden></div>
+                {% if conflict_message %}<div class="form-error" role="alert"><p><b>{{ conflict_message }}</b></p></div>{% endif %}
                 {% if form.errors %}
             <div class="form-error" role="alert" id="event-errors">
                 <p><b>{% if form.non_field_errors %}This event wasn’t saved.{% else %}Check the details marked below.{% endif %}</b></p>
@@ -207,7 +208,7 @@
             </div>
         </form>
 
-        {% if can_save and not is_edit %}
+        {% if can_save and not is_edit and ai_enabled %}
         <section class="panel ai-suggestion-panel">
             <h2>Create an event with AI</h2>
 

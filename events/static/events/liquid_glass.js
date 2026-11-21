@@ -76,19 +76,31 @@
         }));
         const id = `lg-${key}`;
         if (chromium) {
-            defs ??= document.body.appendChild(Object.assign(document.createElementNS("http://www.w3.org/2000/svg", "svg"),
-                {innerHTML: "<defs></defs>"})).querySelector("defs");
-            defs.parentNode.setAttribute("aria-hidden", "true");
-            defs.parentNode.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
-            defs.insertAdjacentHTML("beforeend", `<filter id="${id}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="${BLUR}" result="blurred"/>
-                <feImage href="${displacement}" x="0" y="0" width="${w}" height="${h}" result="map"/>
-                <feDisplacementMap in="blurred" in2="map" scale="${maxDisp * SCALE_RATIO}" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
-                <feColorMatrix in="displaced" type="saturate" values="${SPEC_SATURATION}" result="saturated"/>
-                <feImage href="${specular}" x="0" y="0" width="${w}" height="${h}" result="spec"/>
-                <feComposite in="saturated" in2="spec" operator="in" result="rim"/>
-                <feBlend in="rim" in2="displaced" mode="normal"/>
-            </filter>`);
+            const SVG = "http://www.w3.org/2000/svg";
+            // One shared hidden <svg><defs> holds every filter. Elements are built one at a
+            // time from numbers and canvas data URLs, never from a markup string.
+            const make = (name, attributes) => {
+                const element = document.createElementNS(SVG, name);
+                for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+                return element;
+            };
+            if (!defs) {
+                const holder = document.body.appendChild(make("svg", {"aria-hidden": "true"}));
+                defs = holder.appendChild(make("defs", {}));
+                holder.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+            }
+            const filter = defs.appendChild(make("filter", {
+                id, x: "0", y: "0", width: "100%", height: "100%", "color-interpolation-filters": "sRGB"
+            }));
+            filter.append(
+                make("feGaussianBlur", {in: "SourceGraphic", stdDeviation: BLUR, result: "blurred"}),
+                make("feImage", {href: displacement, x: "0", y: "0", width: w, height: h, result: "map"}),
+                make("feDisplacementMap", {in: "blurred", in2: "map", scale: maxDisp * SCALE_RATIO, xChannelSelector: "R", yChannelSelector: "G", result: "displaced"}),
+                make("feColorMatrix", {in: "displaced", type: "saturate", values: SPEC_SATURATION, result: "saturated"}),
+                make("feImage", {href: specular, x: "0", y: "0", width: w, height: h, result: "spec"}),
+                make("feComposite", {in: "saturated", in2: "spec", operator: "in", result: "rim"}),
+                make("feBlend", {in: "rim", in2: "displaced", mode: "normal"})
+            );
         }
         const result = {specular, filter: chromium ? `url(#${id})` : null};
         cache.set(key, result);

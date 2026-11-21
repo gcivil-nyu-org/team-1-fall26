@@ -1,0 +1,11 @@
+# Test-only passwords and a fake Places token in the security tests (not secrets).
+# Fingerprints are commit:file:rule:line, as gitleaks prints them.
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_gap4.py:generic-api-key:290
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_gap4.py:generic-api-key:291
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_gap4.py:generic-api-key:416
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_gap4.py:generic-api-key:417
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_hardening_fuzz.py:generic-api-key:932
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_limits.py:generic-api-key:376
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_limits.py:generic-api-key:377
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_logging_csrf.py:generic-api-key:281
+09a61bd0e68957b2e0f3e1899242811c4bf9233a:syncmily/tests/security/test_logging_csrf.py:generic-api-key:282

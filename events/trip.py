@@ -23,6 +23,8 @@ from django.core.cache import cache
 from django.db.models import Q
 from django.utils import timezone
 
+from syncmily.safety import safe_hex_color
+
 from . import mta, upstream
 from .access import family_events, family_workspaces
 from .models import Event, TripStart
@@ -83,6 +85,13 @@ MTA_LINE_COLORS = {
 DARK_TEXT_LINES = {"N", "Q", "R", "W"}
 
 
+def _badge_color(value, default):
+    """The colour as sent when it is a hex colour, else the default."""
+    if safe_hex_color(value, None) is None:
+        return default
+    return "#" + value.strip().lstrip("#")
+
+
 def line_badge(segment):
     """How a ride's line is drawn: an MTA bullet for the subway (a diamond for express
     trains), a short rounded label for everything else."""
@@ -111,8 +120,9 @@ def line_badge(segment):
     return {
         "text": text,
         "shape": "pill",
-        "color": segment.get("color") or "#0039A6",
-        "text_color": segment.get("text_color") or "#fff",
+        # Provider colours reach a style attribute: only a real hex colour gets through.
+        "color": _badge_color(segment.get("color"), "#0039A6"),
+        "text_color": _badge_color(segment.get("text_color"), "#FFFFFF"),
     }
 
 
@@ -191,10 +201,6 @@ def _latlng(stop):
     if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
         return latitude, longitude
     return None
-
-
-def _hex(color):
-    return f"#{color}" if color and not color.startswith("#") else (color or "")
 
 
 def _point(stop):
@@ -338,9 +344,11 @@ def request_routes(origin, destination, arrive_by, addresses=("", ""), depart_at
                 "X-Goog-FieldMask": ROUTES_FIELDS,
             },
             timeout=upstream.TIMEOUT,
+            allow_redirects=False,
         )
         response.raise_for_status()
-        return response.json().get("routes") or []
+        routes = response.json().get("routes") or []
+        return [route for route in routes if isinstance(route, dict)][:8]
 
     def ask(start, end):
         try:
@@ -400,8 +408,8 @@ def summarize_route(route, arrive_by):
                     "line": line.get("nameShort") or line.get("name") or "Transit",
                     "route_id": line.get("nameShort", ""),
                     "line_name": line.get("name", ""),
-                    "color": line.get("color", ""),
-                    "text_color": line.get("textColor", ""),
+                    "color": safe_hex_color(line.get("color"), ""),
+                    "text_color": safe_hex_color(line.get("textColor"), ""),
                     "vehicle": vehicle.get("type", ""),
                     "vehicle_name": vehicle.get("name", {}).get("text", ""),
                     "headsign": details.get("headsign", ""),
@@ -454,6 +462,8 @@ def transitous_options(origin, destination, arrive_by, depart_at=None):
             upstream.record_failure("transitous", error, key)
             raise
         data = response.json()
+        if not isinstance(data, dict):
+            raise ValueError("Transitous sent something other than a plan.")
         cache.set(key, data, PLAN_CACHE_SECONDS)
     return _transitous_plans(data, arrive_by, depart_at)
 
@@ -469,6 +479,7 @@ def _ask_transitous(origin, destination, moment, depart_at):
         },
         headers={"User-Agent": TRANSITOUS_USER_AGENT},
         timeout=upstream.TIMEOUT,
+        allow_redirects=False,
     )
     response.raise_for_status()
     return response
@@ -508,8 +519,8 @@ def _transitous_plans(data, arrive_by, depart_at):
                         route_id.removeprefix(SUBWAY_ROUTE_PREFIX) if subway else ""
                     ),
                     "line_name": leg.get("routeLongName", ""),
-                    "color": _hex(leg.get("routeColor")),
-                    "text_color": _hex(leg.get("routeTextColor")),
+                    "color": safe_hex_color(leg.get("routeColor"), ""),
+                    "text_color": safe_hex_color(leg.get("routeTextColor"), ""),
                     "vehicle": mode,
                     "vehicle_name": VEHICLE_NAMES.get(
                         mode, mode.replace("_", " ").title()
@@ -550,6 +561,10 @@ def _lateness_key(plan):
 
 
 def trip_options(start, end, arrive_by, addresses=("", ""), depart_at=None):
+    if depart_at is not None:
+        # "Plan again from now" is keyed by the minute, so a page that polls every
+        # second asks the (paid) planner once a minute, not once a second.
+        depart_at = depart_at.replace(second=0, microsecond=0)
     if settings.GOOGLE_MAPS_API_KEY:
         # choose() prefers trips that arrive on time and warns when none do.
         routes = request_routes(start, end, arrive_by, addresses, depart_at)
@@ -675,14 +690,17 @@ def switch_reason(chosen, scheduled_best):
     return ""
 
 
-def maps_url(origin, event):
-    """Google Maps transit directions; with no origin, Maps starts from the device."""
+def maps_url(origin, event, share_origin=True):
+    """Google Maps transit directions; with no origin, Maps starts from the device.
+
+    `share_origin` is False for a viewer who may not see the family's home address:
+    Maps then starts from their own device instead of the home coordinates."""
     params = {
         "api": "1",
         "destination": f"{event.latitude},{event.longitude}",
         "travelmode": "transit",
     }
-    if origin is not None:
+    if origin is not None and share_origin:
         params["origin"] = f"{origin.latitude},{origin.longitude}"
     return "https://www.google.com/maps/dir/?" + urlencode(params)
 
@@ -698,18 +716,30 @@ def build_trip(event, user, origin=None, now=None):
     previous = home = None
     if origin is None:
         origin, chosen_mode, previous, home = resolve_start(event, user)
+    can_set_home = bool(event.workspace_id) and (
+        family_workspaces(user, caregivers_only=True)
+        .filter(pk=event.workspace_id)
+        .exists()
+    )
+    # Only parents see or change the family's home address, so a kid's card never
+    # carries its coordinates (the Maps link would put them in the page).
+    hide_home = (
+        origin is not None and getattr(origin, "mode", None) == TripStart.Mode.HOME
+    )
+    hide_home = hide_home and not can_set_home
+    shown_origin = origin
+    if hide_home:
+        shown_origin = Origin(None, None, origin.label, origin.mode, origin.event)
     context = {
         "event": event,
-        "origin": origin,
+        "origin": shown_origin,
         "mode": chosen_mode,
         "previous": previous,
-        "home": home,
+        # The card only asks whether a home is set; a kid gets no address or pin.
+        "home": home if can_set_home else bool(home),
         "is_transit": event.transport_mode == Event.TransportMode.TRANSIT,
-        "can_set_home": bool(event.workspace_id)
-        and family_workspaces(user, caregivers_only=True)
-        .filter(pk=event.workspace_id)
-        .exists(),
-        "maps_url": maps_url(origin, event),
+        "can_set_home": can_set_home,
+        "maps_url": maps_url(origin, event, share_origin=not hide_home),
     }
     if (
         not context["is_transit"]
@@ -725,8 +755,15 @@ def build_trip(event, user, origin=None, now=None):
         provider, plans = trip_options(
             start, end, event.starts_at, (origin.address, event.directions_location)
         )
-    except (requests.RequestException, ValueError):
-        logger.warning("Trip request failed for event %s", event.pk, exc_info=True)
+    except (requests.RequestException, ValueError) as error:
+        # The class and status only: the exception text holds the request URL, which
+        # carries the family's start point and the event's coordinates.
+        logger.warning(
+            "Trip request failed for event %s error=%s status=%s",
+            event.pk,
+            type(error).__name__,
+            getattr(getattr(error, "response", None), "status_code", None),
+        )
         return {**context, "status": "error"}
     context["provider"] = provider
     if not plans:

@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="calendarconnection",
             name="auto_sync",
-            field=models.BooleanField(default=True),
+            field=models.BooleanField(db_default=True, default=True),
         ),
     ]

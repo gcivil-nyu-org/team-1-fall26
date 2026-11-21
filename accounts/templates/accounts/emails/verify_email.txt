@@ -1,0 +1,11 @@
+{% autoescape off %}Welcome to Syncmily, {{ user.get_username }}.
+
+Confirm that this is your email address. The link works for 24 hours and only once:
+{{ verify_url }}
+
+Until you confirm it, you can't invite family members.
+
+If you didn't sign up, you can ignore this email.
+
+Syncmily
+{% endautoescape %}

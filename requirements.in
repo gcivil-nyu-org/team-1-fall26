@@ -1,5 +1,5 @@
-Django==5.2.18
-psycopg[binary]==3.3.6
+Django==5.2.19
+psycopg[binary,pool]==3.3.6
 channels==4.3.2
 daphne==4.2.3
 google-auth-oauthlib==1.5.0
@@ -14,7 +14,6 @@ qrcode==8.2
 Pillow==13.0.0
 pytesseract==0.3.13
 python-dateutil==4.0.0
-# Daphne's dependency, pinned to the release candidate because it is the first release
-# that fixes CVE-2026-115877 (HTTP request smuggling in twisted.web, which Daphne serves on).
-# Move to 26.10.0 final when it ships.
-twisted==26.10.0rc1
+# Daphne's dependency. 26.10.0 fixes CVE-2026-115877 (HTTP request smuggling in twisted.web,
+# which Daphne serves on).
+twisted==26.10.0

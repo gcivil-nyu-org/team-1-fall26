@@ -530,9 +530,9 @@ daphne==4.2.3 \
     --hash=sha256:1c458f81926b37301cadc8ec1b6316d9a5db53fba061fc4826610395fe5d5c81 \
     --hash=sha256:34442c539a98111f4d8cac98a7204aeeb53811229bd96063e6fbe740e97078c9
     # via -r requirements.in
-django==5.2.18 \
-    --hash=sha256:461c5dd06d2ea16bd5ca37d3f46e4def1d6b0fe7588c6f4e2119517bb0af8b2d \
-    --hash=sha256:92ed81d500be6408ecd704d7bd1366c534f30427bffcc63c5fefb129561aec7c
+django==5.2.19 \
+    --hash=sha256:5965d974a5218a2b68a11dd1276434707f23886525c23f0598eccedaf4f4ca00 \
+    --hash=sha256:ad03d8abc51dbff95ebf34b27123cf0c26a3b62db7ba0cd520783686362533d1
     # via
     #   -r requirements.in
     #   channels
@@ -887,6 +887,10 @@ psycopg-binary==3.3.6 ; implementation_name != 'pypy' \
     --hash=sha256:fa34eb47969297471db7b7f193622c7e3ee839ec05abd05f1fe104d5b1b1dcf4 \
     --hash=sha256:fdccb3a0e184b03e9baa673b15a809cf36c339c85dbda0ebc25a698846dfbee8
     # via psycopg
+psycopg-pool==3.3.3 \
+    --hash=sha256:9b9cd6a4fcec47a410f7e82d408540e7f77b478509e91b44c1a5457a13e5ff37 \
+    --hash=sha256:df87b5d9d0ad7db37f6cdad4fa8ce113d250f5997f6db38e9a99192fb67f9e1d
+    # via psycopg
 pyasn1==0.6.5 \
     --hash=sha256:4017b0fce125096b8573b39c989fdb1a4b19cf761e683398184550fea0e66587 \
     --hash=sha256:6b11616a6bcf3a40e635f082bb232fa57b5e0dd7f517bd7ddd69ec3794508a47
@@ -946,9 +950,9 @@ sqlparse==0.6.0 \
     --hash=sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9 \
     --hash=sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f
     # via django
-twisted==26.10.0rc1 \
-    --hash=sha256:9a8689a7ab8180b16917aa585cc4d8dafcef620162b17b8aab3719b485b321e8 \
-    --hash=sha256:a2201fed4dd4919b0fe732aa2c4ac95e4dff3ba04cfc10b1383e7aac29005e27
+twisted==26.10.0 \
+    --hash=sha256:3732f42af218925a0fe78d6668db55853f7fb532245a89a2669babe7d3000fa8 \
+    --hash=sha256:5f0355403e507fc23ceea85e9dbb4bc59335aabde41dd324e8b8cea180dd38de
     # via
     #   -r requirements.in
     #   daphne
@@ -961,6 +965,7 @@ typing-extensions==4.16.0 \
     --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
     # via
     #   opentelemetry-api
+    #   psycopg-pool
     #   twisted
 tzdata==2026.5 \
     --hash=sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7 \
