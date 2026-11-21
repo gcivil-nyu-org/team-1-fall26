@@ -2371,7 +2371,11 @@ class RequestShapes(World):
             bad.append(("chat_messages after=-2^63-1", resp.status_code, ""))
         self.assertFalse(bad, bad)
 
-    def test_malformed_multipart_to_json_endpoint_is_json(self):
+    # Places counts as configured here, so the answer does not depend on whether
+    # the environment has a Google key (without one the view answers 503 on purpose).
+    @mock.patch("events.places.suggest", return_value=[])
+    @mock.patch("events.places.enabled", return_value=True)
+    def test_malformed_multipart_to_json_endpoint_is_json(self, *_mocks):
         self.as_user("parent")
         resp = self.client.post(
             reverse("events:place_suggestions"),

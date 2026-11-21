@@ -160,7 +160,12 @@ class RequestSizeControlTests(TestCase):
         self.assertEqual(r.status_code, 413)
         self.assertEqual(r["Content-Type"], "application/json")
 
-    def test_control_deeply_nested_json_body_is_ignored(self):
+    # Places counts as configured here, so the answer does not depend on whether
+    # the environment has a Google key (without one the view answers 503 on purpose).
+    @mock.patch("events.places.details", return_value={})
+    @mock.patch("events.places.suggest", return_value=[])
+    @mock.patch("events.places.enabled", return_value=True)
+    def test_control_deeply_nested_json_body_is_ignored(self, *_mocks):
         # No view parses a JSON body; the JSON endpoints must not 500 on one.
         body = "[" * 5000 + "]" * 5000
         for path in (
