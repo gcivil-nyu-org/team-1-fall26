@@ -5,7 +5,7 @@
     {% include 'events/_flashes.html' %}
     <div class="head">
         <h1>Checklists</h1>
-        <span class="span">{{ workspace.name }}, {{ checklists|length }} list{{ checklists|length|pluralize }}</span>
+        <span class="span">{{ workspace.name }}, {{ page.paginator.count }} list{{ page.paginator.count|pluralize }}</span>
         {% if can_manage %}<div class="head-tools"><a class="btn" href="{% url 'checklists:create' workspace.pk %}">New checklist</a></div>{% endif %}
     </div>
     <section class="{% if checklists %}cards{% else %}panel{% endif %} lists" aria-labelledby="lists-heading">
@@ -31,4 +31,11 @@
             </div>
         {% endfor %}
     </section>
+    {% if page.has_other_pages %}
+        <nav class="pager" aria-label="Checklist pages">
+            {% if page.has_previous %}<a class="btn btn-quiet" href="?page={{ page.previous_page_number }}">Previous page</a>{% endif %}
+            <span class="span">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+            {% if page.has_next %}<a class="btn btn-quiet" href="?page={{ page.next_page_number }}">Next page</a>{% endif %}
+        </nav>
+    {% endif %}
 {% endblock %}

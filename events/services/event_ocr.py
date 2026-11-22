@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import math
 import shutil
 import threading
 import time as time_module
@@ -10,6 +12,7 @@ import re
 import unicodedata
 import warnings
 from dataclasses import dataclass
+from functools import lru_cache
 from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -24,7 +27,6 @@ from PIL import (
     ImageFilter,
     ImageOps,
     ImageStat,
-    UnidentifiedImageError,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,17 +39,38 @@ def ocr_available():
 
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 12_000_000
+# Pillow's own decompression-bomb guard: warn above this, refuse above twice this.
+# Set here so a change in Pillow's default (or another module) can't loosen it.
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+# Pillow takes pixel memory in blocks (16 MB by default) and keeps a freed block's
+# neighbours apart. Smaller blocks let each preprocessing step reuse what the one
+# before it freed, which cuts the peak of one scan by about a third.
+Image.core.set_block_size(1024 * 1024)
+# Pictures above this many pixels are closed once their working copy exists.
+LARGE_IMAGE_PIXELS = 4_000_000
+# The longest side the OCR passes work on.
+OCR_MAX_SIDE = 2400
 OCR_TIMEOUT_SECONDS = 15
 # One request must finish well inside nginx's 60 s: stop trying fallback passes
 # once this much time has gone.
 OCR_TIME_BUDGET_SECONDS = 25
 # At most two scans decode and run Tesseract at once.
 OCR_SLOTS = threading.BoundedSemaphore(2)
+# A scan that finds both slots taken waits this long for one before it answers 429.
+OCR_QUEUE_SECONDS = 2
+# Each account runs one scan at a time; a second scan from the same account waits (at
+# most this long) for its first, so one account can't hold both slots.
+OCR_USER_WAIT_SECONDS = 20
+# Don't start another Tesseract pass with less than this left in the budget.
+OCR_MIN_PASS_SECONDS = 3
 ALLOWED_IMAGE_FORMATS = frozenset({"JPEG", "PNG", "WEBP"})
 ALLOWED_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp"})
 ALLOWED_MIME_TYPES = frozenset(
     {"image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp"}
 )
+# The parsers read at most this much text, and this much of each line.
+MAX_TEXT_CHARS = 4000
+MAX_LINE_CHARS = 300
 REQUIRED_EVENT_FIELDS = ("title", "date", "start_time", "end_time")
 
 MISSING_FIELD_MESSAGES = {
@@ -389,7 +412,22 @@ def validate_and_load_image(uploaded_file):
                 probed.verify()
 
             loaded = Image.open(BytesIO(raw_bytes))
+            if loaded.format == "JPEG":
+                # Let the JPEG decoder shrink the picture while it decodes, so a big
+                # photo never exists at full size in memory.
+                longest = max(loaded.size)
+                if longest > OCR_MAX_SIDE:
+                    ratio = OCR_MAX_SIDE / longest
+                    loaded.draft(
+                        None,
+                        (
+                            max(1, int(loaded.width * ratio)),
+                            max(1, int(loaded.height * ratio)),
+                        ),
+                    )
             loaded.load()
+            # Read the EXIF block now: a damaged one (not TIFF data) is a bad file.
+            loaded.getexif()
             return loaded
     except EventOCRError:
         raise
@@ -399,13 +437,15 @@ def validate_and_load_image(uploaded_file):
             "This image resolution is too large to process safely.",
             400,
         ) from error
-    except (
-        UnidentifiedImageError,
-        OSError,
-        SyntaxError,
-        ValueError,
-        EOFError,
-    ) as error:
+    except MemoryError as error:
+        raise EventOCRError(
+            "image_too_large",
+            "This image resolution is too large to process safely.",
+            400,
+        ) from error
+    except Exception as error:  # noqa: BLE001 - damaged files raise many error types
+        # UnidentifiedImageError, OSError, SyntaxError, ValueError and EOFError are
+        # the usual ones; zlib.error, struct.error and KeyError come from broken data.
         raise EventOCRError(
             "corrupted_image",
             (
@@ -416,44 +456,111 @@ def validate_and_load_image(uploaded_file):
         ) from error
 
 
-def _normalize_canvas_and_size(image):
-    """Apply EXIF orientation, flatten transparency onto white, and normalize scale."""
-    transposed = ImageOps.exif_transpose(image)
-    if transposed.mode in ("RGBA", "LA") or (
-        transposed.mode == "P" and "transparency" in transposed.info
-    ):
-        rgba = transposed.convert("RGBA")
-        background = Image.new("RGB", rgba.size, (255, 255, 255))
-        background.paste(rgba, mask=rgba.getchannel("A"))
-        rgb = background
-    elif transposed.mode != "RGB":
-        rgb = transposed.convert("RGB")
-    else:
-        rgb = transposed.copy()
-
-    max_dim = max(rgb.width, rgb.height)
-    if max_dim > 2400:
-        scale = 2400 / max_dim
-        rgb = rgb.resize(
-            (max(1, int(rgb.width * scale)), max(1, int(rgb.height * scale))),
-            Image.Resampling.LANCZOS,
-        )
+def _scaled_size(width, height):
+    """The size the OCR works at: long side OCR_MAX_SIDE at most, and at least 1000
+    (small pictures are enlarged up to twice, to 2000 px)."""
+    max_dim = max(width, height)
+    if max_dim > OCR_MAX_SIDE:
+        scale = OCR_MAX_SIDE / max_dim
     elif max_dim < 1000:
         scale = min(2.0, 2000 / max(1, max_dim))
-        rgb = rgb.resize(
-            (max(1, int(rgb.width * scale)), max(1, int(rgb.height * scale))),
+    else:
+        return width, height
+    return max(1, int(width * scale)), max(1, int(height * scale))
+
+
+_ORIENTATION_TRANSPOSE = {
+    2: Image.Transpose.FLIP_LEFT_RIGHT,
+    3: Image.Transpose.ROTATE_180,
+    4: Image.Transpose.FLIP_TOP_BOTTOM,
+    5: Image.Transpose.TRANSPOSE,
+    6: Image.Transpose.ROTATE_270,
+    7: Image.Transpose.TRANSVERSE,
+    8: Image.Transpose.ROTATE_90,
+}
+
+
+def _has_alpha(image):
+    return image.mode in ("RGBA", "LA", "PA") or (
+        image.mode in ("P", "1") and "transparency" in image.info
+    )
+
+
+def _flatten_and_scale(image, new_size):
+    """A transparent picture drawn on white and scaled to new_size, built from strips.
+
+    Flattening a 12 Mpx RGBA picture whole needs an RGBA copy, a canvas and the resize
+    buffers beside the original. A strip of source rows (with the extra rows the filter
+    reads) is flattened and resized on its own, so only the small result is full-size.
+    The result is the same as resizing the whole picture."""
+    white = (255, 255, 255)
+    width, height = image.size
+    out = Image.new("RGB", new_size, white)
+    scale = height / new_size[1]
+    support = 3 * max(1.0, scale) + 1  # LANCZOS reads this many source rows around
+    block = max(1, 100_000 // max(1, new_size[0]))  # result rows per strip
+    for top in range(0, new_size[1], block):
+        bottom = min(new_size[1], top + block)
+        first = max(0, math.floor(top * scale - support))
+        last = min(height, math.ceil(bottom * scale + support))
+        strip = image.crop((0, first, width, last)).convert("RGBA")
+        flat = Image.new("RGB", strip.size, white)
+        flat.paste(strip, mask=strip.getchannel("A"))
+        strip.close()
+        piece = flat.resize(
+            (new_size[0], bottom - top),
             Image.Resampling.LANCZOS,
+            box=(0, top * scale - first, width, bottom * scale - first),
         )
-    return rgb
+        flat.close()
+        out.paste(piece, (0, top))
+        piece.close()
+    return out
 
 
-def _correct_osd_orientation(rgb_image):
-    """Correct 90/180/270 rotation using Tesseract OSD when confidence is adequate."""
+def _normalize_canvas_and_size(image):
+    """Apply EXIF orientation, flatten transparency onto white, and normalize scale.
+
+    Each step makes at most one new full-size copy and drops the one before it, so a
+    12 Mpx PNG never has several large copies alive at once."""
+    original = image
+    # A resized copy carries no EXIF block, so read the orientation first.
+    orientation = original.getexif().get(0x0112, 1)
+    new_size = _scaled_size(*image.size)
+    if _has_alpha(image):
+        image = _flatten_and_scale(image, new_size)
+    else:
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        if new_size != image.size:
+            resized = image.resize(new_size, Image.Resampling.LANCZOS, reducing_gap=2.0)
+            if image is not original:
+                image.close()
+            image = resized
+    method = _ORIENTATION_TRANSPOSE.get(orientation)
+    if method:
+        turned = image.transpose(method)
+        if image is not original:
+            image.close()
+        image = turned
+    return image.copy() if image is original else image
+
+
+def _correct_osd_orientation(rgb_image, deadline=None):
+    """Correct 90/180/270 rotation using Tesseract OSD when confidence is adequate.
+
+    The pass counts against the scan's deadline: it is skipped when too little time
+    is left, and never runs longer than what is left."""
+    allowed = OCR_TIMEOUT_SECONDS
+    if deadline is not None:
+        allowed = min(allowed, deadline - time_module.monotonic())
+        if allowed < OCR_MIN_PASS_SECONDS:
+            return rgb_image
     try:
         osd = pytesseract.image_to_osd(
             rgb_image,
             output_type=pytesseract.Output.DICT,
-            timeout=OCR_TIMEOUT_SECONDS,
+            timeout=allowed,
         )
     except (
         pytesseract.TesseractNotFoundError,
@@ -491,15 +598,28 @@ def _correct_osd_orientation(rgb_image):
     return rgb_image.transpose(transpose_map[rotate])
 
 
-def preprocess_image_for_ocr(image):
-    """Prepare oriented, contrast-enhanced grayscale variants for Tesseract OCR."""
+def preprocess_image_for_ocr(image, deadline=None, consume=None):
+    """Prepare oriented, contrast-enhanced grayscale variants for Tesseract OCR.
+
+    A big input (over LARGE_IMAGE_PIXELS, or consume=True) is closed once the working
+    copy exists, so its full-size pixels don't sit in memory beside the passes; do not
+    use such a picture afterwards. Each step also closes what it replaced, so peak
+    memory stays near one working-size copy."""
     rgb = _normalize_canvas_and_size(image)
-    oriented = _correct_osd_orientation(rgb)
+    if consume is None:
+        consume = image.width * image.height > LARGE_IMAGE_PIXELS
+    if consume:
+        image.close()
+    oriented = _correct_osd_orientation(rgb, deadline=deadline)
+    if oriented is not rgb:
+        rgb.close()
 
     gray = ImageOps.grayscale(oriented)
+    oriented.close()
     mean_luma = ImageStat.Stat(gray).mean[0]
     if mean_luma < 110:
         base_gray = ImageOps.invert(gray)
+        gray.close()
     else:
         base_gray = gray
 
@@ -508,10 +628,12 @@ def preprocess_image_for_ocr(image):
     primary = primary.filter(ImageFilter.SHARPEN)
 
     denoised = base_gray.filter(ImageFilter.MedianFilter(size=3))
+    base_gray.close()
     denoised = ImageOps.autocontrast(denoised, cutoff=2)
     denoised = ImageEnhance.Contrast(denoised).enhance(1.8)
     threshold = max(90, min(195, int(ImageStat.Stat(denoised).mean[0] * 0.92)))
     binarized = denoised.point(lambda px: 255 if px > threshold else 0, mode="1")
+    denoised.close()
     binarized = binarized.convert("L")
 
     return primary, [binarized]
@@ -556,20 +678,43 @@ def _score_ocr_text(text):
     )
 
 
-def extract_text_from_image(image):
-    """Run Tesseract OCR on preprocessed image variants and return normalized text."""
-    primary, fallbacks = preprocess_image_for_ocr(image)
+def extract_text_from_image(image, consume=None):
+    """Run Tesseract OCR on preprocessed image variants and return normalized text.
+
+    A big `image` is closed as soon as the working copy exists (see
+    preprocess_image_for_ocr)."""
+    # One deadline covers the whole scan, the orientation pass included.
     deadline = time_module.monotonic() + OCR_TIME_BUDGET_SECONDS
+    try:
+        primary, fallbacks = preprocess_image_for_ocr(
+            image, deadline=deadline, consume=consume
+        )
+    except EventOCRError:
+        raise
+    except Exception as error:  # noqa: BLE001 - a damaged picture fails in many ways
+        raise EventOCRError(
+            "corrupted_image",
+            (
+                "We couldn't read this image file. It may be corrupted or "
+                "incomplete. Try another photo or enter the event manually."
+            ),
+            400,
+        ) from error
 
     def _out_of_time():
-        return time_module.monotonic() >= deadline
+        return deadline - time_module.monotonic() < OCR_MIN_PASS_SECONDS
 
     def _run_ocr(target_image, config):
+        # No pass runs past the deadline; the first one always gets a fair chance.
+        allowed = max(
+            OCR_MIN_PASS_SECONDS,
+            min(OCR_TIMEOUT_SECONDS, deadline - time_module.monotonic()),
+        )
         return pytesseract.image_to_string(
             target_image,
             lang="eng",
             config=config,
-            timeout=OCR_TIMEOUT_SECONDS,
+            timeout=allowed,
         )
 
     try:
@@ -653,10 +798,13 @@ def extract_text_from_image(image):
 
 
 def normalize_ocr_text(text):
-    """Normalize OCR output whitespace, Unicode characters, and clear time typos."""
+    """Normalize OCR output whitespace, Unicode characters, and clear time typos.
+
+    The text is cut at MAX_TEXT_CHARS and each line at MAX_LINE_CHARS, so the parsers
+    below do a bounded amount of work however odd the picture is."""
     if not text:
         return ""
-    text = unicodedata.normalize("NFKC", text)
+    text = unicodedata.normalize("NFKC", text[: MAX_TEXT_CHARS * 2])
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
     # Normalize common OCR punctuation mistakes inside clear time expressions only.
@@ -682,7 +830,7 @@ def normalize_ocr_text(text):
     cleaned_lines = []
     blank_streak = 0
     for raw_line in text.split("\n"):
-        line = re.sub(r"[ \t]+", " ", raw_line).strip()
+        line = re.sub(r"[ \t]+", " ", raw_line).strip()[:MAX_LINE_CHARS]
         if not line:
             blank_streak += 1
             if blank_streak <= 1 and cleaned_lines:
@@ -693,7 +841,7 @@ def normalize_ocr_text(text):
 
     while cleaned_lines and not cleaned_lines[-1]:
         cleaned_lines.pop()
-    return "\n".join(cleaned_lines)
+    return "\n".join(cleaned_lines)[:MAX_TEXT_CHARS]
 
 
 def _extract_document_years(text):
@@ -767,25 +915,37 @@ def _overlaps(span_a, spans):
     return any(not (span_a[1] <= b[0] or span_a[0] >= b[1]) for b in spans)
 
 
+@lru_cache(maxsize=256)
+def _line_flags(line):
+    """What a whole line says, worked out once however many dates the line holds:
+    (has a deadline cue, has an alternate-date cue, has an event-date cue, has a time).
+    """
+    return (
+        bool(DEADLINE_PREFIX_RE.search(line)),
+        bool(ALTERNATE_DATE_RE.search(line)),
+        bool(EVENT_DATE_PREFIX_RE.search(line)),
+        bool(SINGLE_TIME_RE.search(line) or TIME_RANGE_RE.search(line)),
+    )
+
+
 def _line_date_context(line, start_idx):
     local_prefix = line[max(0, start_idx - 45) : start_idx]
+    line_deadline, line_alternate, line_event_date, line_time = _line_flags(line)
     is_deadline = bool(DEADLINE_PREFIX_RE.search(local_prefix)) or (
-        bool(DEADLINE_PREFIX_RE.search(line))
+        line_deadline
         and not EVENT_DATE_PREFIX_RE.search(local_prefix)
         and start_idx > 0
         and not re.search(r"\b(?:on|for|date|when)\b", local_prefix, re.IGNORECASE)
     )
-    if DEADLINE_PREFIX_RE.search(line) and not DEADLINE_PREFIX_RE.search(local_prefix):
+    if line_deadline and not DEADLINE_PREFIX_RE.search(local_prefix):
         # e.g. "Join us on Nov 20! RSVP by Nov 10." -> Nov 20 is NOT deadline.
         if EVENT_DATE_PREFIX_RE.search(local_prefix) or start_idx < 25:
             is_deadline = False
-    is_alternate = bool(ALTERNATE_DATE_RE.search(local_prefix)) or bool(
-        ALTERNATE_DATE_RE.search(line)
-    )
+    is_alternate = bool(ALTERNATE_DATE_RE.search(local_prefix)) or line_alternate
     bonus = 0
-    if EVENT_DATE_PREFIX_RE.search(local_prefix) or EVENT_DATE_PREFIX_RE.search(line):
+    if EVENT_DATE_PREFIX_RE.search(local_prefix) or line_event_date:
         bonus += 4
-    if SINGLE_TIME_RE.search(line) or TIME_RANGE_RE.search(line):
+    if line_time:
         bonus += 2
     if is_alternate:
         bonus -= 3
@@ -1765,20 +1925,56 @@ def parse_event_text(text, *, timezone_name=None, reference_date=None):
     }
 
 
-def scan_event_image(uploaded_file, *, timezone_name=None, reference_date=None):
-    """Validate, preprocess, OCR, and parse an uploaded event document image."""
-    if not OCR_SLOTS.acquire(blocking=False):
-        raise EventOCRError(
-            "busy", "Scanning is busy, try again in a moment.", http_status=429
-        )
+_owner_gate = threading.Lock()
+_owner_locks = {}  # owner -> [lock, scans holding or waiting]
+
+
+@contextlib.contextmanager
+def _owner_turn(owner):
+    """One scan at a time per account. A second scan from the same account waits for
+    its first (up to OCR_USER_WAIT_SECONDS), so one account can't hold both slots."""
+    if owner is None:
+        yield
+        return
+    with _owner_gate:
+        entry = _owner_locks.setdefault(owner, [threading.Lock(), 0])
+        entry[1] += 1
     try:
-        image = validate_and_load_image(uploaded_file)
+        if not entry[0].acquire(timeout=OCR_USER_WAIT_SECONDS):
+            raise EventOCRError(
+                "busy", "Scanning is busy, try again in a moment.", http_status=429
+            )
         try:
-            extracted_text = extract_text_from_image(image)
+            yield
         finally:
-            image.close()
+            entry[0].release()
     finally:
-        OCR_SLOTS.release()
+        with _owner_gate:
+            entry[1] -= 1
+            if entry[1] == 0:
+                _owner_locks.pop(owner, None)
+
+
+def scan_event_image(
+    uploaded_file, *, timezone_name=None, reference_date=None, owner=None
+):
+    """Validate, preprocess, OCR, and parse an uploaded event document image.
+
+    `owner` names the account scanning (its id); each account runs one scan at a
+    time. The upload is read from memory and never written to disk."""
+    with _owner_turn(owner):
+        if not OCR_SLOTS.acquire(timeout=OCR_QUEUE_SECONDS):
+            raise EventOCRError(
+                "busy", "Scanning is busy, try again in a moment.", http_status=429
+            )
+        try:
+            image = validate_and_load_image(uploaded_file)
+            try:
+                extracted_text = extract_text_from_image(image)
+            finally:
+                image.close()
+        finally:
+            OCR_SLOTS.release()
     return parse_event_text(
         extracted_text,
         timezone_name=timezone_name,

@@ -1,5 +1,5 @@
 from copy import copy
-from datetime import date, datetime, time, timedelta, timezone as dt_timezone
+from datetime import datetime, time, timedelta, timezone as dt_timezone
 from uuid import uuid4
 from zoneinfo import ZoneInfo, available_timezones
 
@@ -8,16 +8,25 @@ from django.contrib.auth import get_user_model
 from django.core import signing
 from django.utils import timezone
 
-from syncmily.text import clean_visible_text
+from syncmily.localtime import localtime_or_utc
+from syncmily.safety import (
+    SafeCharField,
+    SafeFormMixin,
+    safe_hex_color,
+    validate_event_window,
+)
+from syncmily import limits
+from syncmily.limits import EVENT_FIRST_DAY, EVENT_LAST_DAY
 
 from accounts.models import Workspace
 
+from . import places
 from .access import event_drivers, event_participants, family_workspaces
 from .conflicts import find_overlapping_events
-from .models import Event
+from .models import Event, TripStart
 
-MIN_EVENT_DATE = date(1900, 1, 1)
-MAX_EVENT_DATE = date(2100, 12, 31)
+MIN_EVENT_DATE = EVENT_FIRST_DAY
+MAX_EVENT_DATE = EVENT_LAST_DAY
 
 # The time-zone menu lists these, plus the current and chosen zones. The full list of
 # about 600 zones was half of every page's HTML (the header date menu repeats it on
@@ -113,8 +122,12 @@ def _wall_clock_to_aware(day, wall_time, zone):
 class EventTimezoneForm(forms.Form):
     timezone = forms.ChoiceField(required=False, widget=TimezoneSelect)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, zone_default=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # A page about one plan opens in that plan's zone when the query names none.
+        if self.is_bound and zone_default and not self.data.get("timezone"):
+            self.data = self.data.copy()
+            self.data["timezone"] = zone_default
         self.fields["timezone"].choices = [
             ("", f"Current timezone ({timezone.get_current_timezone_name()})"),
             *((name, name) for name in sorted(available_timezones())),
@@ -140,6 +153,22 @@ class EventWorkspaceForm(EventTimezoneForm):
             user,
             caregivers_only=True,
         ).order_by("name", "pk")
+
+    @classmethod
+    def from_query(cls, query, *, user):
+        """The "which family?" form for a query string. It is bound only once the
+        query names a family; the date, time and zone prefill it either way."""
+        return cls(
+            query if "workspace" in query else None,
+            user=user,
+            initial={
+                "date": query.get("date"),
+                "time": query.get("time"),
+                "timezone": (
+                    query.get("timezone") or timezone.get_current_timezone_name()
+                ),
+            },
+        )
 
 
 class EventScheduleForm(EventTimezoneForm):
@@ -218,9 +247,13 @@ class EventScheduleForm(EventTimezoneForm):
         return cleaned_data
 
 
-class EventForm(EventTimezoneForm):
+class EventForm(SafeFormMixin, EventTimezoneForm):
+    class Meta:
+        text_policies = {"title": "TITLE", "location": "PLACE"}
+
     field_order = [
         "submission_token",
+        "version",
         "title",
         "date",
         "start_time",
@@ -240,6 +273,14 @@ class EventForm(EventTimezoneForm):
 
     submission_token = forms.CharField(
         required=False,
+        widget=forms.HiddenInput,
+    )
+
+    # The version this edit page showed (see syncmily.locking). Only edits carry it.
+    version = forms.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=2**31 - 1,
         widget=forms.HiddenInput,
     )
 
@@ -328,13 +369,6 @@ class EventForm(EventTimezoneForm):
         ),
     )
 
-    def clean_title(self):
-        # Drop invisible format characters (zero-width spaces, bidi overrides).
-        title = clean_visible_text(self.cleaned_data["title"])
-        if not title:
-            raise forms.ValidationError("Enter an event title.")
-        return title
-
     def _clean_bounded_date(self, name):
         value = self.cleaned_data.get(name)
         if value is not None and not MIN_EVENT_DATE <= value <= MAX_EVENT_DATE:
@@ -352,8 +386,8 @@ class EventForm(EventTimezoneForm):
         if instance is not None:
             workspace = instance.workspace
             selected_timezone = ZoneInfo(instance.timezone_name)
-            starts_at = timezone.localtime(instance.starts_at, selected_timezone)
-            ends_at = timezone.localtime(instance.ends_at, selected_timezone)
+            starts_at = localtime_or_utc(instance.starts_at, selected_timezone)
+            ends_at = localtime_or_utc(instance.ends_at, selected_timezone)
             initial = {
                 name: getattr(instance, name)
                 for name in (
@@ -376,6 +410,7 @@ class EventForm(EventTimezoneForm):
                 dropoff_driver=instance.dropoff_driver_id,
                 pickup_driver=instance.pickup_driver_id,
             )
+            initial["version"] = instance.version
             initial.update(kwargs.pop("initial", {}))
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
@@ -406,6 +441,8 @@ class EventForm(EventTimezoneForm):
             )
         else:
             self.fields.pop("submission_token")
+        if instance is None:
+            self.fields.pop("version")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -610,3 +647,134 @@ class EventDriverForm(forms.ModelForm):
         for field in ("dropoff_driver", "pickup_driver"):
             self.fields[field].queryset = drivers
             self.fields[field].empty_label = "Not assigned"
+
+
+class PrefillForm(forms.Form):
+    """The optional start time the day view's "Add event at ..." link passes along.
+    A bad value is ignored, never an error page."""
+
+    time = forms.TimeField(required=False, input_formats=["%H:%M", "%H:%M:%S"])
+
+
+class TransportModeForm(forms.Form):
+    transport_mode = forms.ChoiceField(choices=Event.TransportMode.choices)
+
+
+class MemberColorsForm(forms.Form):
+    """One colour box per family member the person may change. The boxes come from the
+    member list, never from the posted keys, so a stray key is ignored and a key for
+    someone else's family can never be written."""
+
+    HEX = r"#[0-9a-fA-F]{6}"
+
+    def __init__(self, *args, member_ids, **kwargs):
+        super().__init__(*args, **kwargs)
+        for pk in member_ids:
+            self.fields[f"color-{pk}"] = forms.RegexField(
+                regex=f"^{self.HEX}$",
+                required=False,
+                max_length=7,
+                error_messages={"invalid": "Choose a colour like #c62828."},
+            )
+
+    def names_other_members(self):
+        """True when the post carries a colour box for someone outside member_ids."""
+        allowed = {name.removeprefix("color-") for name in self.fields}
+        return any(
+            key.startswith("color-") and key.removeprefix("color-") not in allowed
+            for key in self.data
+        )
+
+    def colors(self):
+        """{user id: "#rrggbb"} for the boxes that were filled in."""
+        return {
+            name.removeprefix("color-"): safe_hex_color(value, "").lower()
+            for name, value in self.cleaned_data.items()
+            if value
+        }
+
+
+class EventTimeForm(forms.Form):
+    """The four boxes of the "Change time" panel on an event page."""
+
+    starts_date = forms.DateField(input_formats=["%Y-%m-%d"])
+    starts_time = forms.TimeField(input_formats=["%H:%M", "%H:%M:%S"])
+    ends_date = forms.DateField(input_formats=["%Y-%m-%d"])
+    ends_time = forms.TimeField(input_formats=["%H:%M", "%H:%M:%S"])
+
+    def __init__(self, *args, zone, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.zone = zone
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors:
+            return cleaned
+        try:
+            starts_at = _wall_clock_to_aware(
+                cleaned["starts_date"], cleaned["starts_time"], self.zone
+            )
+            ends_at = _wall_clock_to_aware(
+                cleaned["ends_date"], cleaned["ends_time"], self.zone
+            )
+            if ends_at <= starts_at:
+                raise forms.ValidationError("The end has to be after the start.")
+            validate_event_window(starts_at, ends_at, self.zone)
+        except (OverflowError, ValueError):
+            raise forms.ValidationError("Choose a start and end time.") from None
+        cleaned.update(starts_at=starts_at, ends_at=ends_at)
+        return cleaned
+
+
+class TripStartForm(forms.Form):
+    """Where one person starts a trip: the mode, and for "somewhere else" a pin and a
+    name for it."""
+
+    mode = forms.ChoiceField(choices=TripStart.Mode.choices, required=False)
+    latitude = forms.FloatField(required=False, min_value=-90, max_value=90)
+    longitude = forms.FloatField(required=False, min_value=-180, max_value=180)
+    label = SafeCharField(policy="LABEL", required=False)
+
+    def clean_mode(self):
+        return self.cleaned_data.get("mode") or TripStart.Mode.HERE
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors or cleaned.get("mode") != TripStart.Mode.HERE:
+            return cleaned
+        if cleaned.get("latitude") is None or cleaned.get("longitude") is None:
+            raise forms.ValidationError("A location is required.")
+        return cleaned
+
+
+def _place_session(value):
+    """The Places session token, or "" when it isn't one (it is only a billing hint)."""
+    return value if places.valid_session(value) else ""
+
+
+class PlaceQueryForm(forms.Form):
+    """What someone typed in the location box. It is searched, never stored, so
+    markup is allowed. A very long entry is cut to the search limit, and a session
+    token that isn't one is dropped."""
+
+    q = SafeCharField(policy="SEARCH")
+    session = forms.CharField(required=False)
+
+    def __init__(self, data=None, *args, **kwargs):
+        if data is not None:
+            data = data.copy()
+            query = data.get("q")
+            if isinstance(query, str):
+                data["q"] = query.strip()[: limits.TEXT.search]
+        super().__init__(data, *args, **kwargs)
+
+    def clean_session(self):
+        return _place_session(self.cleaned_data["session"])
+
+
+class PlaceDetailsForm(forms.Form):
+    id = forms.RegexField(regex=r"^[A-Za-z0-9_-]{10,300}\Z", max_length=300)
+    session = forms.CharField(required=False)
+
+    def clean_session(self):
+        return _place_session(self.cleaned_data["session"])

@@ -1,23 +1,34 @@
+import hashlib
 import logging
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login, update_session_auth_hash
+from django.contrib.auth import (
+    get_user_model,
+    login,
+    update_session_auth_hash,
+    user_login_failed,
+)
 from django.contrib.auth import views as auth_views
-from django.contrib.auth.views import LoginView, PasswordResetView
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.views import (
+    LoginView,
+    PasswordResetConfirmView,
+    PasswordResetView,
+)
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import BadRequest, PermissionDenied
 from django.core.mail import BadHeaderError
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest
+from django.http.response import HttpResponseBase
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from calendars import google
@@ -27,32 +38,54 @@ from events.briefing import build_family_briefing, build_kid_briefing
 from events.timeline import editable_members, family_members
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 
-from syncmily.ratelimit import IP_LIMITS, rate_limit
+from syncmily import limits, ratelimit, seclog
+from syncmily.ratelimit import rate_limit
+from syncmily.safety import Params, QuotaExceeded
 
-from . import two_step
+from . import mail, two_step
 from .forms import (
     FamilyHomeForm,
     InviteMemberForm,
+    PaletteForm,
     ResetRequestForm,
+    SignInForm,
     SignUpForm,
     UsernameChangeForm,
     WorkspaceForm,
 )
 from .models import BriefingSeen, GoogleIdentity, Membership, Workspace
 from .services import (
+    INVITES_RECIPIENT_MESSAGE,
+    UNVERIFIED_INVITER_MESSAGE,
+    USERNAME_TAKEN_MESSAGE,
     GoogleAccountTaken,
     GoogleEmailInUse,
-    connect_google_account,
+    GoogleLinkRevoked,
+    InviteAlreadyUsed,
+    InviteRecipientLimited,
     accept_invitation,
+    confirm_email,
+    connect_google_account,
+    create_invite,
+    email_row_for_token,
+    email_verified,
     get_family_context,
     get_membership_from_token,
-    invite_member,
+    invite_refusal,
     invite_url,
-    invites_left,
+    password_changed,
+    password_reset_completed,
     reissue_invite,
     remove_member as remove_member_from,
+    rename_user,
+    renames_left,
+    renew_email_verification,
     send_invitation_email,
+    signup_conflict,
+    signup_notice,
+    start_email_verification,
     user_for_google_account,
+    verification_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,7 +99,7 @@ WEEK_RANGE_DAYS = 5 * 366
 
 
 @login_required
-@rate_limit("create_workspace", 5, 3600, key="user")
+@rate_limit("create_workspace")
 def create_workspace(request):
     """
     Allow an authenticated user to create a family workspace.
@@ -129,6 +162,7 @@ def workspace_detail(request, workspace_id):
         request.user.calendar_connections.filter(
             provider=CalendarConnection.Provider.GOOGLE
         )
+        .defer("access_token", "refresh_token")
         .select_related("workspace")
         .first()
     )
@@ -140,6 +174,7 @@ def workspace_detail(request, workspace_id):
         {
             "workspace": workspace,
             "calendar_connection": calendar_connection,
+            "import_limit": limits.QUOTAS.google_events_per_connection,
             "family": family,
             "pending": (
                 workspace.memberships.filter(accepted_at__isnull=True).select_related(
@@ -270,8 +305,8 @@ def _week_context(request, workspace):
     tz = timezone.get_current_timezone()
     today = timezone.localdate()
     try:
-        chosen = date.fromisoformat(request.GET.get("week", ""))
-    except ValueError:
+        chosen = Params(request.GET).date("week", default=today)
+    except BadRequest:
         chosen = today
     # Far-off dates (0001-01-01) would overflow the previous/next links; nobody plans
     # decades out.
@@ -333,20 +368,23 @@ def manage_members(request, workspace_id):
     if request.method == "POST":
         form = InviteMemberForm(request.POST, workspace=workspace)
 
-        if form.is_valid() and not invites_left(request.user):
-            form.add_error(
-                None,
-                "You've sent a lot of invites in the last hour. "
-                "Try again a little later.",
-            )
+        # Only an account that proved its own address may send invites (spec 3.4).
+        if form.is_valid() and not email_verified(request.user):
+            form.add_error(None, UNVERIFIED_INVITER_MESSAGE)
+        if form.is_valid():
+            refusal = invite_refusal(request.user)
+            if refusal:
+                form.add_error(None, refusal)
         if form.is_valid():
             try:
-                membership = invite_member(
+                membership = create_invite(
                     workspace=workspace,
                     invited_by=request.user,
                     email=form.cleaned_data["email"],
                     role=form.cleaned_data["role"],
                 )
+            except QuotaExceeded as error:
+                form.add_error(None, error.message)
             except DatabaseError:
                 form.add_error(
                     None,
@@ -402,6 +440,8 @@ def report_invite(request, membership):
         return
     try:
         send_invitation_email(request, membership)
+    except InviteRecipientLimited:
+        messages.warning(request, INVITES_RECIPIENT_MESSAGE.format(username=username))
     except (OSError, BadHeaderError, ValueError):
         messages.warning(
             request,
@@ -427,11 +467,13 @@ def resend_invite(request, workspace_id, membership_id):
         pk=membership_id,
         accepted_at__isnull=True,
     )
-    if not invites_left(request.user):
-        messages.warning(
-            request,
-            "You've sent a lot of invites in the last hour. Try again a little later.",
-        )
+    refusal = (
+        UNVERIFIED_INVITER_MESSAGE
+        if not email_verified(request.user)
+        else invite_refusal(request.user)
+    )
+    if refusal:
+        messages.warning(request, refusal)
     else:
         report_invite(request, reissue_invite(membership))
     return redirect("accounts:manage_members", workspace_id=workspace.id)
@@ -439,6 +481,7 @@ def resend_invite(request, workspace_id, membership_id):
 
 @login_required
 @require_POST
+@rate_limit("remove_member")
 def remove_member(request, workspace_id, membership_id):
     """Take someone out of the family so their email can be used again."""
     workspace = get_object_or_404(Workspace, id=workspace_id)
@@ -465,6 +508,7 @@ def remove_member(request, workspace_id, membership_id):
 
 
 @require_http_methods(["GET", "POST"])
+@rate_limit("accept_invite")
 def accept_invite(request, token):
     """
     Confirm an emailed invitation. Confirming happens on POST so that
@@ -489,9 +533,19 @@ def accept_invite(request, token):
     form = SetPasswordForm(membership.user, request.POST or None)
 
     if request.method == "POST" and form.is_valid():
-        with transaction.atomic():
-            form.save()
-            accept_invitation(membership)
+        try:
+            accept_invitation(membership, set_password=form.save)
+        except InviteAlreadyUsed:
+            # Someone used this link a moment ago (two posts at once).
+            return render(request, "accounts/invite_invalid.html", status=409)
+        seclog.event(
+            "invite_accepted",
+            request=request,
+            user=membership.user,
+            outcome="accepted",
+            membership_id=membership.pk,
+            workspace_id=membership.workspace_id,
+        )
         login(request, membership.user, backend=DIRECT_LOGIN_BACKEND)
         messages.success(
             request,
@@ -512,7 +566,7 @@ def google_sign_in_enabled():
 
 
 @require_http_methods(["GET", "POST"])
-@rate_limit("signup", *IP_LIMITS["signup"], key="ip")
+@rate_limit("signup")
 def signup(request):
     """Let anyone create an account; they set up or join a family afterwards."""
     if request.user.is_authenticated:
@@ -521,14 +575,16 @@ def signup(request):
     form = SignUpForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
-        user = form.save()
-        login(request, user, backend=DIRECT_LOGIN_BACKEND)
-        messages.success(
-            request,
-            f"Welcome to Syncmily, {user.username}! Create your family workspace to get"
-            " started.",
+        with mail.FixedDelay(), transaction.atomic():
+            return _finish_sign_up(request, form)
+    if request.method == "POST":
+        seclog.event(
+            "signup_invalid",
+            request=request,
+            outcome="rejected",
+            attempted=str(form.data.get("username", ""))[:150],
+            fields=",".join(sorted(form.errors)),
         )
-        return redirect("accounts:dashboard")
 
     return render(
         request,
@@ -537,7 +593,86 @@ def signup(request):
     )
 
 
-@method_decorator(rate_limit("login", *IP_LIMITS["login"], key="ip"), name="dispatch")
+def _finish_sign_up(request, form):
+    """Create the account, or, when the username or address is taken, answer the
+    same way and email the address owner instead (spec 10.2). Both paths hash a
+    password and send one email, so neither the page nor its timing names the
+    cause."""
+    username = form.cleaned_data["username"]
+    email = form.cleaned_data["email"]
+    kind, holder = signup_conflict(username, email)
+    if kind is not None:
+        make_password(form.cleaned_data["password1"])
+        seclog.event(
+            "signup_conflict",
+            request=request,
+            outcome="refused",
+            attempted=username,
+            conflict=kind,
+        )
+        message = signup_notice(request, kind, email, holder, username)
+        if message is not None:
+            mail.send_after_commit(message)
+        messages.info(
+            request,
+            "Check your email to finish. If you already have an account, sign in.",
+        )
+        return redirect("accounts:login")
+
+    try:
+        with transaction.atomic():
+            user = form.save()
+    except IntegrityError:
+        # Someone took the username or address at the same moment.
+        messages.info(
+            request,
+            "Check your email to finish. If you already have an account, sign in.",
+        )
+        return redirect("accounts:login")
+    seclog.event("signup", request=request, user=user, outcome="created")
+    row = start_email_verification(user)
+    mail.send_after_commit(verification_message(request, row))
+    login(request, user, backend=DIRECT_LOGIN_BACKEND)
+    messages.success(
+        request,
+        f"Welcome to Syncmily, {user.username}! We sent a link to {email}; open it to"
+        " confirm your address. Create your family workspace to get started.",
+    )
+    return redirect("accounts:dashboard")
+
+
+@require_http_methods(["GET", "POST"])
+def verify_email(request, token):
+    """Confirm a sign-up's email address. Opening the link only shows a button, so
+    mail scanners that open links can't confirm it."""
+    row = email_row_for_token(token)
+    if row is None:
+        return render(request, "accounts/verify_email_invalid.html", status=400)
+    if request.method == "POST":
+        if confirm_email(token) is None:
+            return render(request, "accounts/verify_email_invalid.html", status=400)
+        messages.success(request, "Thanks! Your email address is confirmed.")
+        if request.user.is_authenticated:
+            return redirect("accounts:profile")
+        return redirect("accounts:login")
+    return render(request, "accounts/verify_email.html", {"email": row.email})
+
+
+@login_required
+@require_POST
+@rate_limit("verify_email")
+def resend_verification(request):
+    row = renew_email_verification(request.user)
+    if row is None:
+        messages.info(request, "Your email address is already confirmed.")
+    else:
+        with transaction.atomic():
+            mail.send_after_commit(verification_message(request, row))
+        messages.success(request, f"We sent a new link to {row.email}.")
+    return redirect("accounts:profile")
+
+
+@method_decorator(rate_limit("login"), name="dispatch")
 class SignInView(LoginView):
     """The password sign-in, which hands off to the code step when two-step sign-in is
     on.
@@ -545,11 +680,7 @@ class SignInView(LoginView):
 
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
-
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        form.fields["username"].widget.attrs["spellcheck"] = "false"
-        return form
+    authentication_form = SignInForm
 
     def get_context_data(self, **kwargs):
         return {
@@ -567,7 +698,7 @@ class SignInView(LoginView):
 
 
 @method_decorator(
-    rate_limit("password_reset", *IP_LIMITS["password_reset"], key="ip"),
+    rate_limit("password_reset"),
     name="dispatch",
 )
 class ResetRequestView(PasswordResetView):
@@ -580,6 +711,46 @@ class ResetRequestView(PasswordResetView):
     email_template_name = "accounts/emails/password_reset.txt"
     subject_template_name = "accounts/emails/password_reset_subject.txt"
     success_url = reverse_lazy("accounts:password_reset_done")
+
+    def form_valid(self, form):
+        # The same wait on every path: a real address and an unknown one answer
+        # after the same time (finding reset-timing-enumeration).
+        with mail.FixedDelay() as delay:
+            response = super().form_valid(form)
+            delay.threads.extend(form.sent)
+        seclog.event(
+            "password_reset_requested",
+            request=self.request,
+            outcome="accepted",
+            email_hash=hashlib.sha256(
+                form.cleaned_data["email"].strip().lower().encode()
+            ).hexdigest()[:12],
+        )
+        return response
+
+
+@method_decorator(
+    rate_limit("password_reset_confirm"),
+    name="dispatch",
+)
+class ResetConfirmView(PasswordResetConfirmView):
+    """Choose a new password from the emailed link. Finishing proves the address
+    (finding AUTH-05): see services.password_reset_completed."""
+
+    template_name = "accounts/password_reset_confirm.html"
+    success_url = reverse_lazy("accounts:password_reset_complete")
+
+    def form_valid(self, form):
+        had_password = form.user.has_usable_password()
+        response = super().form_valid(form)
+        password_reset_completed(form.user, had_password=had_password)
+        seclog.event(
+            "password_reset_completed",
+            request=self.request,
+            user=form.user,
+            outcome="success",
+        )
+        return response
 
 
 def _google_login_callback_uri(request):
@@ -633,22 +804,33 @@ def google_disconnect(request):
     return redirect("accounts:profile")
 
 
+OAUTH_STATE = r"[A-Za-z0-9_-]{1,128}"
+OAUTH_CODE = r"[!-~]{1,512}"
+
+
 @require_GET
+@rate_limit("google_oauth", methods=("GET",))
 def google_login_callback(request):
     pending = request.session.pop(GOOGLE_LOGIN_SESSION_KEY, None)
-    if not pending or request.GET.get("state") != pending["state"]:
+    params = Params(request.GET)
+    try:
+        state = params.token("state", OAUTH_STATE, 128)
+        code = params.token("code", OAUTH_CODE, 512)
+    except BadRequest:
+        state = code = None
+    if not pending or state is None or state != pending["state"]:
         messages.error(
             request, "We couldn’t confirm that sign-in with Google. Please try again."
         )
         return redirect("accounts:login")
-    if "code" not in request.GET:
+    if code is None:
         messages.error(request, "Google sign-in was cancelled.")
         return redirect("accounts:login")
 
     try:
         claims = google.verify_login(
             _google_login_callback_uri(request),
-            request.GET["code"],
+            code,
             pending["code_verifier"],
         )
     except Exception:
@@ -678,7 +860,8 @@ def google_login_callback(request):
         return redirect("accounts:profile")
 
     email = claims.get("email", "")
-    if not email or not claims.get("email_verified"):
+    # Only Google's own yes counts; a string "false" is not a yes.
+    if not email or claims.get("email_verified") not in (True, "true"):
         messages.error(
             request,
             "Google hasn’t verified that account’s email, so we can’t use it to"
@@ -688,6 +871,14 @@ def google_login_callback(request):
 
     try:
         user = user_for_google_account(claims["sub"], email)
+    except GoogleLinkRevoked:
+        messages.error(
+            request,
+            "Google sign-in was turned off for this account when its password"
+            " changed. Sign in with your username and password, then connect Google"
+            " again from your profile.",
+        )
+        return redirect("accounts:login")
     except GoogleEmailInUse:
         messages.error(
             request,
@@ -716,6 +907,9 @@ def google_login_callback(request):
     return redirect("accounts:dashboard")
 
 
+PROFILE_ACTIONS = {"username", "password"}
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def profile(request):
@@ -729,25 +923,25 @@ def profile(request):
     )
     username_form = UsernameChangeForm(instance=request.user)
     password_form = PasswordForm(request.user)
-    action = request.POST.get("action")
+    action = (
+        Params(request.POST).choice("action", PROFILE_ACTIONS)
+        if request.method == "POST"
+        else None
+    )
 
-    if request.method == "POST" and action == "username":
-        username_form = UsernameChangeForm(request.POST, instance=request.user)
+    if action == "username":
+        result = _change_username(request)
+        if isinstance(result, HttpResponseBase):
+            return result
+        username_form = result
 
-        if username_form.is_valid():
-            username_form.save()
-            messages.success(request, "Your username has been updated.")
-            return redirect("accounts:profile")
+    elif action == "password":
+        result = _change_password(request, PasswordForm)
+        if isinstance(result, HttpResponseBase):
+            return result
+        password_form = result
 
-    elif request.method == "POST" and action == "password":
-        password_form = PasswordForm(request.user, request.POST)
-
-        if password_form.is_valid():
-            user = password_form.save()
-            update_session_auth_hash(request, user)
-            messages.success(request, "Your password has been updated.")
-            return redirect("accounts:profile")
-
+    identity = GoogleIdentity.objects.filter(user=request.user).first()
     return render(
         request,
         "accounts/profile.html",
@@ -755,12 +949,92 @@ def profile(request):
             "username_form": username_form,
             "password_form": password_form,
             "family": get_family_context(request.user),
-            "google_identity": GoogleIdentity.objects.filter(user=request.user).first(),
+            "google_identity": identity if identity and identity.is_active else None,
+            "google_revoked": bool(identity and not identity.is_active),
             "google_sign_in": google_sign_in_enabled(),
             "two_step_on": two_step.is_enabled(request.user),
             "backup_codes_left": two_step.backup_codes_left(request.user),
+            "email_verified": email_verified(request.user),
         },
     )
+
+
+def _change_username(request):
+    """A rename: at most 3 a day (spec 3.2 rule 6). Returns a redirect when it
+    worked, else the bound form with its errors."""
+    form = UsernameChangeForm(request.POST, instance=request.user)
+    if not renames_left(request.user):
+        form.is_valid()
+        form.add_error(
+            "username",
+            "You've changed your username 3 times today. Try again tomorrow.",
+        )
+        return form
+    if form.is_valid():
+        try:
+            rename_user(request.user, form.cleaned_data["username"])
+        except IntegrityError:
+            # Someone took the same name at the same moment (unique index).
+            request.user.refresh_from_db(fields=["username"])
+            form.add_error("username", USERNAME_TAKEN_MESSAGE)
+            return form
+        messages.success(request, "Your username has been updated.")
+        return redirect("accounts:profile")
+    request.user.refresh_from_db(fields=["username"])
+    return form
+
+
+def _change_password(request, PasswordForm):
+    """A password change: 5 tries per 15 minutes per account and 20 an hour per
+    address (H-LIMITS-04). A wrong current password also counts toward the sign-in
+    lockout. Returns a redirect when it worked, a 429, or the bound form."""
+    allowed = ratelimit.allow(
+        request,
+        "profile_password",
+        ratelimit.RATE_LIMITS["profile_password"].limit,
+        ratelimit.RATE_LIMITS["profile_password"].window,
+        key="user",
+    ) and ratelimit.allow(
+        request,
+        "profile_password_ip",
+        ratelimit.RATE_LIMITS["profile_password_ip"].limit,
+        ratelimit.RATE_LIMITS["profile_password_ip"].window,
+        key="ip",
+    )
+    if not allowed:
+        return ratelimit.too_many_requests(request, scope="profile_password")
+    had_password = request.user.has_usable_password()
+    form = PasswordForm(request.user, request.POST)
+    if form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)
+        revoked = password_changed(
+            user,
+            had_password=had_password,
+            keep_session_key=request.session.session_key,
+        )
+        seclog.event(
+            "password_changed",
+            request=request,
+            user=user,
+            outcome="changed",
+            google_links_revoked=bool(revoked),
+        )
+        messages.success(request, "Your password has been updated.")
+        if revoked:
+            messages.info(
+                request,
+                "For your safety, Google sign-in is off until you connect Google"
+                " again below.",
+            )
+        return redirect("accounts:profile")
+    if had_password and "old_password" in form.errors:
+        user_login_failed.send(
+            sender=__name__,
+            credentials={"username": request.user.get_username()},
+            request=request,
+        )
+    return form
 
 
 @login_required
@@ -770,11 +1044,12 @@ def set_palette(request, workspace_id):
     workspace = get_object_or_404(
         family_workspaces(request.user, caregivers_only=True), pk=workspace_id
     )
-    palette = request.POST.get("palette", "")
-    if palette not in Workspace.Palette.values:
+    form = PaletteForm(request.POST)
+    if not form.is_valid():
         return HttpResponseBadRequest(
             "Choose Saturday market, Morning garden or Crayon box."
         )
+    palette = form.cleaned_data["palette"]
     if workspace.palette != palette:
         workspace.palette = palette
         workspace.save(update_fields=["palette"])
@@ -794,11 +1069,12 @@ def set_my_palette(request, workspace_id):
         role=Membership.Role.KID,
         accepted_at__isnull=False,
     )
-    palette = request.POST.get("palette", "")
-    if palette not in Workspace.Palette.values:
+    form = PaletteForm(request.POST)
+    if not form.is_valid():
         return HttpResponseBadRequest(
             "Choose Saturday market, Morning garden or Crayon box."
         )
+    palette = form.cleaned_data["palette"]
     if kid.palette != palette:
         kid.palette = palette
         kid.save(update_fields=["palette"])
@@ -806,12 +1082,11 @@ def set_my_palette(request, workspace_id):
 
 
 def _back_to_page(request):
-    next_url = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(
-        next_url, {request.get_host()}, request.is_secure()
-    ):
-        next_url = reverse("accounts:dashboard")
-    return redirect(next_url)
+    return redirect(
+        Params(request.POST, request).next_url(
+            "next", default=reverse("accounts:dashboard")
+        )
+    )
 
 
 @login_required
@@ -829,7 +1104,10 @@ def family_home(request, workspace_id):
         "latitude": workspace.home_latitude,
         "longitude": workspace.home_longitude,
     }
-    if request.method == "POST" and request.POST.get("action") == "clear":
+    if (
+        request.method == "POST"
+        and Params(request.POST).choice("action", {"clear", "save"}) == "clear"
+    ):
         workspace.home_location = ""
         workspace.home_latitude = workspace.home_longitude = None
         workspace.save(

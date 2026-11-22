@@ -1,6 +1,9 @@
+import contextlib
+import contextvars
 import hashlib
 import math
 import os
+import time
 from dataclasses import dataclass
 from datetime import timedelta, timezone as dt_timezone
 
@@ -8,6 +11,8 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
+
+from . import upstream
 
 OSRM_BASE_URL = "https://router.project-osrm.org"
 VALHALLA_BASE_URL = "https://valhalla1.openstreetmap.de"
@@ -28,6 +33,103 @@ GOOGLE_TRAVEL_MODES = {
 GOOGLE_TRANSIT_PAST_LIMIT = timedelta(days=7)
 GOOGLE_TRANSIT_FUTURE_LIMIT = timedelta(days=100)
 GOOGLE_CACHE_SECONDS = 60 * 60
+# Cache keys round pins to three decimals (about 110 m), so nudging a pin by a few
+# metres can't force a new paid lookup each time.
+KEY_DECIMALS = 3
+# One request (a save, a preview) spends at most this many seconds on routing calls.
+REQUEST_BUDGET_SECONDS = 30
+# A save or preview checks at most this many legs; the rest stay unverified.
+MAX_LEGS_PER_REQUEST = 12
+# The longest trip we accept from a provider (seven days).
+MAX_TRIP_SECONDS = 7 * 24 * 3600
+# Per call: (connect, read, total) seconds.
+GOOGLE_DEADLINE = upstream.Deadline(3.05, 5, total=8, max_bytes=256 * 1024)
+OPEN_DEADLINE = upstream.Deadline(3.05, 5, total=8, max_bytes=1024 * 1024)
+
+
+class _Budget:
+    def __init__(self, seconds):
+        self.remaining = seconds
+        self.legs = 0
+
+    def charge(self, seconds):
+        self.remaining -= seconds
+
+
+_budget = contextvars.ContextVar("routing_budget", default=None)
+
+
+@contextlib.contextmanager
+def request_budget(seconds=REQUEST_BUDGET_SECONDS):
+    """Cap what one request spends on routing calls (a worst case of `seconds`)."""
+    token = _budget.set(_Budget(seconds))
+    try:
+        yield _budget.get()
+    finally:
+        _budget.reset(token)
+
+
+def take_leg():
+    """True while this request may still check another leg."""
+    budget = _budget.get()
+    if budget is None:
+        return True
+    if budget.legs >= MAX_LEGS_PER_REQUEST:
+        return False
+    budget.legs += 1
+    return True
+
+
+def _key_point(point):
+    return f"{point.latitude:.{KEY_DECIMALS}f},{point.longitude:.{KEY_DECIMALS}f}"
+
+
+def _call(provider, method, url, deadline, request_key, **kwargs):
+    """One outbound routing call: refused while the provider is down or this request's
+    time budget is spent, charged against the budget, and never redirected."""
+    upstream.check(provider, request_key)
+    budget = _budget.get()
+    if budget is not None and budget.remaining < deadline.total:
+        raise upstream.RecentlyUnavailable("this request's routing time is used up")
+    started = time.monotonic()
+    try:
+        response = getattr(requests, method)(
+            url, timeout=deadline, allow_redirects=False, **kwargs
+        )
+        response.raise_for_status()
+    except requests.RequestException as error:
+        if budget is not None:
+            # A stalled call may have used its whole allowance, however fast it ended.
+            budget.charge(
+                deadline.total
+                if upstream.looks_like_outage(error)
+                else time.monotonic() - started
+            )
+        upstream.record_failure(provider, error, request_key)
+        raise
+    if budget is not None:
+        budget.charge(time.monotonic() - started)
+    return response
+
+
+def _seconds_or_none(value):
+    """A trip length in seconds, or None when the provider sent something odd."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not math.isfinite(value) or not 0 <= value <= MAX_TRIP_SECONDS:
+        return None
+    return value
+
+
+def _cached_seconds(key, compute):
+    """Seconds from the cache, else from compute(). A route nobody finds is cached
+    too, so the open fallbacks aren't asked again for it."""
+    cached = cache.get(key)
+    if cached is not None:
+        return cached["seconds"]
+    seconds = compute()
+    cache.set(key, {"seconds": seconds}, GOOGLE_CACHE_SECONDS)
+    return seconds
 
 
 @dataclass
@@ -97,47 +199,46 @@ def estimate_google_seconds(start, end, mode, departure_time=None):
         "google-route:"
         + hashlib.sha256(
             (
-                f"{travel_mode}|{start.latitude:.5f},{start.longitude:.5f}|"
-                f"{end.latitude:.5f},{end.longitude:.5f}|{(departure or '')[:13]}"
+                f"{travel_mode}|{_key_point(start)}|{_key_point(end)}|"
+                f"{(departure or '')[:13]}"
             ).encode()
         ).hexdigest()
     )
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached["seconds"]
 
-    payload = {
-        "origin": {
-            "location": {
-                "latLng": {"latitude": start.latitude, "longitude": start.longitude}
-            }
-        },
-        "destination": {
-            "location": {
-                "latLng": {"latitude": end.latitude, "longitude": end.longitude}
-            }
-        },
-        "travelMode": travel_mode,
-    }
-    if departure:
-        payload["departureTime"] = departure
+    def compute():
+        payload = {
+            "origin": {
+                "location": {
+                    "latLng": {"latitude": start.latitude, "longitude": start.longitude}
+                }
+            },
+            "destination": {
+                "location": {
+                    "latLng": {"latitude": end.latitude, "longitude": end.longitude}
+                }
+            },
+            "travelMode": travel_mode,
+        }
+        if departure:
+            payload["departureTime"] = departure
+        response = _call(
+            "google-routes",
+            "post",
+            GOOGLE_ROUTES_URL,
+            GOOGLE_DEADLINE,
+            cache_key,
+            json=payload,
+            headers={
+                "X-Goog-Api-Key": api_key,
+                "X-Goog-FieldMask": "routes.duration",
+            },
+        )
+        routes = response.json().get("routes") or []
+        if not routes or not isinstance(routes[0], dict):
+            return None
+        return _seconds_or_none(_parse_google_duration(routes[0].get("duration")))
 
-    response = requests.post(
-        GOOGLE_ROUTES_URL,
-        json=payload,
-        headers={
-            "X-Goog-Api-Key": api_key,
-            "X-Goog-FieldMask": "routes.duration",
-        },
-        timeout=5,
-    )
-    response.raise_for_status()
-
-    routes = response.json().get("routes") or []
-    seconds = _parse_google_duration(routes[0].get("duration")) if routes else None
-    # Cache misses too, so a route Google can't find isn't asked again.
-    cache.set(cache_key, {"seconds": seconds}, GOOGLE_CACHE_SECONDS)
-    return seconds
+    return _cached_seconds(cache_key, compute)
 
 
 def _estimate_with_google(first_event, second_event, transport_mode):
@@ -164,20 +265,18 @@ def estimate_driving_seconds(start, end):
         f"{start.longitude},{start.latitude};"
         f"{end.longitude},{end.latitude}"
     )
+    key = f"osrm-route:{_key_point(start)}:{_key_point(end)}"
 
-    response = requests.get(
-        url,
-        params={"overview": "false"},
-        timeout=6,
-    )
-    response.raise_for_status()
+    def compute():
+        response = _call(
+            "osrm", "get", url, OPEN_DEADLINE, key, params={"overview": "false"}
+        )
+        data = response.json()
+        if data.get("code") != "Ok" or not data.get("routes"):
+            return None
+        return _seconds_or_none(data["routes"][0].get("duration"))
 
-    data = response.json()
-
-    if data.get("code") != "Ok" or not data.get("routes"):
-        return None
-
-    return data["routes"][0].get("duration")
+    return _cached_seconds(key, compute)
 
 
 def estimate_valhalla_seconds(start, end, mode):
@@ -198,13 +297,19 @@ def estimate_valhalla_seconds(start, end, mode):
         "units": "kilometers",
     }
 
-    response = requests.post(
-        f"{VALHALLA_BASE_URL}/route",
-        json=payload,
-        timeout=15,
-    )
-    response.raise_for_status()
+    key = f"valhalla-route:{costing}:{_key_point(start)}:{_key_point(end)}"
+    return _cached_seconds(key, lambda: _valhalla_seconds(payload, mode, key))
 
+
+def _valhalla_seconds(payload, mode, key):
+    response = _call(
+        "valhalla",
+        "post",
+        f"{VALHALLA_BASE_URL}/route",
+        OPEN_DEADLINE,
+        key,
+        json=payload,
+    )
     data = response.json()
 
     trip = data.get("trip", {})
@@ -245,7 +350,7 @@ def estimate_valhalla_seconds(start, end, mode):
         if not has_transit:
             return None
 
-    return summary.get("time")
+    return _seconds_or_none(summary.get("time"))
 
 
 def estimate_transit_seconds(start, end, departure_time=None):
@@ -295,13 +400,20 @@ def estimate_transit_seconds(start, end, departure_time=None):
         "time": local_departure.strftime("%H:%M"),
     }
 
-    response = requests.post(
-        OTP_GRAPHQL_URL,
-        json={"query": query, "variables": variables},
-        timeout=15,
-    )
-    response.raise_for_status()
+    hour = local_departure.strftime("%Y-%m-%dT%H")
+    key = f"otp-route:{_key_point(start)}:{_key_point(end)}:{hour}"
+    return _cached_seconds(key, lambda: _otp_seconds(query, variables, key))
 
+
+def _otp_seconds(query, variables, key):
+    response = _call(
+        "otp",
+        "post",
+        OTP_GRAPHQL_URL,
+        OPEN_DEADLINE,
+        key,
+        json={"query": query, "variables": variables},
+    )
     result = response.json()
 
     if result.get("errors"):
@@ -333,7 +445,7 @@ def estimate_transit_seconds(start, end, departure_time=None):
         if has_transit and isinstance(duration, (int, float)) and duration >= 0:
             valid_durations.append(duration)
 
-    return min(valid_durations) if valid_durations else None
+    return _seconds_or_none(min(valid_durations)) if valid_durations else None
 
 
 def estimate_travel_time(first_event, second_event, transport_mode):

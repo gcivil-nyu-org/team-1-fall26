@@ -1,13 +1,12 @@
-# Security checks on every pull request, on pushes to develop/main, and weekly
-# (new advisories appear even when the code doesn't change).
+# Security checks. ci.yml calls this workflow as its `security` job on every pull request and
+# push to develop/main, so a deploy waits for it. It also runs weekly on its own (new
+# advisories appear even when the code doesn't change) and on demand.
 # Actions are pinned to commit SHAs and tools to exact versions so a compromised
 # tag upstream can't change what runs here.
 name: Security
 
 on:
-  pull_request:
-  push:
-    branches: [develop, main]
+  workflow_call:
   schedule:
     - cron: "0 13 * * 1"  # Mondays 09:00 New York
   workflow_dispatch:
@@ -15,16 +14,14 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: security-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   dependencies:
     name: Known-vulnerable dependencies (pip-audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.14"
@@ -37,6 +34,8 @@ jobs:
     container: semgrep/semgrep:1.182.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       # Test files hold deliberately fake tokens; gitleaks below still scans them for real secrets.
       # The CSRF-token rule is excluded: Django's CsrfViewMiddleware rejects any POST without a
       # token, so a missing tag breaks the form instead of opening a hole.
@@ -53,6 +52,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Install gitleaks 8.30.1 (checksum verified)
         run: |
           curl -sSfL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz

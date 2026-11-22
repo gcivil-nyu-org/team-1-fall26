@@ -14,6 +14,9 @@ from django.utils import timezone
 from django.utils.dateformat import format as date_format
 from django.utils.html import format_html
 
+from syncmily.limits import RENDER
+from syncmily.text import truncate_graphemes
+
 register = template.Library()
 
 
@@ -24,18 +27,29 @@ def possessive(name):
     return f"{name}’" if name.endswith(("s", "S")) else f"{name}’s"
 
 
-@register.filter
-def person(user):
-    """The name a family uses: the first name when there is one, else the username."""
+def full_name(user):
+    """The name a family uses, uncut: the first name when there is one, else the
+    username."""
     if not user:
         return ""
     return (getattr(user, "first_name", "") or "").strip() or user.get_username()
 
 
 @register.filter
+def person(user):
+    """The name a family uses, cut to 30 characters with an ellipsis. Names sit in
+    pills, chips and dots, where 150 characters have no room."""
+    return truncate_graphemes(full_name(user), RENDER.display_name_chars)
+
+
+@register.filter
 def initial(user):
-    """One letter for the round member dot."""
-    return person(user)[:1].upper()
+    """One character for the round member dot: the first letter or digit of the name,
+    or "?" when it has none."""
+    for character in full_name(user):
+        if character.isalnum():
+            return character.upper()
+    return "?"
 
 
 @register.filter

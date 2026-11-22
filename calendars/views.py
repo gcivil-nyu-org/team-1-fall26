@@ -4,14 +4,16 @@ from datetime import timezone as datetime_timezone
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import BadRequest, ImproperlyConfigured
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 from google.auth.exceptions import RefreshError
 
 from accounts.models import Workspace
+from syncmily.ratelimit import rate_limit
+from syncmily.safety import Params, safe_next_url
 
 from . import google
 from .models import CalendarConnection
@@ -20,15 +22,25 @@ from .sync import record_sync_failure, sync_connection
 logger = logging.getLogger(__name__)
 
 SESSION_KEY = "google_calendar_oauth"
+# The token columns decrypt when a row loads. Views that must still work when a token
+# can't be decrypted (a lost key) leave them out and read them only inside a try.
+TOKEN_FIELDS = ("access_token", "refresh_token")
+# What Google sends back: state and code are URL-safe strings; error is a short word.
+OAUTH_VALUE = r"[A-Za-z0-9._~/+=-]+"
+OAUTH_ERROR = r"[a-z_]+"
 
 
 def _safe_next(request, url):
     """Return url when it points back into this site, else an empty string."""
-    if url and url_has_allowed_host_and_scheme(
-        url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return url
-    return ""
+    return safe_next_url(request, url)
+
+
+def _stored_token(connection):
+    """The token to revoke, or "" when it can't be decrypted."""
+    try:
+        return connection.refresh_token or connection.access_token
+    except ImproperlyConfigured:
+        return ""
 
 
 def _callback_uri(request):
@@ -39,6 +51,7 @@ def _callback_uri(request):
 
 @login_required
 @require_POST
+@rate_limit("google_oauth")
 def google_connect(request, workspace_id):
     workspace = get_object_or_404(
         Workspace, pk=workspace_id, primary_admin=request.user
@@ -53,17 +66,35 @@ def google_connect(request, workspace_id):
         "code_verifier": code_verifier,
         "workspace_id": str(workspace.pk),
     }
-    next_url = _safe_next(request, request.POST.get("next"))
+    next_url = Params(request.POST, request).next_url("next")
     if next_url:
         request.session[SESSION_KEY]["next"] = next_url
     return redirect(url)
 
 
+def _oauth_params(request):
+    """The state, code and error Google sent back; a malformed one reads as missing."""
+    params = Params(request.GET, request)
+    values = {}
+    for name, pattern, longest in (
+        ("state", OAUTH_VALUE, 512),
+        ("code", OAUTH_VALUE, 2048),
+        ("error", OAUTH_ERROR, 64),
+    ):
+        try:
+            values[name] = params.token(name, pattern, longest)
+        except BadRequest:
+            values[name] = None
+    return values
+
+
 @login_required
 @require_GET
+@rate_limit("google_oauth", methods=("GET",))
 def google_callback(request):
     pending = request.session.pop(SESSION_KEY, None)
-    if not pending or request.GET.get("state") != pending["state"]:
+    returned = _oauth_params(request)
+    if not pending or returned["state"] != pending["state"]:
         messages.error(
             request,
             "We couldn’t confirm that request from Google. Please try connecting"
@@ -78,12 +109,12 @@ def google_callback(request):
         "accounts:workspace_detail", args=[workspace.pk]
     )
 
-    if request.GET.get("error") == "access_denied":
+    if returned["error"] == "access_denied":
         messages.error(
             request, "Google Calendar wasn’t connected because access was declined."
         )
         return redirect(workspace_url)
-    if "code" not in request.GET:
+    if not returned["code"]:
         messages.error(
             request, "Google couldn’t connect your calendar. Please try again."
         )
@@ -91,7 +122,7 @@ def google_callback(request):
 
     try:
         credentials, email = google.exchange_code(
-            _callback_uri(request), request.GET["code"], pending["code_verifier"]
+            _callback_uri(request), returned["code"], pending["code_verifier"]
         )
     except Exception as error:
         # Log only the error type: OAuth error messages can echo request details.
@@ -122,9 +153,11 @@ def google_callback(request):
     if expires_at is not None and timezone.is_naive(expires_at):
         expires_at = expires_at.replace(tzinfo=datetime_timezone.utc)
 
-    previous = CalendarConnection.objects.filter(
-        user=request.user, provider=CalendarConnection.Provider.GOOGLE
-    ).first()
+    previous = (
+        CalendarConnection.objects.defer(*TOKEN_FIELDS)
+        .filter(user=request.user, provider=CalendarConnection.Provider.GOOGLE)
+        .first()
+    )
     if (
         previous
         and previous.account_email
@@ -135,7 +168,7 @@ def google_callback(request):
         # events.
         # (Revoking the same account's grant would also cancel the new token, so only do
         # it here.)
-        google.revoke(previous.refresh_token or previous.access_token)
+        google.revoke(_stored_token(previous))
         previous.events.all().delete()
 
     connection, _ = CalendarConnection.objects.update_or_create(
@@ -150,6 +183,8 @@ def google_callback(request):
             "scopes": " ".join(granted_scopes),
             "sync_token": "",
             "last_synced_at": None,
+            "sync_error": CalendarConnection.SyncError.NONE,
+            "sync_failed_at": None,
         },
     )
     messages.success(
@@ -182,9 +217,10 @@ def _sync_and_report(request, connection):
 
 @login_required
 @require_POST
+@rate_limit("google_sync")
 def google_sync(request):
     connection = get_object_or_404(
-        CalendarConnection,
+        CalendarConnection.objects.defer(*TOKEN_FIELDS),
         user=request.user,
         provider=CalendarConnection.Provider.GOOGLE,
     )
@@ -200,12 +236,15 @@ def google_sync(request):
 @require_POST
 def google_auto_sync(request):
     connection = get_object_or_404(
-        CalendarConnection,
+        CalendarConnection.objects.defer(*TOKEN_FIELDS),
         user=request.user,
         provider=CalendarConnection.Provider.GOOGLE,
     )
-    choice = request.POST.get("auto_sync")
-    if choice not in ("on", "off"):
+    try:
+        choice = Params(request.POST, request).choice("auto_sync", ("on", "off"))
+    except BadRequest:
+        choice = None
+    if choice is None:
         messages.error(request, "Choose whether automatic sync is on or paused.")
     else:
         connection.auto_sync = choice == "on"
@@ -233,12 +272,12 @@ def google_auto_sync(request):
 @require_POST
 def google_disconnect(request):
     connection = get_object_or_404(
-        CalendarConnection,
+        CalendarConnection.objects.defer(*TOKEN_FIELDS),
         user=request.user,
         provider=CalendarConnection.Provider.GOOGLE,
     )
     workspace_id = connection.workspace_id
-    revoked = google.revoke(connection.refresh_token or connection.access_token)
+    revoked = google.revoke(_stored_token(connection))
     connection.delete()
 
     if revoked:

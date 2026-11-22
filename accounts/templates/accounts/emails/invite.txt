@@ -1,6 +1,6 @@
-{% autoescape off %}{{ membership.invited_by.username }} added you to {{ membership.workspace.name }} on Syncmily as a {{ membership.get_role_display|lower }}.
+{% autoescape off %}A parent invited you to join their family on Syncmily as a {{ membership.get_role_display|lower }}.
 
-Choose your password here. The link works for 7 days:
+Open this link to see who invited you and which family, then choose your password to accept. The link works for 7 days:
 {{ accept_url }}
 
 Your username is {{ membership.user.username }}. You can change it after you sign in.

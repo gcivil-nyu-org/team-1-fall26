@@ -6,6 +6,7 @@ from datetime import timedelta, timezone as datetime_timezone
 from django.contrib.auth import get_user_model
 
 from accounts.models import MemberColor, Membership
+from syncmily.safety import safe_hex_color
 
 from .models import Event
 
@@ -40,6 +41,7 @@ def contrast_ratio(first, second):
 
 def text_color_for(background):
     """Black or white, whichever reads better on the background (at least 4.5:1)."""
+    background = safe_hex_color(background, MemberColor.PARENT_DEFAULT)
     return max(
         (DARK_TEXT, LIGHT_TEXT), key=lambda text: contrast_ratio(background, text)
     )
@@ -71,7 +73,9 @@ def family_members(workspaces):
         roles.setdefault(membership.user_id, (membership.workspace, membership.role))
     users = User.objects.filter(pk__in=roles, is_active=True)
     colors = {
-        (color.workspace_id, color.user_id): color.color
+        # A row from the admin or an old migration may hold a bad colour. It is
+        # dropped here, so nothing but "#rrggbb" ever reaches a style attribute.
+        (color.workspace_id, color.user_id): safe_hex_color(color.color, None)
         for color in MemberColor.objects.filter(
             workspace__in=workspaces, user__in=users
         )

@@ -4,15 +4,16 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from syncmily.locking import VersionedModel
+from syncmily import constraints
+from syncmily.safety import CleanCharField, CleanTextQuerySet
 from syncmily.text import clean_visible_text
 
-
-def clean_text(value):
-    """Drop invisible format characters (zero-width, RTL override) and trim."""
-    return clean_visible_text(value)
+# The shared normalizer, under the name the checklist forms already use.
+clean_text = clean_visible_text
 
 
-class Checklist(models.Model):
+class Checklist(VersionedModel):
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -33,7 +34,7 @@ class Checklist(models.Model):
         related_name="checklists",
     )
 
-    title = models.CharField(max_length=150)
+    title = CleanCharField(max_length=150, policy="TITLE")
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -43,6 +44,14 @@ class Checklist(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = CleanTextQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            constraints.not_blank("checklist", "title"),
+            constraints.clean_text("checklist", "title"),
+        ]
 
     def clean(self):
         super().clean()
@@ -71,14 +80,14 @@ class Checklist(models.Model):
         return self.title
 
 
-class ChecklistItem(models.Model):
+class ChecklistItem(VersionedModel):
     checklist = models.ForeignKey(
         Checklist,
         on_delete=models.CASCADE,
         related_name="items",
     )
 
-    description = models.CharField(max_length=255)
+    description = CleanCharField(max_length=255, policy="TITLE")
 
     is_completed = models.BooleanField(default=False)
 
@@ -99,8 +108,14 @@ class ChecklistItem(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = CleanTextQuerySet.as_manager()
+
     class Meta:
         ordering = ["position", "id"]
+        constraints = [
+            constraints.not_blank("checklistitem", "description"),
+            constraints.clean_text("checklistitem", "description"),
+        ]
 
     def __str__(self):
         return self.description

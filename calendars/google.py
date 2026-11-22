@@ -2,7 +2,7 @@ import os
 
 import requests
 from django.conf import settings
-from google.auth.transport.requests import Request
+from google.auth.transport import requests as google_transport
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
 
@@ -12,6 +12,10 @@ os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 SCOPES = ["openid", "https://www.googleapis.com/auth/userinfo.email", CALENDAR_SCOPE]
+# google-auth waits 120 s for Google's signing certificates; nginx gives up at 60 s.
+google_transport._DEFAULT_TIMEOUT = 10
+# (connect, read) seconds for the token exchange.
+TOKEN_TIMEOUT = (3.05, 10)
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 
 
@@ -23,6 +27,30 @@ LOGIN_SCOPES = [
 ]
 
 
+class Request(google_transport.Request):
+    """google-auth's transport, with the wait for Google's certificates capped."""
+
+    def __call__(
+        self, url, method="GET", body=None, headers=None, timeout=10, **kwargs
+    ):
+        return super().__call__(
+            url, method, body, headers, timeout=min(timeout or 10, 10), **kwargs
+        )
+
+
+def _add_timeout(session):
+    """Give every request the session makes a timeout: requests waits forever by
+    default, and fetch_token sends timeout=None unless the caller sets one."""
+    send = session.request
+
+    def request(*args, **kwargs):
+        if kwargs.get("timeout") is None:
+            kwargs["timeout"] = TOKEN_TIMEOUT
+        return send(*args, **kwargs)
+
+    session.request = request
+
+
 def _flow(redirect_uri, scopes=SCOPES, **kwargs):
     client_config = {
         "web": {
@@ -32,9 +60,11 @@ def _flow(redirect_uri, scopes=SCOPES, **kwargs):
             "token_uri": "https://oauth2.googleapis.com/token",
         }
     }
-    return Flow.from_client_config(
+    flow = Flow.from_client_config(
         client_config, scopes=scopes, redirect_uri=redirect_uri, **kwargs
     )
+    _add_timeout(flow.oauth2session)
+    return flow
 
 
 def authorization_url(redirect_uri):
@@ -86,6 +116,8 @@ def verify_login(redirect_uri, code, code_verifier):
 
 def revoke(token):
     """Ask Google to revoke a token. Return True when Google confirms."""
+    if not token:
+        return False
     try:
         response = requests.post(REVOKE_URL, data={"token": token}, timeout=10)
     except requests.RequestException:

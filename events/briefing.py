@@ -11,12 +11,15 @@ from datetime import timedelta
 
 from django.db.models import Q
 
+from syncmily.limits import RENDER
+
 from .access import family_events
 from .models import Event
 from .week import local_day_bounds
 
-# Two days of one family's plans; more than this is a data problem, not a schedule.
-MAX_PLANS = 40
+# More than this in one briefing is a data problem, not a schedule: the rest is
+# counted ("+N more").
+MAX_PLANS = RENDER.briefing_plans
 
 
 def _items(events, day_start, day_end):
@@ -38,11 +41,11 @@ def _briefing(events, now, tz):
     today_start, today_end = local_day_bounds(today, tz)
     tomorrow = today + timedelta(days=1)
     _, tomorrow_end = local_day_bounds(tomorrow, tz)
-    events = list(
-        events.filter(starts_at__lt=tomorrow_end, ends_at__gt=today_start).order_by(
-            "starts_at", "pk"
-        )[:MAX_PLANS]
-    )
+    in_range = events.filter(starts_at__lt=tomorrow_end, ends_at__gt=today_start)
+    events = list(in_range.order_by("starts_at", "pk")[:MAX_PLANS])
+    # Counted every time, so the number of queries never depends on how much data a
+    # family has.
+    more = max(in_range.count() - MAX_PLANS, 0)
     today_events = [event for event in events if event.starts_at < today_end]
     left_today = [event for event in today_events if event.ends_at > now]
     if left_today:
@@ -50,10 +53,12 @@ def _briefing(events, now, tz):
             "day": today,
             "is_today": True,
             "items": _items(left_today, today_start, today_end),
+            "more": more,
         }
     return {
         "day": tomorrow,
         "is_today": False,
+        "more": more,
         "done_today": bool(today_events),
         "items": _items(
             [event for event in events if event.ends_at > today_end],

@@ -42,6 +42,10 @@ class ValidCoordinatesTests(SimpleTestCase):
 
 
 class DrivingTests(SimpleTestCase):
+    def setUp(self):
+        # Route answers are cached, including misses: start each test empty.
+        cache.clear()
+
     @mock.patch("events.routing.requests.get")
     def test_returns_duration(self, get):
         get.return_value = fake_response({"code": "Ok", "routes": [{"duration": 600}]})
@@ -54,6 +58,10 @@ class DrivingTests(SimpleTestCase):
 
 
 class ValhallaTests(SimpleTestCase):
+    def setUp(self):
+        # Route answers are cached, including misses: start each test empty.
+        cache.clear()
+
     @mock.patch("events.routing.requests.post")
     def test_walking_returns_time(self, post):
         post.return_value = fake_response({"trip": {"summary": {"time": 900}}})
@@ -91,6 +99,10 @@ class ValhallaTests(SimpleTestCase):
 
 
 class OpenTripPlannerTests(SimpleTestCase):
+    def setUp(self):
+        # Route answers are cached, including misses: start each test empty.
+        cache.clear()
+
     def itineraries(self, *items):
         return {"data": {"plan": {"itineraries": list(items)}}}
 

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from .models import Event
-from .routing import estimate_travel_time
+from . import routing
+from .routing import RouteEstimate, estimate_travel_time
 
 
 @dataclass
@@ -24,7 +25,14 @@ def find_travel_checks(event, participants):
         return []
 
     checks = []
+    # One budget for the whole call: a save or a preview never waits on routing
+    # services for long, and checks at most routing.MAX_LEGS_PER_REQUEST legs.
+    with routing.request_budget():
+        _check_participants(event, participants, checks)
+    return checks
 
+
+def _check_participants(event, participants, checks):
     for participant in participants:
         events = Event.objects.filter(
             workspace_id=event.workspace_id,
@@ -55,11 +63,14 @@ def find_travel_checks(event, participants):
 
             transport_mode = event.transport_mode
 
-            route = estimate_travel_time(
-                first_event=first,
-                second_event=second,
-                transport_mode=transport_mode,
-            )
+            if routing.take_leg():
+                route = estimate_travel_time(
+                    first_event=first,
+                    second_event=second,
+                    transport_mode=transport_mode,
+                )
+            else:
+                route = RouteEstimate(None, "unverified")
 
             status = route.status
 
@@ -80,5 +91,3 @@ def find_travel_checks(event, participants):
                     status=status,
                 )
             )
-
-    return checks

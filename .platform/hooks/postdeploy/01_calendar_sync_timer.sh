@@ -9,6 +9,8 @@ Description=Import Google Calendar events into Syncmily
 [Service]
 Type=oneshot
 User=webapp
+# systemd turns the timeout off for oneshot units; set one so a hung import cannot block later runs.
+TimeoutStartSec=900
 WorkingDirectory=/var/app/current
 EnvironmentFile=/opt/elasticbeanstalk/deployment/env
 ExecStart=/bin/bash -c 'source /var/app/venv/*/bin/activate && python manage.py sync_calendars'

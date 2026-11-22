@@ -1,61 +1,122 @@
 import logging
-import math
-from datetime import datetime, time as dt_time
+from datetime import time as dt_time
 from urllib.parse import urlencode
 from uuid import UUID
 from zoneinfo import ZoneInfo, available_timezones
 
-from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.cache import cache
 from django.core.paginator import Paginator
+from django.core.exceptions import BadRequest
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.cache import patch_cache_control
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from accounts.models import MemberColor
+from syncmily.localtime import localtime_or_utc
+from syncmily.errors import json_endpoint, json_error
+from syncmily.limits import RATES, RENDER
+from syncmily.locking import CONFLICT_MESSAGE, expected_version, remember_version
 from syncmily.ratelimit import allow, too_many_requests
+from syncmily.safety import Params, enforce_quota
 
 from .access import family_events, family_workspaces
 from .ai_forms import AIEventSuggestionForm
-from .ai_suggestions import EventSuggestionError, generate_event_suggestion
+from .ai_suggestions import (
+    EventSuggestionError,
+    ai_enabled,
+    generate_event_suggestion,
+)
 from .day import vertical_day
 from .forms import (
     EventDriverForm,
     EventForm,
     EventScheduleForm,
+    EventTimeForm,
     EventTimezoneForm,
     EventWorkspaceForm,
-    _wall_clock_to_aware,
+    MemberColorsForm,
+    PlaceDetailsForm,
+    PlaceQueryForm,
+    PrefillForm,
+    TransportModeForm,
+    TripStartForm,
 )
 from .models import Event, TripStart
 from .services.event_ocr import EventOCRError, ocr_available, scan_event_image
 from .travel_conflicts import find_travel_checks
 from . import places
 from .trip import build_trip, marker_data
-from .timeline import HEX_COLOR, build_day_timeline, editable_members, family_members
+from .timeline import build_day_timeline, editable_members, family_members
 from .week import local_day_bounds
 
 logger = logging.getLogger(__name__)
 
 
-def _prefill_time(value):
-    """The start time a link asks the event form for, or None if missing or invalid."""
-    if not value:
-        return None
+class StaleEdit(Exception):
+    """The row changed after the edit page was loaded."""
+
+
+def _event_write_limited(request):
+    """A 429 response when this person saves plans too fast, else None. The write
+    limits count every save, edit, delete and time change, and run before the quota
+    check."""
+    for scope in ("event_write_minute", "event_write_hour"):
+        rate = RATES[scope]
+        if not allow(request, scope, rate.limit, rate.window, rate.key):
+            return too_many_requests(request, scope=scope)
+    return None
+
+
+EDITABLE_FIELDS = (
+    "title",
+    "starts_at",
+    "ends_at",
+    "timezone_name",
+    "location",
+    "latitude",
+    "longitude",
+    "transport_mode",
+    "is_tentative",
+    "requires_transport",
+    "dropoff_driver_id",
+    "pickup_driver_id",
+)
+
+
+def _saves_nothing_new(current, edited, participants):
+    """True when the edit would leave the saved plan exactly as it is. Someone else's
+    save that matches this form is no lost update, so it needs no second look."""
+    return all(
+        getattr(current, name) == getattr(edited, name) for name in EDITABLE_FIELDS
+    ) and set(current.participants.values_list("pk", flat=True)) == {
+        person.pk for person in participants
+    }
+
+
+def _usable_zone(name, *moments):
+    """The zone name when every moment can be shown there, else "UTC". A plan near
+    year 9999 cannot be written on the clock of a zone ahead of UTC."""
+    zone = ZoneInfo(name)
     try:
-        return forms.TimeField().clean(value)
-    except ValidationError:
-        return None
+        for moment in moments:
+            moment.astimezone(zone)
+    except (OverflowError, ValueError):
+        return "UTC"
+    return name
+
+
+def _local_day(event_details):
+    """The plan's start day on its own wall clock, which is the day the cap counts."""
+    zone = ZoneInfo(event_details.timezone_name)
+    return localtime_or_utc(event_details.starts_at, zone).date(), zone
 
 
 @require_http_methods(["GET", "POST"])
@@ -77,11 +138,21 @@ def create_event(request, workspace_id=None):
             family_workspaces(request.user, caregivers_only=True), pk=workspace_id
         )
     can_save = workspace is not None
-    action = request.POST.get("action") if request.method == "POST" else None
+    action = (
+        Params(request.POST).choice(
+            "action", ("save", "preview", "generate_suggestion"), default="preview"
+        )
+        if request.method == "POST"
+        else None
+    )
     saving = action == "save"
 
     if action in ("generate_suggestion", "save") and not can_save:
         raise PermissionDenied
+    if saving:
+        limited = _event_write_limited(request)
+        if limited is not None:
+            return limited
 
     ai_form = AIEventSuggestionForm(
         request.POST if action == "generate_suggestion" else None
@@ -96,9 +167,10 @@ def create_event(request, workspace_id=None):
             initial = {
                 "timezone": schedule_form.cleaned_data["timezone"],
             }
-            if request.GET.get("date"):
+            if schedule_form.data.get("date"):
                 initial["date"] = schedule_form.cleaned_data["date"]
-            start_time = _prefill_time(request.GET.get("time"))
+            prefill = PrefillForm(request.GET)
+            start_time = prefill.cleaned_data["time"] if prefill.is_valid() else None
             if start_time is not None:
                 # One hour by default, kept inside the same day.
                 end_minutes = min(
@@ -121,13 +193,14 @@ def create_event(request, workspace_id=None):
             "Wait a few minutes, or fill in the form yourself.",
         )
     elif action == "generate_suggestion" and ai_form.is_valid():
-        suggestion_timezone = (
-            request.POST.get("timezone") or timezone.get_current_timezone_name()
-        )
-
-        if suggestion_timezone not in available_timezones():
+        try:
+            suggestion_timezone = Params(request.POST).timezone(
+                "timezone", timezone.get_current_timezone_name()
+            )
+        except BadRequest:
+            suggestion_timezone = None
             ai_form.add_error(None, "Choose a valid timezone.")
-        else:
+        if suggestion_timezone is not None:
             try:
                 suggestion = generate_event_suggestion(
                     ai_form.cleaned_data["description"],
@@ -189,6 +262,15 @@ def create_event(request, workspace_id=None):
                 try:
                     with transaction.atomic():
                         event_details.full_clean(validate_unique=False)
+                        already_saved = Event.objects.filter(
+                            submission_id=submission_id,
+                            created_by=request.user,
+                            workspace=workspace,
+                        ).exists()
+                        if not already_saved:
+                            day, zone = _local_day(event_details)
+                            enforce_quota(workspace, "events_per_day", day=day, tz=zone)
+                            enforce_quota(workspace, "events_rolling_30d")
                         saved_event, created = Event.objects.get_or_create(
                             submission_id=submission_id,
                             created_by=request.user,
@@ -233,6 +315,8 @@ def create_event(request, workspace_id=None):
         {
             "form": form,
             "ai_form": ai_form,
+            # A posted request still shows the panel, so its answer has somewhere to go.
+            "ai_enabled": ai_enabled() or action == "generate_suggestion",
             "ai_missing_fields": ai_missing_fields,
             "ai_suggestion_generated": ai_suggestion_generated,
             "event_details": event_details,
@@ -284,16 +368,36 @@ def edit_event(request, pk):
     event_details = None
     travel_checks = []
     timezone_name = event.timezone_name
+    status = 200
+    conflict_message = ""
     if request.method == "POST" and form.is_valid():
         event_details = form.event
         timezone_name = form.cleaned_data["timezone"]
         travel_checks = find_travel_checks(
             event_details, form.cleaned_data["participants"]
         )
-        if request.POST.get("action") == "save":
+        if Params(request.POST).choice("action", ("save", "preview")) == "save":
+            limited = _event_write_limited(request)
+            if limited is not None:
+                return limited
             try:
                 with transaction.atomic():
+                    current = get_object_or_404(
+                        Event.objects.select_for_update(), pk=event.pk
+                    )
+                    expected = expected_version(
+                        request, "event", event.pk, form.cleaned_data.get("version")
+                    )
+                    if current.version != expected and not _saves_nothing_new(
+                        current, event_details, form.cleaned_data["participants"]
+                    ):
+                        raise StaleEdit
                     event_details.full_clean()
+                    day, zone = _local_day(event_details)
+                    if day != _local_day(current)[0]:
+                        enforce_quota(
+                            event.workspace, "events_per_day", day=day, tz=zone
+                        )
                     event_details.save(
                         update_fields=[
                             "title",
@@ -312,6 +416,16 @@ def edit_event(request, pk):
                         ]
                     )
                     event_details.participants.set(form.cleaned_data["participants"])
+            except StaleEdit:
+                # Show the saved plan, so the person can review it and save again.
+                conflict_message = CONFLICT_MESSAGE
+                event.refresh_from_db()
+                remember_version(request, "event", event.pk, event.version)
+                form = EventForm(instance=event, user=request.user)
+                event_details = None
+                travel_checks = []
+                timezone_name = event.timezone_name
+                status = 409
             except ValidationError as error:
                 form.add_error(None, error.messages)
             except DatabaseError:
@@ -321,11 +435,14 @@ def edit_event(request, pk):
                     " Please try again.",
                 )
             else:
+                remember_version(request, "event", event.pk, event_details.version)
                 messages.success(request, "Your event has been updated.")
                 detail_url = reverse("events:detail", args=[event.pk])
                 return redirect(
                     f"{detail_url}?{urlencode({'timezone': timezone_name})}"
                 )
+    elif request.method == "GET":
+        remember_version(request, "event", event.pk, event.version)
     return render(
         request,
         "events/create_event.html",
@@ -343,12 +460,14 @@ def edit_event(request, pk):
                 else reverse("accounts:dashboard")
             ),
             "form_url": reverse("events:edit", args=[event.pk]),
+            "conflict_message": conflict_message,
             "travel_checks": travel_checks,
             "members": {
                 member["user"].pk: member
                 for member in family_members([event.workspace])
             },
         },
+        status=status,
     )
 
 
@@ -362,22 +481,24 @@ def delete_event(request, pk):
         ).select_related("workspace"),
         pk=pk,
     )
-    timezone_data = request.GET.copy()
-    if not timezone_data.get("timezone"):
-        timezone_data["timezone"] = event.timezone_name
-    timezone_form = EventTimezoneForm(timezone_data)
+    timezone_form = EventTimezoneForm(request.GET, zone_default=event.timezone_name)
     timezone_name = event.timezone_name
     if timezone_form.is_valid():
         timezone_name = timezone_form.cleaned_data["timezone"]
+    timezone_name = _usable_zone(timezone_name, event.starts_at, event.ends_at)
     timezone_query = urlencode({"timezone": timezone_name})
     error = None
     if request.method == "POST":
-        if request.POST.get("action") != "delete":
+        limited = _event_write_limited(request)
+        if limited is not None:
+            return limited
+        action = Params(request.POST).token("action", r"[a-z_]+", 20)
+        if action != "delete":
             error = "Choose Delete event to confirm, or Keep event to go back."
         else:
             schedule_query = urlencode(
                 {
-                    "date": timezone.localtime(
+                    "date": localtime_or_utc(
                         event.starts_at, ZoneInfo(timezone_name)
                     ).date(),
                     "view": "day",
@@ -414,17 +535,7 @@ def delete_event(request, pk):
 @login_required(login_url="accounts:login")
 @require_GET
 def choose_workspace(request):
-    form = EventWorkspaceForm(
-        request.GET if "workspace" in request.GET else None,
-        user=request.user,
-        initial={
-            "date": request.GET.get("date"),
-            "time": request.GET.get("time"),
-            "timezone": (
-                request.GET.get("timezone") or timezone.get_current_timezone_name()
-            ),
-        },
-    )
+    form = EventWorkspaceForm.from_query(request.GET, user=request.user)
     if not form.is_bound:
         # One family to add to: nothing to choose, so go straight to the event form.
         choices = list(form.fields["workspace"].queryset[:2])
@@ -463,20 +574,18 @@ def set_transport_mode(request, pk):
         ),
         pk=pk,
     )
-    mode = request.POST.get("transport_mode", "")
-    if mode not in Event.TransportMode.values:
+    mode_form = TransportModeForm(request.POST)
+    if not mode_form.is_valid():
         return HttpResponseBadRequest("Choose car, subway or bus, walking or cycling.")
+    mode = mode_form.cleaned_data["transport_mode"]
     if event.transport_mode != mode:
         event.transport_mode = mode
         event.save(update_fields=["transport_mode", "updated_at"])
     if request.headers.get("X-Requested-With") == "fetch":
         return HttpResponse(status=204)
-    next_url = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(
-        next_url, {request.get_host()}, request.is_secure()
-    ):
-        next_url = reverse("accounts:dashboard")
-    return redirect(next_url)
+    return redirect(
+        Params(request.POST, request).next_url("next", reverse("accounts:dashboard"))
+    )
 
 
 @login_required(login_url="accounts:login")
@@ -497,13 +606,11 @@ def event_detail(request, pk):
         if event.workspace_id
         else reverse("events:list")
     )
-    timezone_data = request.GET.copy()
-    if not timezone_data.get("timezone"):
-        timezone_data["timezone"] = event.timezone_name
-    timezone_form = EventTimezoneForm(timezone_data)
+    timezone_form = EventTimezoneForm(request.GET, zone_default=event.timezone_name)
     timezone_name = event.timezone_name
     if timezone_form.is_valid():
         timezone_name = timezone_form.cleaned_data["timezone"]
+    timezone_name = _usable_zone(timezone_name, event.starts_at, event.ends_at)
     can_manage_drivers = (
         bool(event.workspace_id)
         and family_workspaces(
@@ -535,8 +642,12 @@ def event_detail(request, pk):
                     detail_url = reverse("events:detail", args=[event.pk])
                     query = urlencode({"timezone": timezone_name})
                     return redirect(f"{detail_url}?{query}")
-            event.refresh_from_db()
-    local_day = timezone.localtime(event.starts_at, ZoneInfo(timezone_name)).date()
+            try:
+                event.refresh_from_db()
+            except Event.DoesNotExist:
+                # Someone deleted the event while this form was being saved.
+                raise Http404("That event was deleted.")
+    local_day = localtime_or_utc(event.starts_at, ZoneInfo(timezone_name)).date()
     schedule_query = urlencode(
         {
             "date": local_day,
@@ -550,8 +661,12 @@ def event_detail(request, pk):
         else {}
     )
     same_day = []
-    if event.workspace_id:
+    try:
         day_start, day_end = local_day_bounds(local_day, ZoneInfo(timezone_name))
+    except OverflowError:
+        # The last day Python can hold has no next day: nothing else to compare.
+        day_start = day_end = None
+    if event.workspace_id and day_start is not None:
         same_day = list(
             family_events(request.user)
             .filter(
@@ -680,7 +795,7 @@ def event_list(request, workspace_id=None):
             )
         )
     page = Paginator(events.prefetch_related("participants"), 20).get_page(
-        request.GET.get("page")
+        Params(request.GET).page()
     )
     if not context.get("timeline"):
         _add_people(page, workspace, request.user)
@@ -692,14 +807,29 @@ def _day_timeline_context(request, workspace, events, period):
     workspaces = [workspace] if workspace else list(family_workspaces(request.user))
     members = family_members(workspaces)
     tz = ZoneInfo(period["timezone"])
+    # A page draws at most 100 plans; the rest are counted ("+N more").
+    shown = list(events[: RENDER.plans_per_response])
+    more = (
+        max(events.count() - len(shown), 0)
+        if len(shown) == RENDER.plans_per_response
+        else 0
+    )
     timeline = build_day_timeline(
-        events, members, period["starts_at"], period["ends_at"], tz, timezone.now()
+        shown, members, period["starts_at"], period["ends_at"], tz, timezone.now()
     )
     # Colours are chosen per family, so the editor needs a single family on screen.
     color_workspace = workspaces[0] if len(workspaces) == 1 else None
     return {
         "timeline": timeline,
         "day": vertical_day(timeline, tz),
+        "more_plans": more,
+        "week_query": urlencode(
+            {
+                "date": period["date"],
+                "view": "week",
+                "timezone": period["timezone"],
+            }
+        ),
         "color_workspace": color_workspace,
         "color_members": (
             editable_members(request.user, color_workspace, members)
@@ -727,36 +857,31 @@ def _add_people(page, workspace, user):
 def member_colors(request, workspace_id):
     """Let a parent save any family member's schedule colour."""
     workspace = get_object_or_404(family_workspaces(request.user), pk=workspace_id)
-    allowed = {
+    allowed = [
         str(member["user"].pk)
         for member in editable_members(
             request.user, workspace, family_members([workspace])
         )
-    }
+    ]
     if not allowed:
         raise PermissionDenied("Only parents can change schedule colours.")
-    changes = {}
-    for key, value in request.POST.items():
-        if not key.startswith("color-"):
-            continue
-        user_id = key.removeprefix("color-")
-        if user_id not in allowed:
-            raise PermissionDenied("You can change only your own family's colours.")
-        if not HEX_COLOR.fullmatch(value):
-            return HttpResponseBadRequest("Choose a colour like #c62828.")
-        changes[user_id] = value.lower()
+    form = MemberColorsForm(request.POST, member_ids=allowed)
+    if form.names_other_members():
+        raise PermissionDenied("You can change only your own family's colours.")
+    if not form.is_valid():
+        return HttpResponseBadRequest("Choose a colour like #c62828.")
+    changes = form.colors()
     for user_id, color in changes.items():
         MemberColor.objects.update_or_create(
             workspace=workspace, user_id=user_id, defaults={"color": color}
         )
     if changes:
         messages.success(request, "Schedule colours saved.")
-    next_url = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(
-        next_url, {request.get_host()}, request.is_secure()
-    ):
-        next_url = reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
-    return redirect(next_url)
+    return redirect(
+        Params(request.POST, request).next_url(
+            "next", reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
+        )
+    )
 
 
 @require_GET
@@ -777,44 +902,42 @@ def event_trip(request, pk):
     in the body so it never lands in URLs or server logs).
     """
     event = get_object_or_404(family_events(request.user), pk=pk)
+    if request.method == "GET":
+        # The card is cached by the minute, but a page that polls every second still
+        # costs a query or two each time: cap it per person.
+        rate = RATES["trip_view"]
+        if not allow(request, "trip_view", rate.limit, rate.window, rate.key):
+            return too_many_requests(request, scope="trip_view")
     if request.method == "POST":
-        mode = request.POST.get("mode", TripStart.Mode.HERE)
-        if mode not in TripStart.Mode.values:
-            return HttpResponseBadRequest("Choose where the trip starts.")
+        form = TripStartForm(request.POST)
+        if not form.is_valid():
+            return HttpResponseBadRequest(_trip_start_problem(form))
+        mode = form.cleaned_data["mode"]
         fields = {"mode": mode, "label": "", "latitude": None, "longitude": None}
         if mode == TripStart.Mode.HERE:
-            try:
-                latitude = float(request.POST["latitude"])
-                longitude = float(request.POST["longitude"])
-            except (KeyError, ValueError):
-                return HttpResponseBadRequest("A location is required.")
-            if not (
-                math.isfinite(latitude)
-                and math.isfinite(longitude)
-                and -90 <= latitude <= 90
-                and -180 <= longitude <= 180
-            ):
-                return HttpResponseBadRequest("That location isn't valid.")
             # A new place means fresh (paid) Routes lookups; the other modes start
             # from fixed places whose trips are cached. People pick a place a few
-            # times per event, so this only stops a script. Counted per account,
-            # not per IP: a whole class on campus Wi-Fi shares one address.
-            if not allow(request, "trip_start", TRIP_STARTS_PER_HOUR, 3600, key="user"):
+            # times per event, so this only stops a script. It counts per account and
+            # per address: new accounts from one address share one budget.
+            rate = RATES["trip_start"]
+            if not allow(
+                request, "trip_start", TRIP_STARTS_PER_HOUR, rate.window, rate.key
+            ):
                 return too_many_requests(
                     request,
                     "You've changed where trips start a lot. Wait a few minutes.",
+                    scope="trip_start",
                 )
-            label = request.POST.get("label", "").strip()[:255]
             fields.update(
-                latitude=latitude,
-                longitude=longitude,
-                label=label or "Your current location",
+                latitude=form.cleaned_data["latitude"],
+                longitude=form.cleaned_data["longitude"],
+                label=form.cleaned_data["label"] or "Your current location",
             )
         TripStart.objects.update_or_create(
             user=request.user, event=event, defaults=fields
         )
     trip = build_trip(event, request.user)
-    if request.GET.get("format") == "json":
+    if Params(request.GET).choice("format", {"json"}) == "json":
         response = JsonResponse(marker_data(trip))
     else:
         response = render(request, "events/_trip_card.html", trip)
@@ -823,35 +946,55 @@ def event_trip(request, pk):
 
 
 # Searching costs money once Google Places is on; this is plenty for a person typing.
-PLACE_SEARCHES_PER_MINUTE = 60
+PLACE_SEARCHES_PER_MINUTE = RATES["places"].limit
 # Changing where a trip starts asks Google Routes again (see event_trip).
-TRIP_STARTS_PER_HOUR = 30
+TRIP_STARTS_PER_HOUR = RATES["trip_start"].limit
 
 
-def _place_search_allowed(user):
-    key = f"place-searches:{user.pk}:{int(timezone.now().timestamp() // 60)}"
-    count = cache.get_or_set(key, 0, 90)
-    if count >= PLACE_SEARCHES_PER_MINUTE:
-        return False
-    cache.incr(key)
-    return True
+def _trip_start_problem(form):
+    """The sentence for a refused trip start."""
+    if "mode" in form.errors:
+        return "Choose where the trip starts."
+    if "latitude" in form.errors or "longitude" in form.errors:
+        return "That location isn't valid."
+    if "label" in form.errors:
+        return "That place name isn't valid."
+    return " ".join(form.non_field_errors()) or "That location isn't valid."
 
 
-@login_required(login_url="accounts:login")
-@require_POST
+def _places_refused(request):
+    """The JSON answer for someone who may not use the paid Places lookups, or None.
+
+    Only accepted members of a family search places (the create-event form and the
+    trip card are the only screens that ask). This runs before the Maps switch, so a
+    throwaway account learns nothing about the server's setup.
+    """
+    if not family_workspaces(request.user).exists():
+        return json_error(403, "forbidden", "Join a family to search for places.")
+    rate = RATES["places"]
+    if not allow(request, "places", PLACE_SEARCHES_PER_MINUTE, rate.window, rate.key):
+        return JsonResponse({"error": "slow down"}, status=429)
+    return None
+
+
+@json_endpoint(["POST"])
 def place_suggestions(request):
     """Google Places suggestions for the location box (POST keeps addresses out of
     logs). 503 means Google Places isn't set up, so the box uses its free search.
     """
+    refused = _places_refused(request)
+    if refused is not None:
+        return refused
     if not places.enabled():
         return JsonResponse({"error": "unavailable"}, status=503)
-    query = request.POST.get("q", "").strip()[:200]
+    form = PlaceQueryForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({"suggestions": []})
+    query = form.cleaned_data["q"]
     if len(query) < 3:
         return JsonResponse({"suggestions": []})
-    if not _place_search_allowed(request.user):
-        return JsonResponse({"error": "slow down"}, status=429)
     try:
-        suggestions = places.suggest(query, request.POST.get("session", ""))
+        suggestions = places.suggest(query, form.cleaned_data["session"])
     except places.PlacesUnavailable:
         return JsonResponse({"error": "unavailable"}, status=503)
     response = JsonResponse({"provider": "google", "suggestions": suggestions})
@@ -859,19 +1002,21 @@ def place_suggestions(request):
     return response
 
 
-@login_required(login_url="accounts:login")
-@require_POST
+@json_endpoint(["POST"])
 def place_details(request):
     """The exact coordinates of the suggestion someone picked."""
+    refused = _places_refused(request)
+    if refused is not None:
+        return refused
+    form = PlaceDetailsForm(request.POST)
+    if not form.is_valid():
+        return json_error(
+            400, "invalid_request", "Choose a place from the suggestions."
+        )
     if not places.enabled():
         return JsonResponse({"error": "unavailable"}, status=503)
-    place_id = request.POST.get("id", "")
-    if not places.valid_place_id(place_id):
-        return HttpResponseBadRequest("Choose a place from the suggestions.")
-    if not _place_search_allowed(request.user):
-        return JsonResponse({"error": "slow down"}, status=429)
     try:
-        place = places.details(place_id, request.POST.get("session", ""))
+        place = places.details(form.cleaned_data["id"], form.cleaned_data["session"])
     except places.PlacesUnavailable:
         return JsonResponse({"error": "unavailable"}, status=503)
     if place is None:
@@ -883,7 +1028,7 @@ def place_details(request):
 
 def _local_input(moment, tz):
     """The value a datetime-local box shows: 2026-11-11T20:52, in the event's zone."""
-    return timezone.localtime(moment, tz).strftime("%Y-%m-%dT%H:%M")
+    return localtime_or_utc(moment, tz).strftime("%Y-%m-%dT%H:%M")
 
 
 @login_required(login_url="accounts:login")
@@ -899,28 +1044,23 @@ def change_event_time(request, pk):
         pk=pk,
     )
     detail_url = reverse("events:detail", args=[event.pk])
-    tz = ZoneInfo(event.timezone_name)
-
-    def moment(prefix):
-        # Date and time come as separate boxes (the time follows the 12h/24h switch).
-        # Same reading as the Edit event form: a time in the spring-forward gap is an
-        # error that names the clock change; a fall-back time is its first occurrence.
-        when = f"{request.POST[prefix + '_date']}T{request.POST[prefix + '_time']}"
-        naive = datetime.fromisoformat(when)
-        return _wall_clock_to_aware(naive.date(), naive.time(), tz)
-
-    try:
-        starts_at, ends_at = moment("starts"), moment("ends")
-    except (KeyError, ValueError, OverflowError):
-        messages.error(request, "Choose a start and end time.")
+    limited = _event_write_limited(request)
+    if limited is not None:
+        return limited
+    # Date and time come as separate boxes (the time follows the 12h/24h switch).
+    # Same reading as the Edit event form: a time in the spring-forward gap is an
+    # error that names the clock change; a fall-back time is its first occurrence.
+    form = EventTimeForm(request.POST, zone=ZoneInfo(event.timezone_name))
+    if not form.is_valid():
+        problems = form.non_field_errors()
+        messages.error(
+            request, " ".join(problems) if problems else "Choose a start and end time."
+        )
         return redirect(detail_url)
-    except ValidationError as error:
-        messages.error(request, " ".join(error.messages))
-        return redirect(detail_url)
-    if ends_at <= starts_at:
-        messages.error(request, "The end has to be after the start.")
-        return redirect(detail_url)
-    event.starts_at, event.ends_at = starts_at, ends_at
+    event.starts_at, event.ends_at = (
+        form.cleaned_data["starts_at"],
+        form.cleaned_data["ends_at"],
+    )
     try:
         event.full_clean(validate_unique=False)
         event.save(update_fields=["starts_at", "ends_at", "updated_at"])
@@ -933,17 +1073,17 @@ def change_event_time(request, pk):
     return redirect(detail_url)
 
 
-@login_required(login_url="accounts:login")
-@require_POST
+@json_endpoint(["POST"])
 def scan_event_ocr(request, workspace_id):
     """Extract structured draft event details from an uploaded document image."""
     get_object_or_404(
         family_workspaces(request.user, caregivers_only=True), pk=workspace_id
     )
-    ocr_timezone = (
-        request.POST.get("timezone") or ""
-    ).strip() or timezone.get_current_timezone_name()
-    if ocr_timezone not in available_timezones():
+    try:
+        ocr_timezone = Params(request.POST).timezone(
+            "timezone", default=timezone.get_current_timezone_name()
+        )
+    except BadRequest:
         return JsonResponse(
             {
                 "status": "error",
@@ -963,7 +1103,9 @@ def scan_event_ocr(request, workspace_id):
 
     uploaded_file = request.FILES.get("document") or request.FILES.get("image")
     try:
-        result = scan_event_image(uploaded_file, timezone_name=ocr_timezone)
+        result = scan_event_image(
+            uploaded_file, timezone_name=ocr_timezone, owner=request.user.pk
+        )
     except EventOCRError as error:
         return JsonResponse(
             {

@@ -1,4 +1,5 @@
 from asgiref.sync import async_to_sync
+from chat.tests.ws_refusal import connect_and_check
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -145,7 +146,7 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
             )
             if user is not None:
                 communicator.scope["user"] = user
-            connected, code = await communicator.connect()
+            connected, code = await connect_and_check(communicator)
             await communicator.disconnect()
             return connected, code
 

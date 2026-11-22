@@ -1,5 +1,5 @@
 import math
-from datetime import datetime, timezone as datetime_timezone
+from datetime import datetime
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -8,12 +8,21 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from syncmily.locking import VersionedModel
+from syncmily import constraints
+from syncmily.safety import (
+    CleanCharField,
+    CleanCoordinatesMixin,
+    CleanTextQuerySet,
+    validate_event_window,
+)
+
 
 def default_timezone_name():
     return settings.TIME_ZONE
 
 
-class Event(models.Model):
+class Event(CleanCoordinatesMixin, VersionedModel):
     class Source(models.TextChoices):
         SYNCMILY = "syncmily", "Syncmily"
         GOOGLE = "google", "Google Calendar"
@@ -57,13 +66,14 @@ class Event(models.Model):
         related_name="family_events",
         blank=True,
     )
-    title = models.CharField(max_length=200)
+    title = CleanCharField(max_length=200, policy="TITLE")
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     timezone_name = models.CharField(max_length=64, default=default_timezone_name)
-    location = models.CharField(
+    location = CleanCharField(
         max_length=255,
         blank=True,
+        policy="PLACE",
     )
     latitude = models.FloatField(
         null=True,
@@ -99,8 +109,13 @@ class Event(models.Model):
     external_id = models.CharField(
         max_length=1024, blank=True, default="", db_default=""
     )
+    # Set when every person a plan was for has been removed from the family. Kids
+    # stop seeing it (it would otherwise read as a whole-family plan); parents still do.
+    private_after_removal = models.BooleanField(default=False, db_default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = CleanTextQuerySet.as_manager()
 
     class Meta:
         constraints = [
@@ -135,6 +150,11 @@ class Event(models.Model):
                 condition=models.Q(calendar_connection__isnull=False),
                 name="unique_imported_event_per_connection",
             ),
+            constraints.not_blank("event", "title"),
+            constraints.clean_text("event", "title"),
+            constraints.clean_text("event", "location"),
+            *constraints.coordinates("event", "latitude", "longitude"),
+            *constraints.event_window("event"),
         ]
 
     def __str__(self):
@@ -166,9 +186,11 @@ class Event(models.Model):
 
     def clean(self):
         super().clean()
-        self.title = self.title.strip()
-        if self.location:
-            self.location = self.location.strip()
+        # The normalizer the save runs, so the checks below see the stored text.
+        for name in ("title", "location"):
+            setattr(
+                self, name, self._meta.get_field(name).normalize(getattr(self, name))
+            )
         errors = {}
 
         if not self.title:
@@ -189,10 +211,17 @@ class Event(models.Model):
             and isinstance(self.ends_at, datetime)
             and "starts_at" not in errors
             and "ends_at" not in errors
-            and self.ends_at.astimezone(datetime_timezone.utc)
-            <= self.starts_at.astimezone(datetime_timezone.utc)
+            and "timezone_name" not in errors
         ):
-            errors["ends_at"] = "End time must be after start time."
+            try:
+                if self.source == self.Source.SYNCMILY:
+                    validate_event_window(
+                        self.starts_at, self.ends_at, ZoneInfo(self.timezone_name)
+                    )
+                elif self.ends_at <= self.starts_at:
+                    raise ValidationError("End time must be after start time.")
+            except ValidationError as error:
+                errors["ends_at"] = error.messages
 
         driver_ids = {self.dropoff_driver_id, self.pickup_driver_id} - {None}
         if driver_ids:
@@ -218,7 +247,7 @@ class Event(models.Model):
             raise ValidationError(errors)
 
 
-class TripStart(models.Model):
+class TripStart(CleanCoordinatesMixin, models.Model):
     """Where one person starts their trip to one event (leave-by card and marker)."""
 
     class Mode(models.TextChoices):
@@ -238,16 +267,20 @@ class TripStart(models.Model):
     )
     mode = models.CharField(max_length=10, choices=Mode.choices, default=Mode.PREVIOUS)
     # Only for "somewhere else": a searched address or the browser's location.
-    label = models.CharField(max_length=255, blank=True, default="")
+    label = CleanCharField(max_length=255, blank=True, default="", policy="LABEL")
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = CleanTextQuerySet.as_manager()
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "event"], name="one_trip_start_per_person_and_event"
             ),
+            constraints.clean_text("tripstart", "label"),
+            *constraints.coordinates("tripstart", "latitude", "longitude"),
         ]
 
     def __str__(self):

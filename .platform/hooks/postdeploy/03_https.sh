@@ -10,6 +10,7 @@ NGINX_DIR="${NGINX_DIR:-/etc/nginx}"
 LIVE_DIR="${LIVE_DIR:-/etc/letsencrypt/live}"
 WEBROOT="${WEBROOT:-/var/www/certbot}"
 CERTBOT=/opt/certbot/bin/certbot
+CERTBOT_REQUIREMENTS="${CERTBOT_REQUIREMENTS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/certbot-requirements.txt}"
 
 SITE_DOMAINS="${SITE_DOMAINS:-$(/opt/elasticbeanstalk/bin/get-config environment -k SITE_DOMAINS 2>/dev/null || true)}"
 if [ -z "$SITE_DOMAINS" ]; then
@@ -32,7 +33,8 @@ CONF
 if [ -z "${SKIP_CERTBOT:-}" ]; then
     if [ ! -x "$CERTBOT" ]; then
         python3.14 -m venv /opt/certbot
-        /opt/certbot/bin/pip install --quiet --upgrade pip certbot
+        # Exact versions with hashes: certbot==5.10.0 and everything it needs.
+        /opt/certbot/bin/pip install --quiet --require-hashes -r "$CERTBOT_REQUIREMENTS"  # certbot==5.10.0
     fi
     # nginx must already serve the challenge directory before certbot asks for it.
     nginx -t && systemctl reload nginx
@@ -48,6 +50,35 @@ if [ -z "${SKIP_CERTBOT:-}" ]; then
 fi
 [ -f "$CERT_DIR/fullchain.pem" ] || { echo "No certificate yet; serving HTTP only."; exit 0; }
 
+# Security headers, written once and included by the server block and by /static (nginx
+# drops server-level add_header lines in any location that sets its own, so /static must
+# repeat them). The policy lives in this one variable; settings.CSP_POLICY must match it.
+# CSP_REPORT_ONLY=true (an EB environment property) sends the same policy as
+# Content-Security-Policy-Report-Only instead, for a trial deploy.
+CSP_REPORT_ONLY="${CSP_REPORT_ONLY:-$(/opt/elasticbeanstalk/bin/get-config environment -k CSP_REPORT_ONLY 2>/dev/null || true)}"
+CSP_LINE=$(cat <<POLICY
+add_header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; style-src-elem 'self' https://fonts.googleapis.com 'sha256-NmBAHKlY279x2mY0mfnOU0anE9pVNdbkCyLPbCcMu6g='; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' wss://$PRIMARY https://photon.komoot.io; manifest-src 'self'; form-action 'self' https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; report-uri /csp-report/; report-to csp" always;
+POLICY
+)
+if [ "$CSP_REPORT_ONLY" = "true" ]; then
+    CSP_LINE="${CSP_LINE/add_header Content-Security-Policy /add_header Content-Security-Policy-Report-Only }"
+fi
+mkdir -p "$NGINX_DIR/syncmily"
+cat > "$NGINX_DIR/syncmily/security_headers.conf" <<CONF
+# Browser features Syncmily never uses stay off. Geolocation is allowed for this site only:
+# "Use my location" starts a trip from where the person is. Inline scripts must stay in
+# static files. Inline style attributes are allowed; <style> elements are not (500.html is
+# allowed by its hash).
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=(), usb=()" always;
+$CSP_LINE
+add_header Reporting-Endpoints 'csp="/csp-report/"' always;
+CONF
+
+# Static files keep the same security headers and add their cache rule.
+cat > "$NGINX_DIR/syncmily/static_cache.conf" <<CONF
+add_header Cache-Control \$syncmily_static_cache;
+CONF
+
 # HTTPS server. Mirrors Elastic Beanstalk's own proxy settings, plus the scheme
 # header Django needs to know the request was secure.
 cat > "$NGINX_DIR/conf.d/syncmily_https.conf" <<CONF
@@ -58,11 +89,22 @@ map \$arg_v \$syncmily_static_cache {
     default "public, max-age=31536000, immutable";
 }
 
-# Sign-in, sign-up and receipt-scan paths get a request-rate ceiling per client address (this
-# file sits in conf.d, inside the http block). Over the limit nginx answers 429. A class on
-# one campus Wi-Fi shares an address, so the ceiling fits a room signing in at once.
+# Request-rate ceilings per client address (this file sits in conf.d, inside the http block).
+# Over the limit nginx answers 429. A class on one campus Wi-Fi shares an address, so the
+# ceilings fit a room signing in at once.
 limit_req_zone \$binary_remote_addr zone=syncmily_auth:10m rate=60r/m;
+limit_req_zone \$binary_remote_addr zone=syncmily_scan:10m rate=10r/m;
+limit_req_zone \$binary_remote_addr zone=syncmily_writes:10m rate=120r/m;
+limit_req_zone \$binary_remote_addr zone=syncmily_ws:10m rate=30r/m;
+limit_conn_zone \$binary_remote_addr zone=syncmily_conn:10m;
 limit_req_status 429;
+limit_conn_status 429;
+
+# The stock "main" format has no timings. This one adds request_time and
+# upstream_response_time so slow requests show up in the log.
+log_format syncmily_timed '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+                          '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" '
+                          '"\$http_x_forwarded_for" rt=\$request_time urt=\$upstream_response_time';
 
 server {
     listen 443 ssl;
@@ -78,18 +120,17 @@ server {
     ssl_session_tickets off;
     server_tokens       off;
 
-    # Browser features Syncmily never uses stay off. Geolocation is allowed for this site only:
-    # "Use my location" starts a trip from where the person is. The CSP is enforced: every page
-    # was checked in WebKit with it enforced (0 violations, chat connects); inline scripts must
-    # stay in static files.
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=(), usb=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' wss://$PRIMARY https://photon.komoot.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com; object-src 'none'" always;
-    access_log /var/log/nginx/access.log main;
-    client_header_timeout 60;
-    client_body_timeout   60;
-    keepalive_timeout     60;
-    # Receipt and schedule photos promise up to 10 MB; nginx's 1 MB default rejects phone photos.
-    client_max_body_size  12m;
+    include $NGINX_DIR/syncmily/security_headers.conf;
+    access_log /var/log/nginx/access.log syncmily_timed;
+    # Slow clients cannot hold a worker for long. Over HTTP/2 nginx counts every request as a
+    # connection, so there is no server-wide limit_conn; only /ws/ has one.
+    client_header_timeout 15;
+    client_body_timeout   15;
+    send_timeout          30;
+    keepalive_timeout     30;
+    reset_timedout_connection on;
+    # Forms post a few KB. Only the scan upload sets a larger cap below.
+    client_max_body_size  128k;
 
     # Pages, CSS and JS were sent uncompressed (a 72 KB page, 89 KB of CSS). gzip cuts them about
     # 4x. Django masks the CSRF token differently on every response, which keeps BREACH off it.
@@ -106,7 +147,92 @@ server {
 
     include $NGINX_DIR/conf.d/elasticbeanstalk/01_block_probes.conf;
 
-    location / {
+    # A size or rate refusal on the JSON paths (scan-ocr, place search) answers JSON, as the
+    # page scripts expect, not nginx's HTML page.
+    location @json_413 {
+        default_type application/json;
+        return 413 '{"error": "That upload is too large."}';
+    }
+    location @json_429 {
+        default_type application/json;
+        return 429 '{"error": "Too many requests. Try again in a minute."}';
+    }
+
+    # Size, rate and upstream failures on page routes answer a short branded page, not
+    # nginx's default one. The JSON paths below set their own error_page lines.
+    location @html_413 {
+        default_type text/html;
+        return 413 '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Too large - Syncmily</title><body style="font-family:system-ui,sans-serif;max-width:26rem;margin:4rem auto;padding:0 1rem"><h1>That is too large</h1><p>Send something smaller and try again.</p><p><a href="/">Back to Syncmily</a></p></body></html>';
+    }
+    location @html_429 {
+        default_type text/html;
+        return 429 '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Slow down - Syncmily</title><body style="font-family:system-ui,sans-serif;max-width:26rem;margin:4rem auto;padding:0 1rem"><h1>Too many requests</h1><p>Wait a minute and try again.</p><p><a href="/">Back to Syncmily</a></p></body></html>';
+    }
+    location @html_5xx {
+        default_type text/html;
+        return 503 '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Try again - Syncmily</title><body style="font-family:system-ui,sans-serif;max-width:26rem;margin:4rem auto;padding:0 1rem"><h1>Syncmily is busy</h1><p>Syncmily could not answer just now. Try again in a minute.</p><p><a href="/">Back to Syncmily</a></p></body></html>';
+    }
+    error_page 413 @html_413;
+    error_page 429 @html_429;
+    error_page 502 503 504 @html_5xx;
+
+    # Invite and password-reset links carry a one-time token in the path. They stay out of
+    # the access log, so a token never reaches CloudWatch.
+    location ~ ^/accounts/(invite|reset)/ {
+        access_log off;
+        limit_req zone=syncmily_auth burst=60 nodelay;
+        proxy_pass          http://127.0.0.1:8000;
+        proxy_http_version  1.1;
+        proxy_set_header    Host                \$host;
+        proxy_set_header    X-Real-IP           \$remote_addr;
+        proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto   https;
+    }
+
+    location ~ ^/accounts/(login|signup|password-reset|two-step|invite)/ {
+        limit_req zone=syncmily_auth burst=60 nodelay;
+        proxy_pass          http://127.0.0.1:8000;
+        proxy_http_version  1.1;
+        proxy_set_header    Host                \$host;
+        proxy_set_header    X-Real-IP           \$remote_addr;
+        proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto   https;
+    }
+
+    # Receipt and schedule photos promise up to 10 MB; nginx's 1 MB default rejects phone photos.
+    location ~ /scan-ocr/ {
+        limit_req zone=syncmily_scan burst=10 nodelay;
+        client_max_body_size  12m;
+        error_page 413 = @json_413;
+        error_page 429 = @json_429;
+        proxy_pass          http://127.0.0.1:8000;
+        proxy_http_version  1.1;
+        proxy_set_header    Host                \$host;
+        proxy_set_header    X-Real-IP           \$remote_addr;
+        proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto   https;
+    }
+
+    # Place search answers JSON and shares the write ceiling.
+    location /events/places/ {
+        limit_req zone=syncmily_writes burst=100 nodelay;
+        error_page 413 = @json_413;
+        error_page 429 = @json_429;
+        proxy_pass          http://127.0.0.1:8000;
+        proxy_http_version  1.1;
+        proxy_set_header    Host                \$host;
+        proxy_set_header    X-Real-IP           \$remote_addr;
+        proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto   https;
+    }
+
+    # Chat WebSocket. Handshakes get their own rate zone and a per-address connection cap.
+    location /ws/ {
+        limit_req zone=syncmily_ws burst=30 nodelay;
+        limit_conn syncmily_conn 60;
+        client_max_body_size 1k;
+        proxy_read_timeout  3600;
+        proxy_send_timeout  60;
         proxy_pass          http://127.0.0.1:8000;
         proxy_http_version  1.1;
         proxy_set_header    Connection          \$connection_upgrade;
@@ -117,20 +243,13 @@ server {
         proxy_set_header    X-Forwarded-Proto   https;
     }
 
-    location ~ ^/accounts/(login|signup)/\$ {
-        limit_req zone=syncmily_auth burst=60 nodelay;
+    location / {
+        client_max_body_size 128k;
+        limit_req zone=syncmily_writes burst=100 nodelay;
         proxy_pass          http://127.0.0.1:8000;
         proxy_http_version  1.1;
-        proxy_set_header    Host                \$host;
-        proxy_set_header    X-Real-IP           \$remote_addr;
-        proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
-        proxy_set_header    X-Forwarded-Proto   https;
-    }
-
-    location ~ /scan-ocr/ {
-        limit_req zone=syncmily_auth burst=60 nodelay;
-        proxy_pass          http://127.0.0.1:8000;
-        proxy_http_version  1.1;
+        proxy_set_header    Connection          \$connection_upgrade;
+        proxy_set_header    Upgrade             \$http_upgrade;
         proxy_set_header    Host                \$host;
         proxy_set_header    X-Real-IP           \$remote_addr;
         proxy_set_header    X-Forwarded-For     \$proxy_add_x_forwarded_for;
@@ -140,7 +259,8 @@ server {
     location /static {
         alias /var/app/current/staticfiles;
         access_log off;
-        add_header Cache-Control \$syncmily_static_cache;
+        include $NGINX_DIR/syncmily/security_headers.conf;
+        include $NGINX_DIR/syncmily/static_cache.conf;
     }
 }
 CONF

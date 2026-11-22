@@ -1,14 +1,22 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from accounts.models import Workspace
+from events.models import Event
 from events.access import family_events
 from events.timeline import family_members
+from syncmily.limits import QUOTAS, RENDER
+from syncmily.locking import CONFLICT_MESSAGE, expected_version, remember_version
 from syncmily.ratelimit import rate_limit
+from syncmily.safety import Params, QuotaExceeded, enforce_quota
 
 from .access import (
     caregiver_workspaces,
@@ -17,10 +25,16 @@ from .access import (
     get_viewable_checklist,
     get_viewable_workspace,
 )
-from .forms import ChecklistForm, ChecklistItemForm
+from .forms import ChecklistForm, ChecklistItemForm, read_submission
 from .models import Checklist, ChecklistItem
 
-MAX_ITEMS_PER_CHECKLIST = 200
+MAX_ITEMS_PER_CHECKLIST = QUOTAS.items_per_checklist
+# A second identical create inside this window is a double click or a retry.
+DUPLICATE_WINDOW = timedelta(seconds=30)
+
+
+class StaleEdit(Exception):
+    """The row changed after the edit page was loaded."""
 
 
 def _visible_event_ids(user, checklists):
@@ -58,18 +72,30 @@ def checklist_list(request, workspace_id):
                 filter=Q(items__is_completed=True),
             ),
         )
-        .order_by("-created_at")
+        .order_by("-created_at", "pk")
     )
 
     can_manage = caregiver_workspaces(request.user).filter(pk=workspace.pk).exists()
 
+    # A page shows 50 lists; Paginator treats a bad ?page= as the first or last page.
+    page = Paginator(checklists, RENDER.checklists_per_page).get_page(
+        Params(request.GET).page()
+    )
     # A list linked to an event takes the colour of that event's first person.
     members = {member["user"].pk: member for member in family_members([workspace])}
-    checklists = list(checklists.prefetch_related("event__participants"))
-    visible = _visible_event_ids(request.user, checklists)
-    for checklist in checklists:
+    shown = list(page.object_list)
+    participants = {
+        event.pk: event
+        for event in Event.objects.filter(
+            pk__in={c.event_id for c in shown if c.event_id}
+        ).prefetch_related("participants")
+    }
+    visible = _visible_event_ids(request.user, shown)
+    for checklist in shown:
         if checklist.event_id not in visible:
             checklist.event = None
+        else:
+            checklist.event = participants.get(checklist.event_id, checklist.event)
         checklist.member = _event_member(checklist.event, members)
 
     return render(
@@ -77,7 +103,8 @@ def checklist_list(request, workspace_id):
         "checklists/checklist_list.html",
         {
             "workspace": workspace,
-            "checklists": checklists,
+            "checklists": shown,
+            "page": page,
             "can_manage": can_manage,
         },
     )
@@ -88,8 +115,46 @@ def checklist_list(request, workspace_id):
 # ---------------------------------------------------------
 
 
+def _create_checklist(request, workspace, form):
+    """Save the list this form describes, once.
+
+    A signed token (the page carries one) names the list, so a double click or a
+    retried post finds the list it already made. A post without a token that repeats
+    the same person, family, title and event within 30 seconds gets the same list.
+    """
+    token_id = read_submission(
+        form.cleaned_data.get("submission_token", ""), request.user, workspace
+    )
+    title, event = form.cleaned_data["title"], form.cleaned_data.get("event")
+    with transaction.atomic():
+        # One create at a time per family: the same lock the quota check takes.
+        Workspace.objects.select_for_update().only("pk").get(pk=workspace.pk)
+        if token_id is not None:
+            found = Checklist.objects.filter(pk=token_id, workspace=workspace).first()
+            if found is not None:
+                return found
+        found = Checklist.objects.filter(
+            workspace=workspace,
+            created_by=request.user,
+            title=title,
+            event=event,
+            created_at__gte=timezone.now() - DUPLICATE_WINDOW,
+        ).first()
+        if found is not None:
+            return found
+        enforce_quota(workspace, "checklists")
+        checklist = form.save(commit=False)
+        checklist.workspace = workspace
+        checklist.created_by = request.user
+        if token_id is not None and not Checklist.objects.filter(pk=token_id).exists():
+            checklist.pk = token_id
+        checklist.full_clean()
+        checklist.save()
+        return checklist
+
+
 @login_required
-@rate_limit("checklist_create", 60, 60)
+@rate_limit("checklist_create")
 def checklist_create(request, workspace_id):
     workspace = get_manageable_workspace(
         request.user,
@@ -104,17 +169,15 @@ def checklist_create(request, workspace_id):
         )
 
         if form.is_valid():
-            checklist = form.save(commit=False)
-            checklist.workspace = workspace
-            checklist.created_by = request.user
-
-            checklist.full_clean()
-            checklist.save()
-
-            return redirect(
-                "checklists:detail",
-                checklist_id=checklist.pk,
-            )
+            try:
+                checklist = _create_checklist(request, workspace, form)
+            except QuotaExceeded as error:
+                form.add_error(None, error.messages)
+            else:
+                return redirect(
+                    "checklists:detail",
+                    checklist_id=checklist.pk,
+                )
     else:
         form = ChecklistForm(workspace=workspace, user=request.user)
 
@@ -186,6 +249,8 @@ def checklist_edit(request, checklist_id):
         request.user,
         checklist_id,
     )
+    status = 200
+    conflict_message = ""
 
     if request.method == "POST":
         form = ChecklistForm(
@@ -196,16 +261,45 @@ def checklist_edit(request, checklist_id):
         )
 
         if form.is_valid():
-            checklist = form.save(commit=False)
-
-            checklist.full_clean()
-            checklist.save()
-
-            return redirect(
-                "checklists:detail",
-                checklist_id=checklist.pk,
-            )
+            try:
+                with transaction.atomic():
+                    current = get_object_or_404(
+                        Checklist.objects.select_for_update(), pk=checklist.pk
+                    )
+                    expected = expected_version(
+                        request,
+                        "checklist",
+                        checklist.pk,
+                        form.cleaned_data.get("version"),
+                    )
+                    if current.version != expected and (
+                        current.title != form.cleaned_data["title"]
+                        or current.event_id
+                        != getattr(form.cleaned_data.get("event"), "pk", None)
+                    ):
+                        raise StaleEdit
+                    checklist = form.save(commit=False)
+                    checklist.full_clean()
+                    checklist.save()
+            except StaleEdit:
+                # Show the saved list, so the person can review it and save again.
+                conflict_message = CONFLICT_MESSAGE
+                checklist.refresh_from_db()
+                remember_version(request, "checklist", checklist.pk, checklist.version)
+                form = ChecklistForm(
+                    instance=checklist,
+                    workspace=checklist.workspace,
+                    user=request.user,
+                )
+                status = 409
+            else:
+                remember_version(request, "checklist", checklist.pk, checklist.version)
+                return redirect(
+                    "checklists:detail",
+                    checklist_id=checklist.pk,
+                )
     else:
+        remember_version(request, "checklist", checklist.pk, checklist.version)
         form = ChecklistForm(
             instance=checklist,
             workspace=checklist.workspace,
@@ -220,7 +314,9 @@ def checklist_edit(request, checklist_id):
             "form": form,
             "editing": True,
             "checklist": checklist,
+            "conflict_message": conflict_message,
         },
+        status=status,
     )
 
 
@@ -254,7 +350,7 @@ def checklist_delete(request, checklist_id):
 
 @login_required
 @require_POST
-@rate_limit("checklist_item_add", 60, 60)
+@rate_limit("checklist_item_add")
 def item_add(request, checklist_id):
     checklist = get_manageable_checklist(
         request.user,
@@ -265,10 +361,15 @@ def item_add(request, checklist_id):
 
     if form.is_valid():
         with transaction.atomic():
-            # Serialize item creation for this checklist.
-            Checklist.objects.select_for_update().get(pk=checklist.pk)
+            # Serialize item creation for this checklist. A list deleted a moment ago
+            # is a plain 404, never a server error.
+            get_object_or_404(Checklist.objects.select_for_update(), pk=checklist.pk)
 
-            if checklist.items.count() >= MAX_ITEMS_PER_CHECKLIST:
+            try:
+                enforce_quota(
+                    checklist.workspace_id, "items_per_checklist", checklist=checklist
+                )
+            except QuotaExceeded:
                 messages.error(
                     request,
                     f"A checklist holds up to {MAX_ITEMS_PER_CHECKLIST} items. "
@@ -313,6 +414,8 @@ def item_edit(request, item_id):
         request.user,
         item.checklist_id,
     )
+    status = 200
+    conflict_message = ""
 
     if request.method == "POST":
         form = ChecklistItemForm(
@@ -321,13 +424,34 @@ def item_edit(request, item_id):
         )
 
         if form.is_valid():
-            form.save()
-
-            return redirect(
-                "checklists:detail",
-                checklist_id=checklist.pk,
-            )
+            try:
+                with transaction.atomic():
+                    current = get_object_or_404(
+                        ChecklistItem.objects.select_for_update(), pk=item.pk
+                    )
+                    expected = expected_version(
+                        request, "item", item.pk, form.cleaned_data.get("version")
+                    )
+                    if (
+                        current.version != expected
+                        and current.description != form.cleaned_data["description"]
+                    ):
+                        raise StaleEdit
+                    form.save()
+            except StaleEdit:
+                conflict_message = CONFLICT_MESSAGE
+                item.refresh_from_db()
+                remember_version(request, "item", item.pk, item.version)
+                form = ChecklistItemForm(instance=item)
+                status = 409
+            else:
+                remember_version(request, "item", item.pk, item.version)
+                return redirect(
+                    "checklists:detail",
+                    checklist_id=checklist.pk,
+                )
     else:
+        remember_version(request, "item", item.pk, item.version)
         form = ChecklistItemForm(instance=item)
 
     return render(
@@ -337,7 +461,9 @@ def item_edit(request, item_id):
             "form": form,
             "checklist": checklist,
             "item": item,
+            "conflict_message": conflict_message,
         },
+        status=status,
     )
 
 
@@ -375,6 +501,7 @@ def item_delete(request, item_id):
 @login_required
 @require_POST
 def item_toggle(request, item_id):
+    wanted = Params(request.POST).choice("completed", ("0", "1"))
     with transaction.atomic():
         item = get_object_or_404(
             ChecklistItem.objects.select_for_update(),
@@ -386,8 +513,7 @@ def item_toggle(request, item_id):
             item.checklist_id,
         )
 
-        wanted = request.POST.get("completed")
-        if wanted in ("0", "1"):
+        if wanted is not None:
             item.is_completed = wanted == "1"
         else:
             item.is_completed = not item.is_completed
@@ -399,6 +525,7 @@ def item_toggle(request, item_id):
             item.completed_by = None
             item.completed_at = None
 
+        # save() adds one to the version, so an open edit page for this item is stale.
         item.save(
             update_fields=[
                 "is_completed",

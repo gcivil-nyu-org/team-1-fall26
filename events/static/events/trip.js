@@ -18,8 +18,15 @@
 
     // ---- The card ---------------------------------------------------------------------
 
+    // The card is the server's escaped fragment. It is parsed into a separate document
+    // and its nodes are moved in, with any script dropped, so nothing here assigns
+    // markup to the page.
     function showCard(box, html) {
-        box.innerHTML = html;
+        var parsed = new DOMParser().parseFromString(html, "text/html");
+        parsed.querySelectorAll("script").forEach(function (script) { script.remove(); });
+        box.replaceChildren.apply(box, Array.prototype.map.call(parsed.body.childNodes, function (node) {
+            return document.importNode(node, true);
+        }));
         // An empty card means the event has started: the trip is over, stop asking.
         if (!box.querySelector(".trip-card")) box.dataset.tripDone = "yes";
         if (window.syncmilyClocks) window.syncmilyClocks(box);
@@ -32,8 +39,10 @@
             error.textContent = message;
             error.hidden = false;
         } else {
-            box.innerHTML = '<p class="trip-muted"></p>';
-            box.firstChild.textContent = message;
+            var note = document.createElement("p");
+            note.className = "trip-muted";
+            note.textContent = message;
+            box.replaceChildren(note);
         }
     }
 
