@@ -1,5 +1,5 @@
 from django.contrib.auth import views as auth_views
-from django.urls import path, reverse_lazy
+from django.urls import path
 
 from . import two_step, views
 
@@ -57,6 +57,16 @@ urlpatterns = [
         name="signup",
     ),
     path(
+        "verify-email/",
+        views.resend_verification,
+        name="resend_verification",
+    ),
+    path(
+        "verify-email/<str:token>/",
+        views.verify_email,
+        name="verify_email",
+    ),
+    path(
         "google/login/",
         views.google_login,
         name="google_login",
@@ -104,10 +114,7 @@ urlpatterns = [
     ),
     path(
         "reset/<uidb64>/<token>/",
-        auth_views.PasswordResetConfirmView.as_view(
-            template_name="accounts/password_reset_confirm.html",
-            success_url=reverse_lazy("accounts:password_reset_complete"),
-        ),
+        views.ResetConfirmView.as_view(),
         name="password_reset_confirm",
     ),
     path(

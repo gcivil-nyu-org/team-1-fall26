@@ -12,8 +12,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         failures = 0
-        connections = CalendarConnection.objects.filter(auto_sync=True).select_related(
-            "user", "workspace"
+        # A revoked connection can't work until the person reconnects, so the timer
+        # leaves it alone instead of calling Google every 15 minutes.
+        connections = (
+            CalendarConnection.objects.filter(auto_sync=True)
+            .exclude(sync_error=CalendarConnection.SyncError.ACCESS_REVOKED)
+            .defer("access_token", "refresh_token")
+            .select_related("user", "workspace")
         )
         paused = CalendarConnection.objects.filter(auto_sync=False).count()
         if paused:

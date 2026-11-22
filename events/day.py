@@ -8,7 +8,10 @@ needs it.
 """
 
 from django.utils.dateformat import format as date_format
-from django.utils.timezone import localtime
+from syncmily.localtime import localtime_or_utc as localtime
+
+from syncmily.limits import RENDER
+from syncmily.text import truncate_graphemes
 
 from .templatetags.paint import person
 from .week import place_side_by_side
@@ -56,7 +59,11 @@ def time_range(event, tz, starts_before=False, ends_after=False):
 
 
 def _names(lanes):
+    """ "Ana", "Ana and Ben", "Ana, Ben and Cy", then "Ana, Ben, Cy and 4 more"."""
     names = [person(lane["user"]) for lane in lanes]
+    if len(names) > RENDER.summary_names:
+        shown = names[: RENDER.summary_names]
+        return ", ".join(shown) + f" and {len(names) - len(shown)} more"
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
@@ -123,10 +130,15 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR):
                     "time_clock": clock,
                 }
             )
-        place_side_by_side(slots, min_percent)
         if lane["user"] and _overlaps(slots):
             double_booked.append(lane)
-        lanes.append({**lane, "slots": slots})
+        # A lane draws at most 30 plans; the rest are counted ("+N more").
+        total = len(slots)
+        slots = slots[: RENDER.plans_per_lane]
+        place_side_by_side(slots, min_percent)
+        lanes.append(
+            {**lane, "slots": slots, "total": total, "more": total - len(slots)}
+        )
 
     members = [lane for lane in lanes if lane["user"]]
     family_wide = any(not lane["user"] for lane in lanes) or any(
@@ -163,6 +175,9 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR):
         free_note = (
             f"{_names(free)} {'has' if len(free) == 1 else 'have'} nothing planned."
         )
+
+    summary = truncate_graphemes(summary, RENDER.summary_chars)
+    free_note = truncate_graphemes(free_note, RENDER.summary_chars)
 
     return {
         "lanes": lanes,

@@ -1,0 +1,7 @@
+{% extends 'accounts/_auth_page.html' %}
+{% block title %}Link not valid | Syncmily{% endblock %}
+{% block auth_body %}
+            <h1>This link doesn’t work</h1>
+            <p class="lede">It may have expired (links last 24 hours), been used already, or been replaced by a newer one. Sign in and send a new link from your account page.</p>
+            <a class="btn btn-quiet btn-wide" href="{% url 'accounts:login' %}">Go to sign in</a>
+{% endblock %}

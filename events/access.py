@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 
 from accounts.models import Membership, Workspace
 
@@ -39,11 +39,18 @@ def family_events(user):
         return events
 
     attendance = Event.participants.through.objects
-    involves_kid = Q(pk__in=attendance.filter(user=user).values("event_id"))
+    # Correlated EXISTS checks, so the planner uses the event_id index per row and
+    # never builds the whole attendance table in memory (a NOT IN over it took seconds
+    # at 400,000 rows).
+    involves_kid = Exists(attendance.filter(event_id=OuterRef("pk"), user=user))
+    has_participants = Exists(attendance.filter(event_id=OuterRef("pk")))
     # No participants means the whole family, except a Google import, which belongs
-    # to the account it came from (the same rule the week and day lanes use).
-    whole_family = ~Q(pk__in=attendance.values("event_id")) & ~(
-        Q(source=Event.Source.GOOGLE) & ~Q(created_by=user)
+    # to the account it came from (the same rule the week and day lanes use), and a
+    # plan whose people were all removed, which only parents still see.
+    whole_family = (
+        ~has_participants
+        & ~Q(private_after_removal=True)
+        & ~(Q(source=Event.Source.GOOGLE) & ~Q(created_by=user))
     )
     return events.exclude(
         Q(workspace__in=kid_workspaces) & ~(involves_kid | whole_family)

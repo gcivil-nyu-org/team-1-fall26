@@ -62,7 +62,10 @@ class InviteDeliveryTests(TestCase):
         )
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].subject, "Join Reyes family on Syncmily")
+        # Spec 10.1 (invite email): a fixed subject with no family name.
+        self.assertEqual(
+            mail.outbox[0].subject, "You have been invited to a family on Syncmily"
+        )
         self.assertContains(response, "Invite emailed to mateo@example.com")
 
     def test_failed_email_says_so_and_keeps_the_link_on_the_page(self):

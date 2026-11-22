@@ -4,6 +4,21 @@
 * { box-sizing: border-box; }
 html { background: var(--counter); scroll-padding-top: 76px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: var(--ink); font: 400 14px/20px var(--font); -webkit-font-smoothing: antialiased; }
+/* Long names and titles wrap inside their box instead of widening the page. The global
+   rule breaks only when a word cannot fit; the second rule breaks anywhere in elements
+   that hold text people typed (names, titles, places). */
+.paint { overflow-wrap: break-word; }
+.pill, .card-link b, .card-link small, .kid-plan b, .kid-hero h1, .kid-hero p,
+.kid-week .chip span, .family-dots li span, .head h1, .allday-chip b, .lane-name,
+.msg b, .bubble, .when-line { overflow-wrap: anywhere; min-width: 0; }
+.pill, .family-dots li span, .kid-week .chip span { max-width: 100%; }
+/* Pills that hold typed text (an event title, a name) must wrap; .pill is nowrap below,
+   which would otherwise defeat overflow-wrap and push the page sideways. */
+.head > a.pill, .pills .pill { white-space: normal; }
+/* Text people typed keeps its own direction: an isolate does what <bdi> does, so a
+   right-to-left name cannot reorder the labels around it. */
+.paint [translate="no"], .paint b, .paint .bubble, .paint .pill, .paint h1, .paint h2 { unicode-bidi: isolate; }
+.lane-more { margin: 4px 6px; font-size: 12px; color: var(--muted); }
 .paint h1, .paint h2, .paint h3, .paint p { margin: 0; }
 .paint h1 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; overflow-wrap: anywhere; min-width: 0; }
 .paint h2 { font-size: 16px; line-height: 24px; font-weight: 600; }

@@ -65,6 +65,7 @@
         {% endwith %}{% empty %}
             <li class="my-day-free">Nothing planned. Free time.</li>
         {% endfor %}
+        {% if briefing.more %}<li class="my-day-free">+{{ briefing.more }} more plan{{ briefing.more|pluralize }}. <a href="{% url 'events:list' %}">See the schedule</a>.</li>{% endif %}
     </ol>
     <form class="my-day-actions" method="post" action="{% url 'accounts:day_seen' %}">
         {% csrf_token %}

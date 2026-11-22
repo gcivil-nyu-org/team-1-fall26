@@ -1,0 +1,9 @@
+# Tools the CI build runs on top of requirements.txt: black, flake8, coverage.py and Hypothesis.
+# GitHub Actions uploads coverage to Coveralls with coverallsapp/github-action (see ci.yml).
+# Compile with:
+#   uv pip compile requirements-dev.in --universal --python-version 3.14 --generate-hashes \
+#     -c requirements.txt -o requirements-dev.txt
+black==26.10.1
+flake8==7.5.0
+coverage==7.17.0
+hypothesis==6.170.15

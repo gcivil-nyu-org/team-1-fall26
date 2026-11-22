@@ -12,7 +12,7 @@
         <ol class="steps">
             <li><b>Open an authenticator app</b><small>Google Authenticator, Microsoft Authenticator, 1Password or any app that shows 6-digit codes.</small></li>
             <li><b>Scan the QR code</b><small>Or type the setup key if you can’t scan.</small></li>
-            <li><b>Type the 6-digit code it shows</b><small>That confirms your app is set up.</small></li>
+            <li><b>Type the 6-digit code it shows</b><small>That confirms your app is set up. We also ask for your password, so only you can turn this on.</small></li>
         </ol>
         <form class="setup-form" method="post">
             {% csrf_token %}
@@ -20,6 +20,10 @@
                 <label for="code">6-digit code from your app</label>
                 <input class="code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required{% if error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
                 {% if error %}<p class="err" id="code-error" role="alert">{{ error }}</p>{% endif %}
+            </div>
+            <div class="field">
+                <label for="password">Your current password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
             </div>
             <div class="actions">
                 <a class="btn btn-quiet" href="{% url 'accounts:profile' %}">Cancel</a>
