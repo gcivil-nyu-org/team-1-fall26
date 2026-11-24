@@ -298,8 +298,6 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 .dlg-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 8px 8px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
 .dlg-head h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.sheet-page { color: var(--muted); font-size: 13px; white-space: nowrap; }
-.sheet-page:hover { color: var(--ink); }
 .dlg-body { padding: 20px; }
 .sheet .dlg-body { transition: opacity .15s; }
 .sheet[aria-busy="true"] .dlg-body { opacity: .45; }
@@ -627,7 +625,7 @@ body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
 /* ===== Touch targets: 44px on phones (WCAG 2.5.5) for the page's own small links ===== */
 .paint a.pill { position: relative; }
 .paint a.pill::after { content: ""; position: absolute; inset: -10px 0; }
-.link-quiet, .sheet-page { display: inline-flex; align-items: center; min-height: 44px; }
+.link-quiet { display: inline-flex; align-items: center; min-height: 44px; }
 .check { min-height: 44px; }
 @media (max-width: 900px) {
   body.paint .auth .btn { min-height: 44px; height: auto; }
