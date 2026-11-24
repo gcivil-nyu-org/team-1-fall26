@@ -84,13 +84,13 @@
             });
         });
 
-        // On phones the 12h/24h and light/dark switches move into the account menu, so the top
+        // Below 360px the 12h/24h and light/dark switches move into the account menu, so the top
         // bar keeps only the date menu, Add event and the account button.
         var switches = document.querySelector(".bar-switches");
         var accountMenu = document.querySelector(".bar .acct-menu");
         if (switches && accountMenu) {
             var home = switches.parentNode, after = switches.nextSibling;
-            var phone = window.matchMedia("(max-width: 560px)");
+            var phone = window.matchMedia("(max-width: 359px)");
             var place = function () {
                 if (phone.matches) accountMenu.insertBefore(switches, accountMenu.querySelector(".sign-out"));
                 else home.insertBefore(switches, after);
