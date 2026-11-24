@@ -249,6 +249,11 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .acct-menu a, .bar .acct-menu button { display: block; width: 100%; min-height: 0; height: auto; padding: 8px 10px; border: 0; border-radius: var(--radius-control); background: none; box-shadow: none; color: var(--ink); font: 500 14px/20px var(--font); text-align: left; text-decoration: none; cursor: pointer; }
 .bar .acct-menu a:hover, .bar .acct-menu button:hover { background: var(--raised); color: var(--ink); box-shadow: none; }
 
+/* Long menus (a big family's colours) scroll inside, clear of the top bar and the phone tab bar. */
+.bar .acct-menu, .bar .palette-menu { max-height: calc(100dvh - 148px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+/* On phones (portrait or landscape) the page behind an open header menu stays put, as it does behind dialogs. */
+@media (max-width: 560px), (pointer: coarse) { html:has(.bar details[open]) { overflow: hidden; overscroll-behavior: none; } }
+
 /* Colors tab: the family's paint deck, tucked into the bar. Four swatches show the current deck. */
 .deck-strip { display: inline-flex; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
 .deck-strip i { width: 6px; height: 14px; }
@@ -267,8 +272,8 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .palette-options button[aria-pressed="true"]::after { content: "✓"; margin-left: auto; }
 .bar .acct-palette { display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
 @media (max-width: 1299px) { .bar .palette-label, .bar .date-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
-/* Phones: the bar is full, so the deck choice moves into the account menu. */
-@media (max-width: 560px) { .bar .palette-tab { display: none; } .bar .acct-palette { display: block; } }
+/* Only below 360px is the bar too full: there the deck choice moves into the account menu. */
+@media (max-width: 359px) { .bar .palette-tab { display: none; } .bar .acct-palette { display: block; } }
 /* Day view: the date and time zone form sits in a dropdown left of Colors, and stays on phones
    as an icon. */
 .bar .date-tab summary svg { width: 18px; height: 16px; flex-shrink: 0; }
@@ -277,7 +282,7 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 .bar .date-form { display: grid; gap: 10px; margin: 6px 10px 10px; }
 .bar .date-form .field { display: grid; gap: 4px; margin: 0; }
 .bar .date-form .btn { justify-self: start; }
-/* Member colours, under the decks in the Colors menu (the account menu on phones). */
+/* Member colours, under the decks in the Colors menu (the account menu below 360px). */
 .bar .menu-colours { min-width: 220px; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
 .bar .member-colours { display: grid; gap: 2px; margin: 0; }
 /* One row per member, like the deck rows: name, then a round swatch that opens the picker. */
@@ -333,18 +338,25 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
   .bar .btn.add-btn { height: 44px; }
   .bar .acct-menu a, .bar .acct-menu button, .bar .palette-options button, .bar .member-colour { min-height: 44px; }
 }
-/* Only the narrowest phones drop the wordmark: icon + switches + add + avatar need ~390px. */
-@media (max-width: 440px) { .bar .mark .mark-text { display: none; } }
+/* Phones keep every control in the bar (down to 360px), so the wordmark and side padding give way. */
+@media (max-width: 560px) {
+  .bar { gap: 4px; padding: 0 8px; }
+  .bar .bar-end { gap: 2px; }
+  .bar .mark { min-width: 32px; }
+  .bar .mark .mark-text { display: none; }
+  /* Their icons now sit mid-bar, so the dropdowns span the screen instead of running off its left edge. */
+  .bar .palette-menu { position: fixed; left: 8px; right: 8px; top: 64px; }
+}
 /* "Add event" keeps its label until the bar runs out of room; below that it is an icon button. */
 @media (max-width: 560px) {
   .bar .add-btn { width: 44px; padding: 0; }
   .bar .add-btn .btn-label { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 
-/* The 12h/24h and light/dark switches sit in the top bar; on phones shell.js moves them into the
-   account menu (hidden in the bar until then, so nothing jumps). */
+/* The 12h/24h and light/dark switches sit in the top bar; below 360px shell.js moves them into
+   the account menu (hidden in the bar until then, so nothing jumps). */
 .bar .bar-switches { display: contents; }
-@media (max-width: 560px) { .bar .bar-end > .bar-switches { display: none; } }
+@media (max-width: 359px) { .bar .bar-end > .bar-switches { display: none; } }
 .bar .acct-menu .bar-switches { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); margin-top: 4px; padding: 6px 4px 2px; }
 .bar .acct-menu .bar-switches .switch, .bar .acct-menu .bar-switches .switch:hover { display: grid; width: auto; min-height: 44px; padding: 0; background: none; }
 
