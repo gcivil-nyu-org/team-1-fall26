@@ -36,6 +36,7 @@ from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
 from events.briefing import build_family_briefing, build_kid_briefing
 from events.timeline import editable_members, family_members
+from events.flags import build_week_flags
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
 from events.nav import period_nav, show_weekends
 
@@ -225,7 +226,12 @@ def dashboard(request):
     }
     is_kid = family["role"] == Membership.Role.KID
     context.update(
-        _week_context(request, workspace, weekends=is_kid or show_weekends(request))
+        _week_context(
+            request,
+            workspace,
+            weekends=is_kid or show_weekends(request),
+            flags=not is_kid,
+        )
     )
     context["period_nav"] = period_nav(
         request,
@@ -317,9 +323,10 @@ def day_seen(request):
     return redirect("accounts:dashboard")
 
 
-def _week_context(request, workspace, weekends=True):
+def _week_context(request, workspace, weekends=True, flags=False):
     """The paint-chip week for one family: ?week=YYYY-MM-DD picks the week, default this
-    one.
+    one. Parents also get the week's flags (open rides, double-bookings), worked out
+    from the same events.
     """
     tz = timezone.get_current_timezone()
     today = timezone.localdate()
@@ -345,6 +352,11 @@ def _week_context(request, workspace, weekends=True):
     members = family_members([workspace])
     return {
         "week": build_week(events, members, week_start, tz, today, weekends),
+        "week_flags": (
+            build_week_flags(events, members, week_start, tz, timezone.now())
+            if flags
+            else None
+        ),
         "show_weekends": weekends,
         "week_start": week_start,
         "week_last": week_end - timedelta(days=1),

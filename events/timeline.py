@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from accounts.models import MemberColor, Membership
 from syncmily.safety import safe_hex_color
 
+from .drives import day_drives
 from .models import Event
 
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -149,8 +150,11 @@ def lane_user_ids(event, member_ids):
 def build_day_timeline(events, members, day_start, day_end, tz, now):
     """Position each event as start and width percentages of the selected local day.
 
-    Overlapping events in one lane are drawn on top of each other for now.
+    Overlapping events in one lane are drawn on top of each other for now. Each member's
+    lane also lists the rides they drive that day for plans they do not attend
+    (`drives`).
     """
+    events = list(events)
     # Subtract in UTC: datetimes sharing a ZoneInfo ignore DST changes when subtracted.
     start = day_start.astimezone(datetime_timezone.utc)
     end = day_end.astimezone(datetime_timezone.utc)
@@ -165,8 +169,12 @@ def build_day_timeline(events, members, day_start, day_end, tz, now):
     lanes_by_user = {lane["user"].pk: lane for lane in lanes}
     family_lane = {"user": None, "is_kid": False, "items": []}
     all_day = []
+    own_plans = {pk: set() for pk in lanes_by_user}
     for event in events:
         member_ids = lane_user_ids(event, lanes_by_user)
+        # A whole-family plan is every member's own, so it never counts as a drive.
+        for pk in member_ids or lanes_by_user:
+            own_plans[pk].add(event.pk)
         if event.starts_at <= start and event.ends_at >= end:
             all_day.append(
                 {"event": event, "members": [lanes_by_user[pk] for pk in member_ids]}
@@ -184,6 +192,9 @@ def build_day_timeline(events, members, day_start, day_end, tz, now):
             lanes_by_user[pk]["items"].append(item)
         if not member_ids:
             family_lane["items"].append(item)
+    for pk, lane in lanes_by_user.items():
+        lane["drives"] = day_drives(events, pk, day_start, day_end, own_plans[pk])
+    family_lane["drives"] = []
     if family_lane["items"]:
         lanes.append(family_lane)
 

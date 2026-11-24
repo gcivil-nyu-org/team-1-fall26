@@ -17,7 +17,7 @@
             <h1>Schedule</h1>
         {% elif view == 'day' %}
             <h1>{{ start_date|date:"l j F" }}</h1>
-            <span class="span">{% if is_current %}Today. {% endif %}{{ day.summary }}</span>
+            <span class="span{% if day.clash %} my-day-flag{% endif %}">{% if is_current %}Today. {% endif %}{{ day.summary }}</span>
         {% elif view == 'month' %}
             <h1>{{ start_date|date:"F Y" }}</h1>
         {% elif view == 'week' %}

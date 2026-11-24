@@ -821,7 +821,11 @@ def event_list(request, workspace_id=None):
     if form.is_valid() and form.cleaned_data["view"] == "day":
         context.update(
             _day_timeline_context(
-                request, workspace, events.prefetch_related("participants"), period
+                request,
+                workspace,
+                events.prefetch_related("participants"),
+                period,
+                context["can_create"],
             )
         )
     page = Paginator(events.prefetch_related("participants"), 20).get_page(
@@ -833,7 +837,7 @@ def event_list(request, workspace_id=None):
     return render(request, "events/event_list.html", context)
 
 
-def _day_timeline_context(request, workspace, events, period):
+def _day_timeline_context(request, workspace, events, period, can_create):
     workspaces = [workspace] if workspace else list(family_workspaces(request.user))
     members = family_members(workspaces)
     tz = ZoneInfo(period["timezone"])
@@ -851,7 +855,7 @@ def _day_timeline_context(request, workspace, events, period):
     color_workspace = workspaces[0] if len(workspaces) == 1 else None
     return {
         "timeline": timeline,
-        "day": vertical_day(timeline, tz),
+        "day": vertical_day(timeline, tz, parent_view=can_create),
         "more_plans": more,
         "week_query": urlencode(
             {

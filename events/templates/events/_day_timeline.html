@@ -21,7 +21,7 @@
         </div>
     {% endif %}
     {% if more_plans %}<p class="notice">This day has {{ more_plans }} more plan{{ more_plans|pluralize }} than this page shows. <a href="?{{ week_query }}">See the week</a>.</p>{% endif %}
-    <div class="daygrid" style="--lanes: {{ day.lanes|length }}; --span: {{ day.span_hours|stringformat:'s' }}"{% if shell.add_event_url %} data-add-at="{{ shell.add_event_url }}?{{ create_query }}"{% endif %}>
+    <div class="daygrid{% if day.has_drives %} has-drives{% endif %}" style="--lanes: {{ day.lanes|length }}; --span: {{ day.span_hours|stringformat:'s' }}"{% if shell.add_event_url %} data-add-at="{{ shell.add_event_url }}?{{ create_query }}"{% endif %}>
         <div class="hours" aria-hidden="true">
             <div class="corner"></div>
             <div class="axis">
@@ -35,8 +35,15 @@
             <section class="lane{% if not lane.user %} lane-family{% endif %}" aria-labelledby="lane-{{ forloop.counter }}"{% if lane.user %} data-hue="{{ lane.hue }}"{% if lane.custom_color %} style="--hue: {{ lane.custom_color }}"{% endif %}{% endif %}>
                 <h3 class="colhead" id="lane-{{ forloop.counter }}">
                     {% if lane.user %}<span class="dot" aria-hidden="true">{{ lane.user|initial }}</span><span class="lane-name" translate="no">{{ lane.user|person }}</span>{% else %}<span class="dot dot-quiet" aria-hidden="true"></span><span class="lane-name">Whole family</span>{% endif %}
-                    <small>{% if lane.total %}{{ lane.total }} plan{{ lane.total|pluralize }}{% else %}Free{% endif %}</small>
+                    <small{% if lane.drives %} class="has-drives"{% endif %}>{{ lane.note }}</small>
                 </h3>
+                {% if lane.drives %}
+                <ul class="drive-notes">
+                    {% for drive in lane.drives %}
+                        <li class="drive-note">Drives {{ drive.event.title }}: {% for leg in drive.legs %}{{ leg.name|lower }} {% if leg.midnight %}midnight (end of day){% else %}<time data-clock="{{ leg.at|date:'H:i' }}">{{ leg.at|date:"g:i A" }}</time>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
                 <div class="track" data-rail{% if shell.add_event_url %} tabindex="0" role="group" aria-label="{% if lane.user %}{{ lane.user|person }}’s day{% else %}Whole family’s day{% endif %}. Right-click a time, or press Shift+F10, to add an event." aria-keyshortcuts="Shift+F10"{% endif %}>
                 <ol class="plans">
                     {% for slot in lane.slots %}
@@ -44,12 +51,12 @@
                             <li class="leave-mark" aria-hidden="true" data-trip-marker="{% url 'events:trip' slot.event.pk %}?format=json" data-event-start="{{ slot.event.starts_at|date:'c' }}" style="--col: {{ slot.column }}; --cols: {{ slot.columns }}" hidden></li>
                         {% endif %}
                         <li style="--top: {{ slot.top|stringformat:'s' }}%; --h: {{ slot.height|stringformat:'s' }}%; --col: {{ slot.column }}; --cols: {{ slot.columns }}">
-                            <a class="plan{% if slot.event.is_tentative %} tent{% endif %}{% if slot.clipped %} cont{% endif %}" href="{% url 'events:detail' slot.event.pk %}?{{ timezone_query }}" data-dialog{% if slot.event.source == 'google' %} title="From Google Calendar"{% endif %}>
-                                <b>{{ slot.event.title }}</b><span class="sr-only">, </span>{% if slot.event.requires_transport %}{% include "events/_driver_summary.html" with event=slot.event %}<span class="sr-only">, </span>{% endif %}{% if slot.event.is_tentative %}<span class="maybe">Not confirmed</span><span class="sr-only">, </span>{% endif %}{% if slot.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<time data-clock="{{ slot.time_clock }}">{{ slot.time_label }}</time><span class="leave-chip" data-trip-chip hidden></span>
+                            <a class="plan{% if slot.event.is_tentative %} tent{% endif %}{% if slot.clipped %} cont{% endif %}{% if slot.overlaps %} overlap{% endif %}" href="{% url 'events:detail' slot.event.pk %}?{{ timezone_query }}" data-dialog{% if slot.event.source == 'google' %} title="From Google Calendar"{% endif %}>
+                                <b>{{ slot.event.title }}</b><span class="sr-only">, </span>{% if slot.event.requires_transport %}{% include "events/_driver_summary.html" with event=slot.event ride_badge=can_create %}<span class="sr-only">, </span>{% endif %}{% if slot.event.is_tentative %}<span class="maybe">Not confirmed</span><span class="sr-only">, </span>{% endif %}{% if slot.event.source == 'google' %}<span class="sr-only">From Google Calendar, </span>{% endif %}<time data-clock="{{ slot.time_clock }}">{{ slot.time_label }}</time>{% if slot.overlaps %}<span class="sr-only">, overlaps {{ slot.overlaps|join:" and " }}</span><span class="overlap-note" aria-hidden="true">Overlaps {{ slot.overlaps|join:" and " }}</span>{% endif %}<span class="leave-chip" data-trip-chip hidden></span>
                             </a>
                         </li>
                     {% empty %}
-                        <li class="lane-empty">Nothing planned</li>
+                        {% if not lane.drives %}<li class="lane-empty">Nothing planned</li>{% endif %}
                     {% endfor %}
                 </ol>
                 {% if lane.more %}<p class="lane-more"><a href="?{{ week_query }}">+{{ lane.more }} more</a></p>{% endif %}

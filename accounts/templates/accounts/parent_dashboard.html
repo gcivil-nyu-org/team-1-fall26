@@ -12,6 +12,13 @@
         {% if is_primary_admin %}<a class="btn btn-quiet" href="{% url 'accounts:manage_members' workspace.pk %}">Add a family member</a>{% endif %}
         {% include "events/_period_nav.html" %}
     </div>
+    {% if week_flags %}
+        <section class="week-flags" aria-labelledby="week-flags-title">
+            <h2 id="week-flags-title" class="sr-only">Needs attention this week</h2>
+            {% if week_flags.open_rides %}<p class="my-day-flag">{% if week_flags.open_rides == 1 %}1 ride still needs a driver{% else %}{{ week_flags.open_rides }} rides still need a driver{% endif %}: {% for day in week_flags.open_days %}<a href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ day|date:'Y-m-d' }}">{{ day|date:"D j" }}<span class="sr-only"> day view</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+            {% for flag in week_flags.double_booked %}<p class="my-day-flag"><span translate="no">{{ flag.member.user|person }}</span> is double-booked on {% for day in flag.days %}<a href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ day|date:'Y-m-d' }}">{{ day|date:"D j" }}<span class="sr-only"> day view</span></a>{% if forloop.revcounter0 == 1 %} and {% elif not forloop.last %}, {% endif %}{% endfor %}.</p>{% endfor %}
+        </section>
+    {% endif %}
     <div class="week" data-clock-scope{% if not show_weekends %} style="--days: 5"{% endif %}>
         <div class="week-main">
             <div class="days" aria-hidden="true"><span></span>{% for day in week.days %}<span{% if day.is_today %} class="is-today"{% endif %}>{{ day.date|date:"D j" }}</span>{% endfor %}</div>
@@ -22,12 +29,16 @@
                     {% for chip in row.chips %}
                         <a class="chip l{{ chip.level }}{% if chip.tentative %} tent{% endif %}" href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ chip.date|date:'Y-m-d' }}">
                             <span class="chip-day">{{ chip.date|date:"D j" }}</span>
-                            {% for item in chip.items %}
-                                <p>{{ item.event.title }}{% if item.event.requires_transport %}{% include "events/_driver_summary.html" with event=item.event %}{% endif %}{% if item.tentative %}<span class="maybe">Not confirmed</span>{% endif %}{% if item.all_day %}<time>All day</time>{% elif item.starts_earlier %}<time>Continues</time>{% else %}<time datetime="{{ item.event.starts_at|date:'c' }}" data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time>{% endif %}</p>
-                            {% empty %}
-                                Free
+                            {% for drive in chip.drives|slice:":2" %}
+                                <p class="drive"><span class="drive-tag">{% if row.user.pk == request.user.pk %}You drive{% else %}Drives{% endif %}</span> {{ drive.event.title }} <span class="drive-leg">{{ drive.label }} {% for leg in drive.legs %}{% if leg.midnight %}midnight{% else %}<time datetime="{{ leg.at|date:'c' }}" data-clock="{{ leg.at|date:'H:i' }}">{{ leg.at|date:"H:i" }}</time>{% endif %}{% if not forloop.last %} and {% endif %}{% endfor %}</span></p>
                             {% endfor %}
+                            {% if chip.more_drives %}<span class="more">+{{ chip.more_drives }} more drive{{ chip.more_drives|pluralize }}</span>{% endif %}
+                            {% for item in chip.items %}
+                                <p>{{ item.event.title }}{% if item.event.requires_transport %}{% include "events/_driver_summary.html" with event=item.event ride_badge=True %}{% endif %}{% if item.tentative %}<span class="maybe">Not confirmed</span>{% endif %}{% if item.all_day %}<time>All day</time>{% elif item.starts_earlier %}<time>Continues</time>{% else %}<time datetime="{{ item.event.starts_at|date:'c' }}" data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time>{% endif %}</p>
+                            {% endfor %}
+                            {% if not chip.items and not chip.drives %}Free{% endif %}
                             {% if chip.more %}<span class="more">+{{ chip.more }} more</span>{% endif %}
+                            {% if chip.overlap %}<span class="chip-flag">Plans overlap</span>{% endif %}
                         </a>
                     {% endfor %}
                 </section>
