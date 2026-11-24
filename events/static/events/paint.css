@@ -145,6 +145,12 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
    indented; pulling the value left by 0.4em (about 5.5px at 14px) sets dates and times
    visibly tighter to the left border. */
 .paint :is(input[type="date"], input[type="time"]) { font-variant-numeric: tabular-nums; }
+/* iOS only: its native date and time boxes add padding outside the set width and height, which pushed
+   them past their form and let the Add event sheet slide sideways. */
+@supports (-webkit-touch-callout: none) {
+  .paint :is(input[type="date"], input[type="time"], input[type="datetime-local"]) { -webkit-appearance: none; appearance: none; min-width: 0; }
+  .paint ::-webkit-date-and-time-value { text-align: left; }
+}
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit { margin-left: -.4em; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit-text { font-variant-numeric: normal; }
 .paint :is(input[type="date"], input[type="time"])::-webkit-datetime-edit,
@@ -291,7 +297,7 @@ body.paint button.btn[disabled] { opacity: .5; cursor: not-allowed; }
 .paint .colours input.hex { width: 10ch; height: 36px; padding: 0 8px; font: 500 13px/1 var(--font); font-variant-numeric: tabular-nums; text-transform: uppercase; }
 
 /* Dialogs: event details and the add-event form open over the page (the "sheet"); confirmations. */
-dialog.sheet, dialog.confirm { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
+dialog.sheet, dialog.confirm { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: hidden auto; overscroll-behavior: contain; padding: 0; border: 0; border-radius: 8px; background: var(--card); color: var(--ink); box-shadow: 0 24px 64px color-mix(in oklab, var(--paint-ink) 26%, transparent); }
 dialog.confirm { width: min(440px, calc(100vw - 32px)); }
 dialog.sheet::backdrop, dialog.confirm::backdrop { background: color-mix(in oklab, var(--paint-ink) 45%, transparent); }
 dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16, 1, .3, 1); }
