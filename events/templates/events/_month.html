@@ -1,0 +1,19 @@
+{% load tz paint %}{% comment %}The month grid. Each day links to its day view; plans carry the colour of
+the first family member going, and whole-family plans stay plain.{% endcomment %}
+{% timezone timezone_name %}
+<section class="month" aria-labelledby="month-title" style="--days: {{ month.columns }}">
+    <h2 class="sr-only" id="month-title">Plans for {{ start_date|date:"F Y" }}</h2>
+    <div class="month-names" aria-hidden="true">{% for name in month.weekday_names %}<span>{{ name }}</span>{% endfor %}</div>
+    <div class="month-grid">
+        {% for week in month.weeks %}{% for day in week %}
+            <a class="month-day{% if not day.in_month %} out{% endif %}{% if day.is_today %} is-today{% endif %}" href="?view=day&amp;date={{ day.date|date:'Y-m-d' }}&amp;{{ timezone_query }}" aria-label="{{ day.date|date:'l j F' }}{% if day.is_today %}, today{% endif %}: {% if day.count %}{{ day.count }} plan{{ day.count|pluralize }}{% else %}nothing planned{% endif %}">
+                <span class="month-date">{{ day.date|date:"j" }}</span>
+                {% for item in day.items %}
+                    <span class="pill month-plan{% if item.tentative %} tent{% endif %}"{% if item.member %} data-hue="{{ item.member.hue }}"{% if item.member.custom_color %} style="--hue: {{ item.member.custom_color }}"{% endif %}{% endif %}>{% if not item.all_day and not item.starts_earlier %}<time data-clock="{{ item.event.starts_at|date:'H:i' }}">{{ item.event.starts_at|date:"H:i" }}</time> {% endif %}{{ item.event.title }}</span>
+                {% endfor %}
+                {% if day.more %}<span class="month-more">+{{ day.more }} more</span>{% endif %}
+            </a>
+        {% endfor %}{% endfor %}
+    </div>
+</section>
+{% endtimezone %}

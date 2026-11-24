@@ -55,6 +55,8 @@ from .travel_conflicts import find_travel_checks
 from . import places
 from .trip import build_trip, marker_data
 from .timeline import build_day_timeline, editable_members, family_members
+from .month import build_month
+from .nav import WEEKENDS_SESSION_KEY, period_nav, show_weekends
 from .week import local_day_bounds
 
 logger = logging.getLogger(__name__)
@@ -763,6 +765,7 @@ def event_list(request, workspace_id=None):
             timezone_name=period["timezone"],
             timezone_query=urlencode(timezone_query),
             create_query=create_query,
+            list_from=period.get("list_from"),
             period_query=urlencode(
                 {"date": period["date"], "view": period["view"], **timezone_query}
             ),
@@ -788,6 +791,33 @@ def event_list(request, workspace_id=None):
                     }
                 ),
             )
+    if form.is_valid():
+        period = form.cleaned_data
+        context["period_nav"] = period_nav(
+            request,
+            view=period["view"],
+            date=period["date"],
+            start=period.get("start_date"),
+            last=period.get("last_date"),
+            workspace=workspace,
+            timezone_name=period["timezone"],
+            previous_url=(
+                f"?{context['previous_query']}" if "previous_query" in context else None
+            ),
+            next_url=f"?{context['next_query']}" if "next_query" in context else None,
+            today_url=f"?view={period['view']}&{context['timezone_query']}",
+            is_current=context.get("is_current", False),
+        )
+    if form.is_valid() and form.cleaned_data["view"] == "month":
+        workspaces = [workspace] if workspace else list(family_workspaces(request.user))
+        context["month"] = build_month(
+            events.prefetch_related("participants"),
+            family_members(workspaces),
+            period["start_date"],
+            ZoneInfo(period["timezone"]),
+            timezone.localdate(timezone=ZoneInfo(period["timezone"])),
+            show_weekends(request),
+        )
     if form.is_valid() and form.cleaned_data["view"] == "day":
         context.update(
             _day_timeline_context(
@@ -881,6 +911,16 @@ def member_colors(request, workspace_id):
         Params(request.POST, request).next_url(
             "next", reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
         )
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def toggle_weekends(request):
+    """Show or hide Saturday and Sunday on the week and month views, per session."""
+    request.session[WEEKENDS_SESSION_KEY] = show_weekends(request)
+    return redirect(
+        Params(request.POST, request).next_url("next", reverse("accounts:dashboard"))
     )
 
 
