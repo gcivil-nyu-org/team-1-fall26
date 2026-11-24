@@ -184,9 +184,14 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 @media (max-width: 900px) {
   .page { padding: 16px 16px 96px; }
   .seg { margin-left: 0; }
-  .auth { grid-template-columns: 1fr; }
-  .auth-deck { display: none; }
+  .auth { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .auth-form { align-items: center; }
+  .auth-form .mark { align-self: center; width: 100%; max-width: 380px; }
+  /* Narrow screens keep the paint deck as a short strip above the form, so a half-width window still shows the colors. */
+  .auth-deck { order: -1; grid-template-rows: none; grid-template-columns: repeat(4, 1fr); height: 96px; padding: 16px; }
+  .auth-deck i { padding: 0; }
 }
+@media (max-width: 520px) { .auth-deck { height: 56px; padding: 12px; gap: 6px; } }
 
 /* ===== Screens beyond the week (part 2): shared parts ===== */
 /* White text on a deep paint step (4-5) in both themes. Tokens wanted: a shared --on-paint-deep. */
