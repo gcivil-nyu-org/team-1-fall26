@@ -1,6 +1,7 @@
 {% load tz paint %}{% comment %}The month grid. Each day links to its day view; plans carry the colour of
 the first family member going, and whole-family plans stay plain.{% endcomment %}
 {% timezone timezone_name %}
+{% if more_plans %}<p class="notice">This month has {{ more_plans }} more plan{{ more_plans|pluralize }} than this page shows. <a href="?view=upcoming&amp;date={{ start_date|date:'Y-m-d' }}&amp;{{ timezone_query }}">See the list</a>.</p>{% endif %}
 <section class="month" aria-labelledby="month-title" style="--days: {{ month.columns }}">
     <h2 class="sr-only" id="month-title">Plans for {{ start_date|date:"F Y" }}</h2>
     <div class="month-names" aria-hidden="true">{% for name in month.weekday_names %}<span>{{ name }}</span>{% endfor %}</div>

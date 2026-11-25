@@ -91,8 +91,10 @@
             var target = event.target;
             if (target.closest && target.closest("input, textarea, select, [contenteditable], dialog[open]")) return;
             if (document.querySelector("dialog[open]")) return;
+            // Only the four letters reach the selector: a quote key would make it invalid.
+            if (!/^[dwml]$/i.test(event.key)) return;
             var link = document.querySelector('.view-pop a[data-shortcut="' + event.key.toUpperCase() + '"]');
-            if (!link || event.key.length !== 1) return;
+            if (!link) return;
             event.preventDefault();
             link.click();
         });

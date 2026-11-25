@@ -1,5 +1,5 @@
 import logging
-from datetime import time as dt_time
+from datetime import time as dt_time, timedelta
 from urllib.parse import urlencode
 from uuid import UUID
 from zoneinfo import ZoneInfo, available_timezones
@@ -751,6 +751,8 @@ def event_list(request, workspace_id=None):
             else reverse("accounts:dashboard")
         ),
     }
+    # A kid always sees the weekend, as on their dashboard; parents choose.
+    weekends = not context["can_create"] or show_weekends(request)
     if form.is_valid():
         period = form.cleaned_data
         events = accessible_events.filter(ends_at__gt=period["starts_at"])
@@ -791,12 +793,21 @@ def event_list(request, workspace_id=None):
                     }
                 ),
             )
+        if period["view"] == "week" and not weekends:
+            # Weekends hidden: Monday to Friday, like the dashboard week.
+            context["last_date"] = period["start_date"] + timedelta(days=4)
+            _, saturday = local_day_bounds(
+                context["last_date"], ZoneInfo(period["timezone"])
+            )
+            events = events.filter(starts_at__lt=saturday)
     if form.is_valid():
         period = form.cleaned_data
+        today = timezone.localdate(timezone=ZoneInfo(period["timezone"]))
         context["period_nav"] = period_nav(
             request,
             view=period["view"],
-            date=period["date"],
+            # A period that holds today opens the other views on today.
+            date=today if context.get("is_current") else period["date"],
             start=period.get("start_date"),
             last=period.get("last_date"),
             workspace=workspace,
@@ -807,16 +818,23 @@ def event_list(request, workspace_id=None):
             next_url=f"?{context['next_query']}" if "next_query" in context else None,
             today_url=f"?view={period['view']}&{context['timezone_query']}",
             is_current=context.get("is_current", False),
+            weekends_toggle=context["can_create"],
         )
     if form.is_valid() and form.cleaned_data["view"] == "month":
         workspaces = [workspace] if workspace else list(family_workspaces(request.user))
+        # A page draws at most 100 plans; the rest are counted, as in the day view.
+        shown = list(
+            events.prefetch_related("participants")[: RENDER.plans_per_response]
+        )
+        if len(shown) == RENDER.plans_per_response:
+            context["more_plans"] = max(events.count() - len(shown), 0)
         context["month"] = build_month(
-            events.prefetch_related("participants"),
+            shown,
             family_members(workspaces),
             period["start_date"],
             ZoneInfo(period["timezone"]),
             timezone.localdate(timezone=ZoneInfo(period["timezone"])),
-            show_weekends(request),
+            weekends,
         )
     if form.is_valid() and form.cleaned_data["view"] == "day":
         context.update(

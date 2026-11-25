@@ -1,14 +1,17 @@
 """The period bar, the month view and the weekends switch."""
 
 from datetime import datetime
+from unittest import mock
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
+from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone as django_timezone
 
 from accounts.models import Membership, Workspace
+from syncmily.limits import RENDER
 
 from ..models import Event
 
@@ -173,6 +176,87 @@ class PeriodNavTests(TestCase):
         response = self.month()
         self.assertContains(response, "Lucia swim")
         self.assertNotContains(response, "Parents only")
+
+    def links(self, response):
+        return {
+            link["key"]: link["url"] for link in response.context["period_nav"]["links"]
+        }
+
+    def week_list(self):
+        return self.client.get(
+            self.list_url,
+            {"view": "week", "date": "2026-10-26", "timezone": "America/New_York"},
+        )
+
+    def test_a_period_that_holds_today_opens_the_other_views_on_today(self):
+        tuesday = datetime(2026, 11, 24, 12, tzinfo=NEW_YORK)
+        zone = {"timezone": "America/New_York"}
+        with mock.patch("django.utils.timezone.now", return_value=tuesday):
+            pages = {
+                "this week": self.client.get(reverse("accounts:dashboard")),
+                "this month": self.client.get(
+                    self.list_url, {"view": "month", "date": "2026-11-01", **zone}
+                ),
+                "this week's list": self.client.get(
+                    self.list_url, {"view": "week", "date": "2026-11-23", **zone}
+                ),
+            }
+            next_week = self.client.get(
+                reverse("accounts:dashboard"), {"week": "2026-11-30"}
+            )
+            december = self.client.get(
+                self.list_url, {"view": "month", "date": "2026-12-01", **zone}
+            )
+        for name, response in pages.items():
+            for view in ("day", "month", "upcoming"):
+                with self.subTest(page=name, view=view):
+                    self.assertIn("date=2026-11-24", self.links(response)[view])
+        # Away from today, the links keep the first day on screen.
+        self.assertIn("date=2026-11-30", self.links(next_week)["day"])
+        self.assertIn("date=2026-12-01", self.links(december)["day"])
+
+    def test_the_list_week_leaves_out_the_weekend_when_weekends_are_hidden(self):
+        self.event("Friday swim", 30)
+        self.event("Saturday match", 31)
+        self.assertContains(self.week_list(), "Saturday match")
+        self.client.post(reverse("events:weekends"))
+        response = self.week_list()
+        self.assertContains(response, "Friday swim")
+        self.assertNotContains(response, "Saturday match")
+        self.assertContains(response, "Mon 26 Oct to Fri 30 Oct, 1 plan")
+        self.assertContains(response, "Show weekends")
+
+    def test_a_kid_always_sees_weekends_and_is_never_offered_the_switch(self):
+        self.event("Saturday match", 31, participants=[self.kid])
+        self.assertContains(self.month(), "Show weekends")
+        self.client.force_login(self.kid)
+        self.client.post(reverse("events:weekends"))
+        month = self.month()
+        self.assertTrue(all(len(week) == 7 for week in month.context["month"]["weeks"]))
+        self.assertNotContains(month, "Show weekends")
+        week = self.week_list()
+        self.assertContains(week, "Saturday match")
+        self.assertNotContains(week, "Show weekends")
+
+    def test_month_draws_at_most_100_plans_and_counts_the_rest(self):
+        for number in range(RENDER.plans_per_response + 3):
+            self.event(f"Plan {number}", 1 + number % 28)
+        response = self.month()
+        placed = sum(
+            day["count"] for week in response.context["month"]["weeks"] for day in week
+        )
+        self.assertEqual(placed, RENDER.plans_per_response)
+        self.assertContains(
+            response, "This month has 3 more plans than this page shows."
+        )
+        self.assertNotContains(self.month(date="2026-12-14"), "than this page shows")
+
+    def test_only_the_four_shortcut_letters_reach_the_selector(self):
+        """A quote key would make the selector invalid, so the key is checked first."""
+        with open(finders.find("events/shell.js"), encoding="utf-8") as handle:
+            script = handle.read()
+        check = script.index("if (!/^[dwml]$/i.test(event.key)) return;")
+        self.assertLess(check, script.index("a[data-shortcut="))
 
 
 class PeriodLabelTests(TestCase):

@@ -236,7 +236,8 @@ def dashboard(request):
     context["period_nav"] = period_nav(
         request,
         view="week",
-        date=context["week_start"],
+        # This week opens Day, Month and List on today, not on its Monday.
+        date=context["today"] if context["is_this_week"] else context["week_start"],
         start=context["week_start"],
         last=context["week_last"],
         workspace=workspace,
