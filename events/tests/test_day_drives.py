@@ -205,6 +205,25 @@ class DayDrivesTests(FamilyMixin, TestCase):
         # The words the page already had for a double-booking stay.
         self.assertContains(response, "Lucía double-booked")
 
+    def test_the_headline_counts_this_days_rides_that_still_need_a_driver(self):
+        self.ride("Swim class", at(29, 18), 60, [self.lucia], pickup_driver=self.mateo)
+        for now, expected in (
+            (at(29, 8), "One plan, 1 ride still needs a driver"),
+            # The drop-off has passed, so nothing is left to drive.
+            (at(29, 18, 30), "One plan"),
+        ):
+            with (
+                self.subTest(now=now),
+                mock.patch("django.utils.timezone.now", return_value=now),
+            ):
+                self.assertContains(self.page(), f"{expected}</span>")
+                self.assertNotContains(self.page(self.lucia), "a driver</span>")
+
+    def test_the_headline_leaves_another_days_leg_to_that_day(self):
+        self.ride("Sleepover", at(29, 18), 24 * 60, [self.lucia])
+        with mock.patch("django.utils.timezone.now", return_value=at(28, 8)):
+            self.assertContains(self.page(), "One plan, 1 ride still needs a driver")
+
     def test_a_kid_view_leaves_the_free_note_as_before(self):
         self.plan("Book club", at(29, 19), 90, [self.ana])
         start = datetime.combine(THURSDAY, datetime.min.time(), tzinfo=NEW_YORK)
