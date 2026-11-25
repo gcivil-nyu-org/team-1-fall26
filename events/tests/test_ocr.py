@@ -1,11 +1,17 @@
 from datetime import date, timedelta
 import io
 import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import tempfile
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image, ImageOps
@@ -1104,3 +1110,94 @@ class EventOCRViewAndWorkflowTests(TestCase):
         )
         self.assertEqual(res.status_code, 302)
         self.assertTrue(Event.objects.filter(title="Manual Dentist Visit").exists())
+
+
+class OcrDeploymentHookTests(SimpleTestCase):
+    hook_path = (
+        Path(settings.BASE_DIR) / ".platform" / "hooks" / "prebuild" / "01_tesseract.sh"
+    )
+
+    def test_tesseract_hook_exists_is_executable_and_valid_bash(self):
+        self.assertTrue(self.hook_path.is_file())
+        mode = self.hook_path.stat().st_mode
+        self.assertTrue(mode & stat.S_IXUSR)
+        syntax = subprocess.run(
+            ["bash", "-n", str(self.hook_path)],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+
+    def test_tesseract_hook_targets_al2023_and_verifies_hashes_and_langs(self):
+        script = self.hook_path.read_text(encoding="utf-8")
+        self.assertIn("dnf install -y", script)
+        self.assertNotIn("apt-get", script)
+        self.assertIn("LEPTONICA_SHA256=", script)
+        self.assertIn("TESSERACT_SHA256=", script)
+        self.assertIn("ENG_DATA_SHA256=", script)
+        self.assertIn("OSD_DATA_SHA256=", script)
+        self.assertIn("sha256_check", script)
+        self.assertIn("--version", script)
+        self.assertIn("--list-langs", script)
+        self.assertIn("eng.traineddata", script)
+        self.assertIn("osd.traineddata", script)
+
+    def test_tesseract_hook_is_idempotent_when_verified_binary_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prefix = Path(tmp) / "prefix"
+            bin_dir = prefix / "bin"
+            bin_dir.mkdir(parents=True)
+            fake_bin = bin_dir / "tesseract"
+            fake_bin.write_text(
+                "#!/bin/bash\n"
+                'if [ "${1:-}" = "--version" ]; then\n'
+                '  echo "tesseract 5.5.4"\n'
+                "  exit 0\n"
+                "fi\n"
+                'if [ "${1:-}" = "--list-langs" ]; then\n'
+                '  echo "List of available languages:"\n'
+                '  echo "eng"\n'
+                '  echo "osd"\n'
+                "  exit 0\n"
+                "fi\n",
+                encoding="utf-8",
+            )
+            fake_bin.chmod(0o755)
+            symlink_path = Path(tmp) / "usr-bin-tesseract"
+            env = {
+                **os.environ,
+                "TESSERACT_PREFIX": str(prefix),
+                "TESSERACT_BIN_SYMLINK": str(symlink_path),
+                "SKIP_TESSERACT_INSTALL": "",
+            }
+            res = subprocess.run(
+                ["bash", str(self.hook_path)],
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertIn("already ready: tesseract 5.5.4", res.stdout)
+            self.assertTrue(symlink_path.is_symlink())
+
+    def test_tesseract_hook_does_not_break_deploy_when_dnf_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prefix = Path(tmp) / "prefix"
+            empty_bin = Path(tmp) / "empty-bin"
+            empty_bin.mkdir()
+            # Keep standard POSIX utilities while hiding tesseract and dnf.
+            env = {
+                "PATH": str(empty_bin) + ":/bin:/usr/bin",
+                "TESSERACT_PREFIX": str(prefix),
+                "TESSDATA_DIR": str(prefix / "share" / "tessdata"),
+                "TESSERACT_BIN_SYMLINK": str(Path(tmp) / "usr-bin-tesseract"),
+                "SKIP_TESSERACT_INSTALL": "",
+            }
+            res = subprocess.run(
+                ["/bin/bash", str(self.hook_path)],
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertIn("WARNING: Tesseract OCR installation failed", res.stderr)
