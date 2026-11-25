@@ -10,7 +10,7 @@ import logging
 import threading
 import time
 
-from django.db import connection, transaction
+from django.db import close_old_connections, connections, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +20,14 @@ SEND_WAIT_SECONDS = 0.05
 
 
 def _deliver(message):
+    close_old_connections()
     try:
         message.send()
     except Exception:
         # The mail server refused it; the visitor sees the same answer either way.
         logger.exception("An account email could not be sent")
     finally:
-        connection.close()
+        connections.close_all()
 
 
 def send_in_background(message):

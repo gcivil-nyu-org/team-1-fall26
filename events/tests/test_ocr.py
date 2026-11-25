@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 import io
 import json
@@ -11,7 +12,9 @@ from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, SimpleTestCase, TestCase
+from django.core.management import CommandError, call_command
+from django.db import close_old_connections, connections
+from django.test import Client, SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image, ImageOps
@@ -29,6 +32,7 @@ from events.services.event_ocr import (
     _score_ocr_text,
     extract_text_from_image,
     normalize_ocr_text,
+    ocr_runtime_status,
     parse_event_text,
     preprocess_image_for_ocr,
     scan_event_image,
@@ -1192,6 +1196,7 @@ class OcrDeploymentHookTests(SimpleTestCase):
                 "TESSDATA_DIR": str(prefix / "share" / "tessdata"),
                 "TESSERACT_BIN_SYMLINK": str(Path(tmp) / "usr-bin-tesseract"),
                 "SKIP_TESSERACT_INSTALL": "",
+                "REQUIRE_OCR_READY": "false",
             }
             res = subprocess.run(
                 ["/bin/bash", str(self.hook_path)],
@@ -1200,4 +1205,166 @@ class OcrDeploymentHookTests(SimpleTestCase):
                 text=True,
             )
             self.assertEqual(res.returncode, 0, res.stderr)
-            self.assertIn("WARNING: Tesseract OCR installation failed", res.stderr)
+            self.assertIn("OCR_READINESS=unavailable", res.stderr)
+
+    def test_tesseract_hook_fails_when_require_ocr_ready_true(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prefix = Path(tmp) / "prefix"
+            empty_bin = Path(tmp) / "empty-bin"
+            empty_bin.mkdir()
+            env = {
+                "PATH": str(empty_bin) + ":/bin:/usr/bin",
+                "TESSERACT_PREFIX": str(prefix),
+                "TESSDATA_DIR": str(prefix / "share" / "tessdata"),
+                "TESSERACT_BIN_SYMLINK": str(Path(tmp) / "usr-bin-tesseract"),
+                "SKIP_TESSERACT_INSTALL": "",
+                "REQUIRE_OCR_READY": "true",
+            }
+            res = subprocess.run(
+                ["/bin/bash", str(self.hook_path)],
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(res.returncode, 0)
+            self.assertIn("OCR_READINESS=unavailable", res.stderr)
+
+    def test_postdeploy_ocr_readiness_hook_exists_and_valid_bash(self):
+        post_hook = (
+            Path(settings.BASE_DIR)
+            / ".platform"
+            / "hooks"
+            / "postdeploy"
+            / "05_ocr_readiness.sh"
+        )
+        self.assertTrue(post_hook.is_file())
+        self.assertTrue(post_hook.stat().st_mode & stat.S_IXUSR)
+        syntax = subprocess.run(
+            ["bash", "-n", str(post_hook)],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        content = post_hook.read_text(encoding="utf-8")
+        self.assertIn("manage.py check_ocr", content)
+        self.assertIn("OCR_READINESS=unavailable", content)
+
+
+class OcrReadinessCommandTests(SimpleTestCase):
+    def test_ocr_runtime_status_reports_missing_binary(self):
+        with patch("events.services.event_ocr.shutil.which", return_value=None):
+            status = ocr_runtime_status(smoke_test=False)
+        self.assertFalse(status["ready"])
+        self.assertIn("tesseract binary not found", status["error"])
+
+    def test_ocr_runtime_status_reports_missing_languages(self):
+        with patch(
+            "events.services.event_ocr.shutil.which", return_value="/usr/bin/tesseract"
+        ), patch(
+            "events.services.event_ocr.pytesseract.get_tesseract_version",
+            return_value="5.5.4",
+        ), patch(
+            "events.services.event_ocr.pytesseract.get_languages",
+            return_value=["eng"],
+        ):
+            status = ocr_runtime_status(smoke_test=False)
+        self.assertFalse(status["ready"])
+        self.assertEqual(status["missing_languages"], ["osd"])
+
+    def test_check_ocr_command_succeeds_with_smoke_test(self):
+        out = io.StringIO()
+        sample_result = {
+            "status": "success",
+            "event": {"title": "Syncmily School Concert"},
+        }
+        with patch(
+            "events.services.event_ocr.shutil.which", return_value="/usr/bin/tesseract"
+        ), patch(
+            "events.services.event_ocr.pytesseract.get_tesseract_version",
+            return_value="5.5.4",
+        ), patch(
+            "events.services.event_ocr.pytesseract.get_languages",
+            return_value=["eng", "osd"],
+        ), patch(
+            "events.services.event_ocr.scan_event_image",
+            return_value=sample_result,
+        ):
+            call_command("check_ocr", stdout=out)
+        self.assertIn("OCR_READINESS=ready", out.getvalue())
+        self.assertIn("version=5.5.4", out.getvalue())
+
+    def test_check_ocr_command_raises_when_unavailable(self):
+        err = io.StringIO()
+        with patch("events.services.event_ocr.shutil.which", return_value=None):
+            with self.assertRaises(CommandError):
+                call_command("check_ocr", "--no-smoke-test", stderr=err)
+        self.assertIn("OCR_READINESS=unavailable", err.getvalue())
+
+
+class ConcurrentOCRConnectionCleanupTests(TransactionTestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.parent = User.objects.create_user(
+            username="ocr_pool_parent", password="Password123!"
+        )
+        self.other = User.objects.create_user(
+            username="ocr_pool_other", password="Password123!"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Pool Test Family", primary_admin=self.parent
+        )
+        Membership.objects.create(
+            workspace=self.workspace,
+            user=self.other,
+            role=Membership.Role.PARENT,
+            invited_by=self.parent,
+            accepted_at=timezone.now(),
+        )
+        self.scan_url = reverse("events:scan_ocr", args=[self.workspace.pk])
+
+    def _checked_out_connections(self):
+        pool = connections["default"]._connection_pools.get("default")
+        if not pool:
+            return 0
+        stats = pool.get_stats()
+        return stats.get("pool_size", 0) - stats.get("pool_available", 0)
+
+    def test_concurrent_ocr_workers_close_connections_on_success_and_exception(self):
+        sample_text = (
+            "Spring Soccer Practice\n"
+            "May 20, 2027\n"
+            "3:00 PM - 4:30 PM\n"
+            "Location: Prospect Park\n"
+        )
+        before = self._checked_out_connections()
+
+        def worker(idx, raise_exc=False):
+            close_old_connections()
+            client = Client()
+            try:
+                client.force_login(self.parent if idx % 2 == 0 else self.other)
+                if raise_exc:
+                    raise RuntimeError("simulated worker failure")
+                return client.post(
+                    self.scan_url,
+                    {"document": _make_uploaded_image(), "timezone": "UTC"},
+                ).status_code
+            finally:
+                connections.close_all()
+
+        with patch(
+            "events.services.event_ocr.pytesseract.image_to_osd",
+            side_effect=TesseractError(1, "no osd"),
+        ), patch(
+            "events.services.event_ocr.pytesseract.image_to_string",
+            return_value=sample_text,
+        ):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                ok_futures = [executor.submit(worker, i, False) for i in range(2)]
+                err_future = executor.submit(worker, 2, True)
+                statuses = [fut.result(timeout=15) for fut in ok_futures]
+                with self.assertRaises(RuntimeError):
+                    err_future.result(timeout=15)
+
+        self.assertEqual(statuses, [200, 200])
+        self.assertLessEqual(self._checked_out_connections(), before)

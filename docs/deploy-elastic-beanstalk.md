@@ -17,6 +17,10 @@ terminates HTTPS with a Let's Encrypt certificate (see `03_https.sh`).
 - `.platform/hooks/prebuild/01_tesseract.sh` installs Tesseract OCR (`5.5.4`)
   with `eng` and `osd` language data on Amazon Linux 2023 when missing so the
   Scan Event feature is available in production.
+- `.platform/hooks/postdeploy/05_ocr_readiness.sh` runs
+  `python manage.py check_ocr` inside the deployed virtualenv to log explicit
+  OCR runtime readiness (`OCR_READINESS=ready` vs `unavailable`). Set
+  `REQUIRE_OCR_READY=true` to fail deploys if OCR is unavailable.
 - `.platform/hooks/postdeploy/01_calendar_sync_timer.sh` installs a systemd
   timer that runs `python manage.py sync_calendars` every 15 minutes.
 - `.platform/hooks/postdeploy/04_purge_timer.sh` installs a nightly systemd

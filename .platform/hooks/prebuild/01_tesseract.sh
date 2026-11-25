@@ -13,6 +13,15 @@ TESSERACT_PREFIX="${TESSERACT_PREFIX:-/usr/local}"
 TESSDATA_DIR="${TESSDATA_DIR:-$TESSERACT_PREFIX/share/tessdata}"
 TESSERACT_BIN_SYMLINK="${TESSERACT_BIN_SYMLINK:-/usr/bin/tesseract}"
 LD_CONF_FILE="${LD_CONF_FILE:-/etc/ld.so.conf.d/tesseract.conf}"
+REQUIRE_OCR_READY="${REQUIRE_OCR_READY:-$(/opt/elasticbeanstalk/bin/get-config environment -k REQUIRE_OCR_READY 2>/dev/null || true)}"
+
+log_ocr() {
+    local msg="$1"
+    echo "$msg"
+    if command -v logger >/dev/null 2>&1; then
+        logger -t syncmily-ocr "$msg" || true
+    fi
+}
 
 LEPTONICA_VERSION="1.87.0"
 LEPTONICA_URL="https://github.com/DanBloomberg/leptonica/releases/download/${LEPTONICA_VERSION}/leptonica-${LEPTONICA_VERSION}.tar.gz"
@@ -67,7 +76,7 @@ verify_tesseract() {
 
 if verify_tesseract; then
     TESS_BIN="$(find_tesseract_bin)"
-    echo "Tesseract OCR already ready: $("$TESS_BIN" --version | head -n 1)"
+    log_ocr "Tesseract OCR already ready: $("$TESS_BIN" --version | head -n 1)"
     exit 0
 fi
 
@@ -196,10 +205,13 @@ if ! (
     install_tessdata
     verify_tesseract
 ); then
-    echo "WARNING: Tesseract OCR installation failed; Scan Event will stay disabled for this deploy." >&2
+    log_ocr "ERROR: OCR_READINESS=unavailable (Tesseract OCR installation failed; Scan Event remains disabled while application deployment continues)." >&2
+    if [ "${REQUIRE_OCR_READY:-false}" = "true" ]; then
+        exit 1
+    fi
     exit 0
 fi
 
 TESS_BIN="$(find_tesseract_bin)"
-echo "Verified Tesseract OCR: $("$TESS_BIN" --version | head -n 1)"
+log_ocr "OCR_READINESS=ready binary=$TESS_BIN version=$($TESS_BIN --version | head -n 1)"
 "$TESS_BIN" --list-langs

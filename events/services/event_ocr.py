@@ -20,11 +20,14 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pytesseract
 from dateutil import parser as dateutil_parser
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from PIL import (
     Image,
+    ImageDraw,
     ImageEnhance,
     ImageFilter,
+    ImageFont,
     ImageOps,
     ImageStat,
 )
@@ -35,6 +38,98 @@ logger = logging.getLogger(__name__)
 def ocr_available():
     """True when the Tesseract binary is installed on this server."""
     return shutil.which("tesseract") is not None
+
+
+def ocr_runtime_status(*, smoke_test=False):
+    """Inspect Tesseract binary, eng/osd tessdata, and optional end-to-end OCR scan."""
+    binary = shutil.which("tesseract")
+    if not binary:
+        return {
+            "ready": False,
+            "binary": None,
+            "version": None,
+            "languages": [],
+            "missing_languages": ["eng", "osd"],
+            "error": "tesseract binary not found on PATH",
+        }
+    try:
+        version = str(pytesseract.get_tesseract_version())
+        languages = sorted(pytesseract.get_languages(config=""))
+    except (pytesseract.TesseractError, RuntimeError, OSError, ValueError) as exc:
+        return {
+            "ready": False,
+            "binary": binary,
+            "version": None,
+            "languages": [],
+            "missing_languages": ["eng", "osd"],
+            "error": f"failed to query tesseract runtime: {exc}",
+        }
+
+    missing = [lang for lang in ("eng", "osd") if lang not in languages]
+    if missing:
+        return {
+            "ready": False,
+            "binary": binary,
+            "version": version,
+            "languages": languages,
+            "missing_languages": missing,
+            "error": f"missing tessdata languages: {', '.join(missing)}",
+        }
+
+    if smoke_test:
+        buf = BytesIO()
+        img = Image.new("RGB", (1100, 420), "white")
+        try:
+            draw = ImageDraw.Draw(img)
+            font = ImageFont.load_default(size=32)
+            draw.text(
+                (40, 40),
+                (
+                    "Syncmily School Concert\n"
+                    "Date: December 18, 2026\n"
+                    "Time: 6:30 PM - 8:00 PM\n"
+                    "Location: Main Hall"
+                ),
+                fill="black",
+                font=font,
+            )
+            img.save(buf, format="PNG")
+        finally:
+            img.close()
+        sample = SimpleUploadedFile(
+            "ocr_readiness_check.png", buf.getvalue(), content_type="image/png"
+        )
+        try:
+            result = scan_event_image(sample, timezone_name="America/New_York")
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "ready": False,
+                "binary": binary,
+                "version": version,
+                "languages": languages,
+                "missing_languages": [],
+                "error": f"OCR smoke test failed: {exc}",
+            }
+        if result.get("status") != "success" or not result.get("event", {}).get(
+            "title"
+        ):
+            return {
+                "ready": False,
+                "binary": binary,
+                "version": version,
+                "languages": languages,
+                "missing_languages": [],
+                "error": "OCR smoke test returned no extracted event title",
+            }
+
+    return {
+        "ready": True,
+        "binary": binary,
+        "version": version,
+        "languages": languages,
+        "missing_languages": [],
+        "error": "",
+    }
 
 
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
