@@ -74,7 +74,7 @@
                     <div class="row"><div class="grow"><b>Getting there</b><small>{{ event.get_transport_mode_display }}</small></div></div>
                 {% endif %}
                 {% if event.workspace_id %}<div class="row"><div class="grow"><b>Drivers</b><small>{% if event.requires_transport %}{% include "events/_driver_summary.html" %}{% else %}No transportation requested{% endif %}</small></div></div>{% endif %}
-                <div class="row"><div class="grow"><b>Who can see it</b><small>{% if event.workspace %}Everyone in {{ event.workspace.name }}{% else %}Only you{% endif %}</small></div></div>
+                <div class="row"><div class="grow"><b>Who can see it</b><small>{% if not event.workspace_id %}Only you{% elif people %}Parents in {{ event.workspace.name }} and kids included in this event{% elif event.private_after_removal %}Parents in {{ event.workspace.name }}{% elif event.source == 'google' %}Parents in {{ event.workspace.name }} and the person who imported it{% else %}Everyone in {{ event.workspace.name }}{% endif %}</small></div></div>
                 {% if event.source == 'google' %}<div class="row"><div class="grow"><b>From Google Calendar</b><small>Imported from Google Calendar. Change it there.</small></div></div>{% endif %}
             </div>
             {% if driver_form %}
