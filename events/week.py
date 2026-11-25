@@ -6,12 +6,15 @@ from datetime import datetime, time, timedelta, timezone as datetime_timezone
 
 from syncmily.limits import RENDER
 
+from .drives import day_drives, overlapping
 from .timeline import lane_user_ids
 
 DAYS_IN_WEEK = 7
 # Chips show a few plans; the rest is counted ("+2 more") so a busy day keeps its
 # height.
 VISIBLE_ITEMS = 2
+# A chip lists a few drives before its plans, the rest counted ("+1 more drive").
+VISIBLE_DRIVES = 2
 # An event filling this much of a day (a trip, a school day) paints the chip at full
 # depth.
 LONG_EVENT = timedelta(hours=6)
@@ -29,11 +32,13 @@ def local_day_bounds(day, tz):
     return start, end
 
 
-def chip_level(items):
-    """0 = free day, 1-4 = how full it is. A long event alone fills the day."""
+def chip_level(items, drive_count=0):
+    """0 = free day, 1-4 = how full it is. A long event alone fills the day; each
+    drive counts as one plan, so a day of rides is never a free day.
+    """
     if any(item["is_long"] for item in items):
         return FULL_LEVEL
-    return min(len(items), FULL_LEVEL)
+    return min(len(items) + drive_count, FULL_LEVEL)
 
 
 # The rail shows only the hours around today's plans: an hour before the first one and
@@ -155,22 +160,28 @@ def place_side_by_side(items, min_percent=RAIL_MIN_PERCENT):
             item["columns"] = min(len(cluster["column_ends"]), RENDER.overlap_columns)
 
 
-def build_week(events, members, week_start, tz, today):
+def build_week(events, members, week_start, tz, today, show_weekends=True):
     """Rows of seven day chips, one row per member.
 
     Events without participants (a family dinner) land on every member's chip, matching
     how a
     family reads them. `events` should already be limited to the week and prefetch
     participants.
+
+    Each chip also lists the rides its member drives that day for plans they do not
+    attend (`drives`, see events/drives.py), and flags `overlap` when two of their timed
+    plans happen at once. `count` stays the number of plans.
     """
+    events = list(events)
     days = []
-    for offset in range(DAYS_IN_WEEK):
+    for offset in range(DAYS_IN_WEEK if show_weekends else 5):
         day = week_start + timedelta(days=offset)
         start, end = local_day_bounds(day, tz)
         days.append({"date": day, "start": start, "end": end, "is_today": day == today})
 
     member_ids = {member["user"].pk for member in members}
     placed = [(event, lane_user_ids(event, member_ids)) for event in events]
+    placed_ids = {event.pk: ids for event, ids in placed}
 
     rows = []
     for member in members:
@@ -202,16 +213,39 @@ def build_week(events, members, week_start, tz, today):
                         "tentative": event.is_tentative,
                     }
                 )
+            # Only parents drive; a kid's chip never changes.
+            drives = (
+                []
+                if member.get("is_kid")
+                else day_drives(
+                    events,
+                    member["user"].pk,
+                    day["start"],
+                    day["end"],
+                    {item["event"].pk for item in items},
+                )
+            )
+            named = [
+                item["event"]
+                for item in items
+                if not item["all_day"]
+                and member["user"].pk in placed_ids[item["event"].pk]
+            ]
             chips.append(
                 {
                     **day,
-                    "level": chip_level(items),
+                    "level": chip_level(items, len(drives)),
                     "items": items[:VISIBLE_ITEMS],
                     "more": max(len(items) - VISIBLE_ITEMS, 0),
                     "count": len(items),
+                    "drives": drives,
+                    "more_drives": max(len(drives) - VISIBLE_DRIVES, 0),
+                    "overlap": any(earlier for _, earlier, _ in overlapping(named)),
                     # A day whose only plans are unconfirmed gets a dashed edge.
                     "tentative": (
-                        bool(items) and all(item["tentative"] for item in items)
+                        bool(items or drives)
+                        and all(item["tentative"] for item in items)
+                        and all(drive["event"].is_tentative for drive in drives)
                     ),
                 }
             )

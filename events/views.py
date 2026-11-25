@@ -1,5 +1,5 @@
 import logging
-from datetime import time as dt_time
+from datetime import time as dt_time, timedelta
 from urllib.parse import urlencode
 from uuid import UUID
 from zoneinfo import ZoneInfo, available_timezones
@@ -55,6 +55,8 @@ from .travel_conflicts import find_travel_checks
 from . import places
 from .trip import build_trip, marker_data
 from .timeline import build_day_timeline, editable_members, family_members
+from .month import build_month
+from .nav import WEEKENDS_SESSION_KEY, period_nav, show_weekends
 from .week import local_day_bounds
 
 logger = logging.getLogger(__name__)
@@ -749,6 +751,8 @@ def event_list(request, workspace_id=None):
             else reverse("accounts:dashboard")
         ),
     }
+    # A kid always sees the weekend, as on their dashboard; parents choose.
+    weekends = not context["can_create"] or show_weekends(request)
     if form.is_valid():
         period = form.cleaned_data
         events = accessible_events.filter(ends_at__gt=period["starts_at"])
@@ -763,6 +767,7 @@ def event_list(request, workspace_id=None):
             timezone_name=period["timezone"],
             timezone_query=urlencode(timezone_query),
             create_query=create_query,
+            list_from=period.get("list_from"),
             period_query=urlencode(
                 {"date": period["date"], "view": period["view"], **timezone_query}
             ),
@@ -788,10 +793,55 @@ def event_list(request, workspace_id=None):
                     }
                 ),
             )
+        if period["view"] == "week" and not weekends:
+            # Weekends hidden: Monday to Friday, like the dashboard week.
+            context["last_date"] = period["start_date"] + timedelta(days=4)
+            _, saturday = local_day_bounds(
+                context["last_date"], ZoneInfo(period["timezone"])
+            )
+            events = events.filter(starts_at__lt=saturday)
+    if form.is_valid():
+        period = form.cleaned_data
+        today = timezone.localdate(timezone=ZoneInfo(period["timezone"]))
+        context["period_nav"] = period_nav(
+            request,
+            view=period["view"],
+            # A period that holds today opens the other views on today.
+            date=today if context.get("is_current") else period["date"],
+            start=period.get("start_date"),
+            last=period.get("last_date"),
+            workspace=workspace,
+            timezone_name=period["timezone"],
+            previous_url=(
+                f"?{context['previous_query']}" if "previous_query" in context else None
+            ),
+            next_url=f"?{context['next_query']}" if "next_query" in context else None,
+            today_url=f"?view={period['view']}&{context['timezone_query']}",
+            is_current=context.get("is_current", False),
+            weekends_toggle=context["can_create"],
+        )
+    if form.is_valid() and form.cleaned_data["view"] == "month":
+        workspaces = [workspace] if workspace else list(family_workspaces(request.user))
+        # The grid draws three plans a day, so only the fetch needs a cap.
+        shown = list(events.prefetch_related("participants")[: RENDER.plans_per_month])
+        if len(shown) == RENDER.plans_per_month:
+            context["more_plans"] = max(events.count() - len(shown), 0)
+        context["month"] = build_month(
+            shown,
+            family_members(workspaces),
+            period["start_date"],
+            ZoneInfo(period["timezone"]),
+            timezone.localdate(timezone=ZoneInfo(period["timezone"])),
+            weekends,
+        )
     if form.is_valid() and form.cleaned_data["view"] == "day":
         context.update(
             _day_timeline_context(
-                request, workspace, events.prefetch_related("participants"), period
+                request,
+                workspace,
+                events.prefetch_related("participants"),
+                period,
+                context["can_create"],
             )
         )
     page = Paginator(events.prefetch_related("participants"), 20).get_page(
@@ -803,7 +853,7 @@ def event_list(request, workspace_id=None):
     return render(request, "events/event_list.html", context)
 
 
-def _day_timeline_context(request, workspace, events, period):
+def _day_timeline_context(request, workspace, events, period, can_create):
     workspaces = [workspace] if workspace else list(family_workspaces(request.user))
     members = family_members(workspaces)
     tz = ZoneInfo(period["timezone"])
@@ -821,7 +871,7 @@ def _day_timeline_context(request, workspace, events, period):
     color_workspace = workspaces[0] if len(workspaces) == 1 else None
     return {
         "timeline": timeline,
-        "day": vertical_day(timeline, tz),
+        "day": vertical_day(timeline, tz, parent_view=can_create),
         "more_plans": more,
         "week_query": urlencode(
             {
@@ -881,6 +931,16 @@ def member_colors(request, workspace_id):
         Params(request.POST, request).next_url(
             "next", reverse("events:workspace_list", args=[workspace.pk]) + "?view=day"
         )
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def toggle_weekends(request):
+    """Show or hide Saturday and Sunday on the week and month views, per session."""
+    request.session[WEEKENDS_SESSION_KEY] = show_weekends(request)
+    return redirect(
+        Params(request.POST, request).next_url("next", reverse("accounts:dashboard"))
     )
 
 

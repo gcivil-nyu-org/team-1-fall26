@@ -198,6 +198,215 @@ class WeekLayoutTests(TestCase):
         )
         self.assertEqual(self.row(self.week(), self.kid)["chips"][6]["count"], 1)
 
+    # ---- Drives: a parent's rides show in their own row ----
+
+    def ride(self, title, starts_at, ends_at, people=(), dropoff=None, pickup=None):
+        event = self.event(title, starts_at, ends_at, people)
+        event.requires_transport = True
+        event.dropoff_driver = dropoff
+        event.pickup_driver = pickup
+        event.save()
+        return event
+
+    def chips(self, user):
+        return self.row(self.week(), user)["chips"]
+
+    def test_a_driver_who_takes_no_part_gets_an_entry_on_the_right_day(self):
+        wednesday = self.monday + timedelta(days=2)
+        swim = self.ride(
+            "Swim class",
+            at(wednesday, 18),
+            at(wednesday, 19),
+            [self.kid, self.kid2],
+            dropoff=self.parent,
+            pickup=self.parent,
+        )
+        chips = self.chips(self.parent)
+        self.assertEqual([len(chip["drives"]) for chip in chips[:4]], [0, 0, 1, 0])
+        [drive] = chips[2]["drives"]
+        self.assertEqual(drive["event"], swim)
+        self.assertEqual(drive["label"], "both ways")
+        self.assertEqual(
+            [(leg["name"], leg["at"]) for leg in drive["legs"]],
+            [("Drop-off", at(wednesday, 18)), ("Pickup", at(wednesday, 19))],
+        )
+        self.assertEqual(drive["times"], [at(wednesday, 18), at(wednesday, 19)])
+        self.assertEqual(chips[2]["count"], 0)  # count still means plans
+        self.assertEqual(chips[2]["items"], [])
+        self.assertEqual(chips[2]["more_drives"], 0)
+
+    def test_each_leg_labels_its_own_driver(self):
+        tuesday = self.monday + timedelta(days=1)
+        self.ride(
+            "Piano lesson",
+            at(tuesday, 17),
+            at(tuesday, 17, 45),
+            [self.kid],
+            dropoff=self.admin,
+            pickup=self.parent,
+        )
+        self.assertEqual(self.chips(self.admin)[1]["drives"][0]["label"], "drop-off")
+        self.assertEqual(self.chips(self.parent)[1]["drives"][0]["label"], "pickup")
+        self.assertEqual(self.chips(self.kid)[1]["drives"], [])
+
+    def test_a_driver_who_takes_part_gets_no_drive(self):
+        self.ride(
+            "Soccer game",
+            at(self.monday, 10),
+            at(self.monday, 11, 30),
+            [self.parent, self.kid2],
+            dropoff=self.parent,
+            pickup=self.parent,
+        )
+        chip = self.chips(self.parent)[0]
+        self.assertEqual(chip["drives"], [])
+        self.assertEqual(chip["count"], 1)
+
+    def test_a_whole_family_plan_gives_no_drive(self):
+        self.ride(
+            "Family picnic",
+            at(self.monday, 12),
+            at(self.monday, 15),
+            dropoff=self.parent,
+            pickup=self.parent,
+        )
+        for row in self.week()["rows"]:
+            self.assertEqual(row["chips"][0]["drives"], [], row["user"].username)
+
+    def test_a_midnight_pickup_belongs_to_the_day_that_ends_there(self):
+        tuesday = self.monday + timedelta(days=1)
+        wednesday = tuesday + timedelta(days=1)
+        self.ride(
+            "Sleepover",
+            at(tuesday, 20),
+            at(wednesday, 0),
+            [self.kid],
+            pickup=self.parent,
+        )
+        chips = self.chips(self.parent)
+        self.assertEqual([len(chip["drives"]) for chip in chips[:3]], [0, 1, 0])
+        self.assertEqual(chips[1]["drives"][0]["label"], "pickup")
+
+    def test_a_midnight_drop_off_belongs_to_the_day_it_starts(self):
+        tuesday = self.monday + timedelta(days=1)
+        self.ride(
+            "Night shift",
+            at(tuesday, 0),
+            at(tuesday, 6),
+            [self.kid],
+            dropoff=self.parent,
+        )
+        chips = self.chips(self.parent)
+        self.assertEqual([len(chip["drives"]) for chip in chips[:3]], [0, 1, 0])
+
+    def test_a_day_with_a_drive_is_never_free(self):
+        tuesday = self.monday + timedelta(days=1)
+        self.ride(
+            "Swim", at(tuesday, 18), at(tuesday, 19), [self.kid], dropoff=self.parent
+        )
+        self.ride(
+            "Piano", at(tuesday, 15), at(tuesday, 16), [self.kid], pickup=self.parent
+        )
+        chip = self.chips(self.parent)[1]
+        self.assertEqual(chip["level"], 2)
+        self.assertEqual([d["event"].title for d in chip["drives"]], ["Piano", "Swim"])
+        self.assertGreaterEqual(self.chips(self.parent)[1]["level"], 1)
+        self.assertEqual(chip["count"], 0)
+
+    def test_drives_add_to_a_busy_day_and_the_rest_are_counted(self):
+        for hour in (9, 11, 13, 15):
+            self.ride(
+                f"Ride {hour}",
+                at(self.monday, hour),
+                at(self.monday, hour, 30),
+                [self.kid],
+                dropoff=self.parent,
+            )
+        self.event("Gym", at(self.monday, 7), at(self.monday, 8), [self.parent])
+        chip = self.chips(self.parent)[0]
+        self.assertEqual(chip["level"], 4)
+        self.assertEqual(len(chip["drives"]), 4)
+        self.assertEqual(chip["more_drives"], 2)
+        self.assertEqual(chip["count"], 1)
+
+    def test_a_long_trip_still_fills_the_day_without_a_drive_changing_that(self):
+        self.ride(
+            "School trip",
+            at(self.monday, 8),
+            at(self.monday, 15),
+            [self.kid],
+            dropoff=self.parent,
+        )
+        self.assertEqual(self.chips(self.kid)[0]["level"], 4)
+        self.assertEqual(self.chips(self.parent)[0]["level"], 1)
+
+    def test_a_day_of_only_an_unconfirmed_ride_is_dashed(self):
+        maybe = self.ride(
+            "Party?", at(self.monday, 14), at(self.monday, 16), [self.kid], self.parent
+        )
+        maybe.is_tentative = True
+        maybe.save()
+        self.assertTrue(self.chips(self.parent)[0]["tentative"])
+
+    def test_kids_rows_hold_no_drives(self):
+        self.ride(
+            "Swim",
+            at(self.monday, 18),
+            at(self.monday, 19),
+            [self.kid],
+            dropoff=self.parent,
+            pickup=self.admin,
+        )
+        for kid in (self.kid, self.kid2, self.extra):
+            for chip in self.chips(kid):
+                self.assertEqual(chip["drives"], [])
+
+    # ---- Overlap: two timed plans at once ----
+
+    def test_overlapping_plans_flag_the_chip(self):
+        self.event("Standup", at(self.monday, 9, 30), at(self.monday, 10), [self.admin])
+        self.event(
+            "Dentist", at(self.monday, 9, 45), at(self.monday, 10, 30), [self.admin]
+        )
+        chips = self.chips(self.admin)
+        self.assertTrue(chips[0]["overlap"])
+        self.assertFalse(chips[1]["overlap"])
+        self.assertFalse(self.chips(self.parent)[0]["overlap"])
+
+    def test_plans_that_only_touch_do_not_overlap(self):
+        self.event("Standup", at(self.monday, 9), at(self.monday, 10), [self.admin])
+        self.event("Dentist", at(self.monday, 10), at(self.monday, 11), [self.admin])
+        self.assertFalse(self.chips(self.admin)[0]["overlap"])
+
+    def test_an_all_day_plan_does_not_overlap(self):
+        tuesday = self.monday + timedelta(days=1)
+        self.event(
+            "Boston trip",
+            at(self.monday, 18),
+            at(tuesday + timedelta(days=1), 12),
+            [self.admin],
+        )
+        self.event("Dentist", at(tuesday, 9), at(tuesday, 10), [self.admin])
+        self.assertFalse(self.chips(self.admin)[1]["overlap"])
+
+    def test_a_whole_family_plan_overlaps_nobody(self):
+        self.event("Lunch", at(self.monday, 12), at(self.monday, 14))
+        self.event("Dentist", at(self.monday, 13), at(self.monday, 14), [self.admin])
+        self.assertFalse(self.chips(self.admin)[0]["overlap"])
+
+    def test_a_ride_does_not_make_a_plan_overlap(self):
+        self.event("Dentist", at(self.monday, 18), at(self.monday, 19), [self.parent])
+        self.ride(
+            "Swim",
+            at(self.monday, 18),
+            at(self.monday, 19),
+            [self.kid],
+            dropoff=self.parent,
+        )
+        chip = self.chips(self.parent)[0]
+        self.assertFalse(chip["overlap"])
+        self.assertEqual(len(chip["drives"]), 1)
+
 
 @override_settings(TIME_ZONE="America/New_York")
 class WeekPageTests(TestCase):

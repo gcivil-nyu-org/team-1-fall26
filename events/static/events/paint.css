@@ -52,7 +52,7 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .days { display: none; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
 .days span { padding-left: 10px; }
 .days .is-today { color: var(--ink); font-weight: 600; }
-.card { display: grid; column-gap: 2px; grid-template-columns: repeat(7, minmax(112px, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; background: var(--card); border-radius: var(--radius); margin-bottom: 10px; }
+.card { display: grid; column-gap: 2px; grid-template-columns: repeat(var(--days, 7), minmax(112px, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; background: var(--card); border-radius: var(--radius); margin-bottom: 10px; }
 .id { grid-column: 1 / -1; position: sticky; left: 0; display: flex; align-items: baseline; gap: 12px; padding: 12px 16px; min-width: 0; }
 .id > div { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .id b { display: block; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
@@ -66,9 +66,9 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
 .chip p { font-weight: 500; }
 .chip .more { font-weight: 400; }
 @container week (width >= 680px) {
-  .days { display: grid; column-gap: 2px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .days { display: grid; column-gap: 2px; grid-template-columns: repeat(var(--days, 7), minmax(0, 1fr)); }
   .days span:first-child { display: none; }
-  .card { grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; scroll-snap-type: none; }
+  .card { grid-template-columns: repeat(var(--days, 7), minmax(0, 1fr)); overflow: hidden; scroll-snap-type: none; }
   .card .chip { min-height: 104px; }
   /* Free days take a short strip, not a full block: a busy day still reads as fuller, and a
      person with a free week takes one short row. 40px keeps a comfortable tap target
@@ -77,7 +77,7 @@ body.paint { margin: 0; min-height: 100vh; background: var(--counter); color: va
   .card .chip .chip-day { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @container week (width >= 900px) {
-  .days, .card { grid-template-columns: 168px repeat(7, minmax(0, 1fr)); }
+  .days, .card { grid-template-columns: 168px repeat(var(--days, 7), minmax(0, 1fr)); }
   .days span:first-child { display: block; }
   .card { min-height: 136px; }
   .card:not(:has(.chip:not(.l0))) { min-height: 0; } /* a free week: one short row */
@@ -362,6 +362,8 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .plan.tent { outline: 1.5px dashed currentColor; outline-offset: -4px; }
 .lane-family .plan, .paint .lane-family .plan { background: var(--raised); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .lane-empty { padding: 0 8px 4px; color: var(--muted); }
+.drive-notes { display: grid; gap: 4px; margin: 0; padding: 0 16px 8px; list-style: none; }
+.drive-note { color: var(--ink); }
 
 @container plan (height < 64px) {
   .plan .maybe { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -374,17 +376,24 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 
 /* Wide: hours down the left, one column per member, plans placed by percentage (events/day.py). */
 @container day (width >= 720px) {
-  .daygrid { --hour: 52px; display: grid; grid-template-columns: 64px repeat(var(--lanes), minmax(120px, 1fr)); overflow-x: auto; border-radius: var(--radius); background: var(--card); }
-  .daygrid .hours { display: block; }
-  .corner { height: 48px; border-bottom: 1px solid var(--line); }
-  .axis { position: relative; height: calc(var(--span) * var(--hour)); margin: 12px 0; }
+  .daygrid { --hour: 52px; display: grid; grid-template-columns: 64px repeat(var(--lanes), minmax(120px, 1fr)); grid-template-rows: var(--head, 48px) auto auto; overflow-x: auto; border-radius: var(--radius); background: var(--card); }
+  .daygrid .hours, .lane { display: grid; grid-row: 1 / span 3; grid-template-rows: subgrid; }
+  .corner { grid-row: 1; height: var(--head, 48px); border-bottom: 1px solid var(--line); }
+  .axis { grid-row: 3; position: relative; height: calc(var(--span) * var(--hour)); margin: 12px 0; }
   .axis span { position: absolute; right: 10px; transform: translateY(-50%); color: var(--muted); font-size: 12px; line-height: 16px; white-space: nowrap; }
   .now-dot { position: absolute; right: -4px; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--ink); }
   .lane { min-width: 0; margin: 0; border-left: 1px solid var(--line); border-radius: 0; background: none; }
-  .colhead { height: 48px; padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 20px; }
+  .colhead { grid-row: 1; height: var(--head, 48px); padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 20px; }
   .colhead .dot { width: 26px; height: 26px; font-size: 12px; }
   .colhead small, .lane-empty { display: none; }
-  .track { position: relative; height: calc(var(--span) * var(--hour)); margin: 12px 0; padding: 0; }
+  /* A day with rides: every header grows by one note line (--head is shared with the corner, so the hour lines still line up). */
+  .daygrid.has-drives { --head: 72px; }
+  .daygrid.has-drives .colhead { flex-wrap: wrap; align-content: center; gap: 2px 10px; }
+  .daygrid.has-drives .colhead small { display: block; flex-basis: 100%; margin-left: 0; line-height: 16px; }
+  /* The ride notes sit in their own row between the header and the hours, so no note reads as a plan on the first hour line, and every lane still shares the row heights (the hour lines line up). */
+  .drive-notes { grid-row: 2; align-content: start; padding: 8px 8px 0; }
+  .drive-note { padding: 4px 8px; border-left: 3px solid currentColor; font-size: 13px; line-height: 18px; }
+  .track { grid-row: 3; position: relative; height: calc(var(--span) * var(--hour)); margin: 12px 0; padding: 0; }
   .plans { display: block; }
   .plans li { position: absolute; z-index: 1; top: var(--top); height: var(--h); min-height: 26px; left: calc(4px + (100% - 8px) * var(--col) / var(--cols)); width: calc((100% - 8px) / var(--cols) - 4px); }
   .plan { position: absolute; inset: 0; display: block; overflow: hidden; padding: 5px 8px; background: var(--s3); font-size: 12px; line-height: 16px; }
@@ -431,7 +440,8 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .paint .tz-form label { margin: 0; }
 .event-card .actions { margin-top: 16px; }
 
-.event-form { display: block; max-width: 580px; margin: 0 auto; }
+.event-form { display: block; max-width: 580px; margin: 0; }
+.sheet .event-form { margin-inline: auto; }
 .field-title input { font-size: 16px; font-weight: 500; }
 .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 @media (max-width: 560px) { .time-grid { grid-template-columns: 1fr; } }
@@ -870,7 +880,7 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
 .rail-leave { z-index: 0; min-height: 0; border-left: 2px dashed var(--line); }
 
 /* Add event: Manual Entry / Scan Event tabs + document OCR uploader */
-.event-create-column { min-width: 0; }
+.event-create-column { min-width: 0; max-width: 580px; }
 .event-mode-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; max-width: 580px; margin: 0 auto 14px; padding: 4px; border: 1px solid var(--track-edge); border-radius: 10px; background: var(--track); }
 .event-mode-tab { min-height: 40px; padding: 8px 14px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .15s, color .15s, box-shadow .15s; }
 .event-mode-tab:hover:not(.is-active) { color: var(--ink); background: var(--glass-tint); }
@@ -969,3 +979,75 @@ body.paint .time-entry-half button[aria-checked="true"], .time-entry-half button
 .auto-sync-switch[aria-checked="true"] .auto-sync-thumb { transform: translateX(18px); }
 .auto-sync-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { .auto-sync-track, .auto-sync-thumb { transition: none; } }
+
+/* Period bar: Today, ‹ ›, and the view menu (Day, Week, Month, List, Show weekends). */
+.period-nav { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.head-tools .period-nav { margin-left: 0; }
+.period-step { display: flex; align-items: center; gap: 2px; }
+.today-btn { min-height: 44px; margin-right: 6px; }
+.arrow-btn { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--ink); }
+.arrow-btn:hover { background: var(--raised); }
+.arrow-btn svg { width: 18px; height: 18px; }
+.arrow-btn:focus-visible, .view-menu summary:focus-visible, .view-pop a:focus-visible, .view-pop button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.view-menu { position: relative; }
+.view-menu summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius-control, 8px); background: var(--card); color: var(--ink); font-weight: 500; cursor: pointer; }
+.view-menu summary::-webkit-details-marker { display: none; }
+.view-menu summary svg { width: 14px; height: 14px; transition: transform .15s; }
+.view-menu[open] summary svg { transform: rotate(180deg); }
+.view-pop { position: absolute; z-index: 20; right: 0; top: calc(100% + 6px); min-width: 220px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.view-pop nav { display: grid; }
+.view-pop a, .view-pop button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 12px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; text-decoration: none; text-align: left; cursor: pointer; }
+.view-pop a span { flex: 1; }
+.view-pop a:hover, .view-pop button:hover { background: var(--raised); }
+.view-pop a[aria-current] { font-weight: 600; background: var(--raised); }
+.view-pop kbd { font: inherit; font-size: 12px; color: var(--muted); }
+.view-pop form { margin: 6px 0 0; padding-top: 6px; border-top: 1px solid var(--line); }
+.view-pop .tick { display: grid; place-items: center; width: 16px; height: 16px; }
+.view-pop .tick svg { width: 16px; height: 16px; }
+/* Phones: the menu spans the period bar, so it never runs off a screen edge. */
+@media (max-width: 560px) { .period-nav { position: relative; } .view-menu { position: static; } .view-pop { left: 0; right: 0; } }
+@media (prefers-reduced-motion: reduce) { .view-menu summary svg { transition: none; } }
+
+/* Month grid */
+.month { background: var(--card); border-radius: var(--radius); overflow: hidden; }
+.month-names, .month-grid { display: grid; grid-template-columns: repeat(var(--days, 7), minmax(0, 1fr)); }
+.month-names span { padding: 10px 8px 6px; font-size: 12px; color: var(--muted); }
+.month-grid { gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+.month-day { display: flex; flex-direction: column; gap: 3px; min-height: 112px; min-width: 0; padding: 6px; background: var(--card); color: var(--ink); text-decoration: none; }
+.month-day:hover { background: var(--raised); }
+.month-day:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.month-day.out { color: var(--muted); }
+.month-date { font-size: 12px; font-weight: 600; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; }
+.month-day.is-today .month-date { background: var(--ink); color: var(--card); }
+.month-plan { display: block; border-radius: 4px; padding: 2px 6px; font-size: 11px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.month-plan time { font-weight: 400; }
+.month-more { font-size: 11px; color: var(--muted); padding: 0 6px; }
+@media (max-width: 560px) {
+  .month-day { min-height: 64px; padding: 4px; }
+  .month-plan { font-size: 0; padding: 0; height: 6px; }
+  .month-plan time { display: none; }
+}
+
+/* List views: the time-zone note sits as plain text under the list, not in a panel. */
+.schedule-foot { display: grid; gap: 10px; }
+.paint .schedule-foot .note { margin: 0; padding: 0; border: 0; background: none; color: var(--muted); font-size: 13px; }
+.schedule-foot .foot-tools:empty { display: none; }
+.schedule-foot .foot-tools .btn { justify-self: start; }
+
+/* Drives and flags. A badge inside a chip or a plan takes the block's own ink and draws an outline, never a new fill, so it
+ * reads on every member colour and level in light and dark. */
+.week-flags { display: grid; justify-items: start; gap: 8px; margin-bottom: 16px; }
+.week-flags .my-day-flag, .head .my-day-flag { margin: 0; }
+.my-day-flag a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+/* minmax(0, 1fr): a long word in a title wraps inside the chip instead of widening the column. */
+.chip .drive { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; font-weight: 500; }
+.chip .drive-leg { font-weight: 400; }
+.chip .drive time { display: inline; }
+.chip .drive-tag, .chip .chip-flag { width: fit-content; padding: 0 6px; border: 1px solid currentColor; border-radius: 4px; font-size: 11px; line-height: 14px; font-weight: 600; }
+.ride-open { padding: 0 4px; border: 1px solid currentColor; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+.plan.overlap { box-shadow: inset 0 0 0 2px currentColor; }
+.plan .overlap-note { font-size: 12px; font-weight: 600; }
+@container plan (height < 64px) {
+  .plan .overlap-note { display: none; }
+}
+.colhead small.has-drives { color: var(--ink); font-weight: 600; }
