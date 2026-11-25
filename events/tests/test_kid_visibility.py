@@ -164,3 +164,64 @@ class KidEventVisibilityTests(TestCase):
         self.assertTemplateUsed(response, "accounts/parent_dashboard.html")
         self.assertNotIn("my_week", response.context)
         self.assertContains(response, "Date night")
+
+    def test_detail_explains_visibility_without_claiming_everyone_can_see_it(self):
+        self.client.force_login(self.parent)
+        for event in (self.parents_only, self.kid_practice, self.parent_import):
+            with self.subTest(event=event.title):
+                response = self.client.get(reverse("events:detail", args=[event.pk]))
+                self.assertContains(response, "Parents in Reyes")
+                self.assertNotContains(response, "Everyone in Reyes")
+        response = self.client.get(
+            reverse("events:detail", args=[self.kid_practice.pk])
+        )
+        self.assertContains(response, "kids included in this event")
+        response = self.client.get(
+            reverse("events:detail", args=[self.parent_import.pk])
+        )
+        self.assertContains(response, "the person who imported it")
+
+    def test_whole_family_visibility_label_matches_kid_access(self):
+        self.client.force_login(self.kid)
+        response = self.client.get(
+            reverse("events:detail", args=[self.family_dinner.pk])
+        )
+        self.assertContains(response, "Everyone in Reyes")
+
+    def test_event_with_removed_participants_does_not_claim_whole_family_visibility(
+        self,
+    ):
+        Event.objects.filter(pk=self.family_dinner.pk).update(
+            private_after_removal=True
+        )
+        self.client.force_login(self.parent)
+        response = self.client.get(
+            reverse("events:detail", args=[self.family_dinner.pk])
+        )
+        self.assertContains(response, "Parents in Reyes")
+        self.assertNotContains(response, "Everyone in Reyes")
+        self.assertNotContains(response, "kids included in this event")
+        self.client.force_login(self.kid)
+        response = self.client.get(
+            reverse("events:detail", args=[self.family_dinner.pk])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_personal_event_visibility_stays_private(self):
+        event = self.event(
+            "Personal reminder", self.family_dinner.starts_at, created_by=self.parent
+        )
+        Event.objects.filter(pk=event.pk).update(workspace=None)
+        self.client.force_login(self.parent)
+        response = self.client.get(reverse("events:detail", args=[event.pk]))
+        self.assertContains(response, "Only you")
+        self.assertNotContains(response, "Everyone in Reyes")
+
+    def test_form_explains_kid_visibility(self):
+        self.client.force_login(self.parent)
+        response = self.client.get(
+            reverse("events:workspace_create", args=[self.workspace.pk])
+        )
+        self.assertContains(response, "Parents can see all family plans.")
+        self.assertContains(response, "Kids see plans they’re included in")
+        self.assertNotContains(response, "Everyone in Reyes can see it.")

@@ -1,5 +1,5 @@
 from datetime import timedelta
-from smtplib import SMTPException
+from smtplib import SMTPAuthenticationError, SMTPException
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -80,6 +80,26 @@ class InviteDeliveryTests(TestCase):
         self.assertContains(response, "go through. Copy")
         membership = Membership.objects.get(user__email="mateo@example.com")
         self.assertContains(response, f'id="invite-link-{membership.pk}"')
+
+    def test_delivery_failure_log_omits_the_server_response_and_invite_link(self):
+        error = SMTPAuthenticationError(535, b"private provider response")
+        with patch("accounts.services.send_mail", side_effect=error):
+            with self.assertLogs("accounts.views", level="WARNING") as logs:
+                response = self.client.post(
+                    self.members_url,
+                    {"email": "mateo@example.com", "role": "parent"},
+                    follow=True,
+                )
+
+        self.assertEqual(
+            logs.output,
+            [
+                "WARNING:accounts.views:Invitation email delivery failed: "
+                "SMTPAuthenticationError (SMTP status 535)."
+            ],
+        )
+        self.assertNotContains(response, "Invite emailed")
+        self.assertContains(response, "go through. Copy")
 
     def test_kid_can_be_invited_without_an_email(self):
         response = self.client.post(

@@ -475,7 +475,12 @@ def report_invite(request, membership):
         send_invitation_email(request, membership)
     except InviteRecipientLimited:
         messages.warning(request, INVITES_RECIPIENT_MESSAGE.format(username=username))
-    except (OSError, BadHeaderError, ValueError):
+    except (OSError, BadHeaderError, ValueError) as error:
+        logger.warning(
+            "Invitation email delivery failed: %s (SMTP status %s).",
+            type(error).__name__,
+            getattr(error, "smtp_code", None),
+        )
         messages.warning(
             request,
             f"The email to {membership.user.email} didn't go through. "
