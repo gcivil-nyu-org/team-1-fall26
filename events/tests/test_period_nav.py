@@ -1,5 +1,6 @@
 """The period bar, the month view and the weekends switch."""
 
+from dataclasses import replace
 from datetime import datetime
 from unittest import mock
 from zoneinfo import ZoneInfo
@@ -238,14 +239,25 @@ class PeriodNavTests(TestCase):
         self.assertContains(week, "Saturday match")
         self.assertNotContains(week, "Show weekends")
 
-    def test_month_draws_at_most_100_plans_and_counts_the_rest(self):
-        for number in range(RENDER.plans_per_response + 3):
+    def test_month_shows_every_day_of_a_busy_month(self):
+        for number in range(RENDER.plans_per_response + 20):
             self.event(f"Plan {number}", 1 + number % 28)
         response = self.month()
         placed = sum(
             day["count"] for week in response.context["month"]["weeks"] for day in week
         )
-        self.assertEqual(placed, RENDER.plans_per_response)
+        self.assertEqual(placed, RENDER.plans_per_response + 20)
+        self.assertNotContains(response, "than this page shows")
+
+    @mock.patch("events.views.RENDER", replace(RENDER, plans_per_month=10))
+    def test_month_caps_the_fetch_and_counts_the_rest(self):
+        for number in range(13):
+            self.event(f"Plan {number}", 1 + number % 28)
+        response = self.month()
+        placed = sum(
+            day["count"] for week in response.context["month"]["weeks"] for day in week
+        )
+        self.assertEqual(placed, 10)
         self.assertContains(
             response, "This month has 3 more plans than this page shows."
         )

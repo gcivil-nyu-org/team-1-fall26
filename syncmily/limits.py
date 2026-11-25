@@ -139,6 +139,9 @@ EVENT_LAST_DAY = date(2100, 12, 31)
 @dataclass(frozen=True)
 class RenderCaps:
     plans_per_response: int = 100  # then a "+N more" link
+    plans_per_month: int = (
+        1000  # a month draws three pills a day, so this bounds the fetch
+    )
     overlap_columns: int = 4
     plans_per_lane: int = 30
     phone_cards_per_page: int = 20

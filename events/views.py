@@ -822,11 +822,9 @@ def event_list(request, workspace_id=None):
         )
     if form.is_valid() and form.cleaned_data["view"] == "month":
         workspaces = [workspace] if workspace else list(family_workspaces(request.user))
-        # A page draws at most 100 plans; the rest are counted, as in the day view.
-        shown = list(
-            events.prefetch_related("participants")[: RENDER.plans_per_response]
-        )
-        if len(shown) == RENDER.plans_per_response:
+        # The grid draws three plans a day, so only the fetch needs a cap.
+        shown = list(events.prefetch_related("participants")[: RENDER.plans_per_month])
+        if len(shown) == RENDER.plans_per_month:
             context["more_plans"] = max(events.count() - len(shown), 0)
         context["month"] = build_month(
             shown,
