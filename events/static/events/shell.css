@@ -184,7 +184,9 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
 /* Header labels never wrap: between 900px and 1300px "Add event" broke onto two lines. Below
    1300px the icon-only date and Colors menus take over instead. */
 .bar .nav a, .bar .btn, .bar .me-name, .bar summary { white-space: nowrap; }
-@media (max-width: 1000px) { .bar .me .me-name { display: none; } }
+@media (max-width: 1100px) { .bar .me .me-name { display: none; } }
+/* Four nav items: just above the phone breakpoint the bar tightens so the avatar stays on screen. */
+@media (min-width: 901px) and (max-width: 1100px) { .bar { gap: 16px; padding: 0 16px; } .bar .bar-end { gap: 8px; } }
 .bar .nav a:hover { color: var(--ink); background: var(--raised); }
 .bar .nav a[aria-current="page"] { color: var(--ink); font-weight: 600; view-transition-name: nav-pill; }
 .bar .bar-end { margin-left: auto; display: flex; align-items: center; gap: 16px; }
