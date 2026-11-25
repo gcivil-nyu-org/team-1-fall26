@@ -562,7 +562,7 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .box { display: grid; place-items: center; width: 44px; height: 44px; margin-left: -10px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .box span { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--s5, var(--ink)); border-radius: 50%; transition: background-color .15s; }
 .box[aria-checked="true"] span { background: var(--s4, var(--ink)); }
-.box[aria-checked="true"] span::after { content: ""; width: 10px; height: 5px; margin-top: -2px; border: solid var(--s4t, var(--on-deep)); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+.box[aria-checked="true"] span::after { content: ""; width: 10px; height: 5px; margin-top: -2px; border: solid var(--s4t, var(--on-primary)); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
 .box:hover span { background: color-mix(in oklab, var(--s4, var(--ink)) 14%, transparent); }
 .box[aria-checked="true"]:hover span { background: var(--s4, var(--ink)); }
 .row-tools { display: flex; gap: 2px; }
@@ -1025,7 +1025,12 @@ body.paint .time-entry-half button[aria-checked="true"], .time-entry-half button
 @media (max-width: 560px) {
   .month-day { min-height: 64px; padding: 4px; }
   .month-plan { font-size: 0; padding: 0; height: 6px; }
+  .paint .month .month-plan.pill { background: var(--s5, var(--muted)); }
+  [data-theme="dark"] .paint .month .month-plan.pill { background: var(--s3, var(--muted)); }
   .month-plan time { display: none; }
+}
+@media (max-width: 560px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .paint .month .month-plan.pill { background: var(--s3, var(--muted)); }
 }
 
 /* List views: the time-zone note sits as plain text under the list, not in a panel. */

@@ -322,7 +322,7 @@ body.paint { --accent:var(--n20); } /* drivers.css checkboxes */
   .bar .bar-end { gap: 4px; }
   .bar .btn { white-space: nowrap; padding: 0 12px; }
   .bar .me .me-name { display: none; }
-  .bar .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 0 0 env(safe-area-inset-bottom); border: 0; border-top: 1px solid var(--line); border-radius: 0; background: var(--card); box-shadow: none; font-size: 12px; font-weight: 500; }
+  .bar .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; padding: 0 0 env(safe-area-inset-bottom); border: 0; border-top: 1px solid var(--line); border-radius: 0; background: var(--card); box-shadow: none; font-size: 12px; font-weight: 500; }
   .bar .nav a { padding: 12px 0 16px; border-radius: 0; text-align: center; }
   .bar .nav a:hover { background: none; }
   .bar .nav a[aria-current="page"] { font-weight: 600; box-shadow: none; view-transition-name: none; }
