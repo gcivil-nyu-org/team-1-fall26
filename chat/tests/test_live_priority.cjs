@@ -55,7 +55,7 @@ test("live messages use the same priority badge as history", () => {
         const badges = meta.children.filter(child => child.className === "msg-priority");
         assert.deepEqual(
             badges.map(badge => badge.textContent),
-            priority === "high" ? ["High priority"] : [],
+            priority === "high" ? ["Urgent"] : [],
             `badge for priority ${priority}`
         );
         assert.equal(bubble.textContent, "Pickup update");

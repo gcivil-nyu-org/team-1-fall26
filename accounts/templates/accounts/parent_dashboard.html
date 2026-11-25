@@ -8,19 +8,23 @@
     <div class="head">
         <h1>{{ workspace.name|possessive }} week</h1>
         <span class="span">{{ week_start|date:"D j M" }} to {{ week_last|date:"D j M" }}</span>
-        <button class="btn my-day-open" type="button" aria-haspopup="dialog" aria-controls="my-day" data-open-my-day hidden>Your day</button>
-        {% if is_primary_admin %}<a class="btn btn-quiet" href="{% url 'accounts:manage_members' workspace.pk %}">Add a family member</a>{% endif %}
-        {% include "events/_period_nav.html" %}
+        <div class="head-tools week-tools">
+            <button class="btn my-day-open" type="button" aria-haspopup="dialog" aria-controls="my-day" data-open-my-day hidden>Your day</button>
+            {% if is_primary_admin %}<a class="btn btn-quiet" href="{% url 'accounts:manage_members' workspace.pk %}">Add a family member</a>{% endif %}
+        </div>
     </div>
-    {% if week_flags %}
-        <section class="week-flags" aria-labelledby="week-flags-title">
-            <h2 id="week-flags-title" class="sr-only">Needs attention this week</h2>
-            {% if week_flags.open_rides %}<p class="my-day-flag">{% if week_flags.open_rides == 1 %}1 ride still needs a driver{% else %}{{ week_flags.open_rides }} rides still need a driver{% endif %}: {% for day in week_flags.open_days %}<a href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ day|date:'Y-m-d' }}">{{ day|date:"D j" }}<span class="sr-only"> day view</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
-            {% for flag in week_flags.double_booked %}<p class="my-day-flag"><span translate="no">{{ flag.member.user|person }}</span> is double-booked on {% for day in flag.days %}<a href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ day|date:'Y-m-d' }}">{{ day|date:"D j" }}<span class="sr-only"> day view</span></a>{% if forloop.revcounter0 == 1 %} and {% elif not forloop.last %}, {% endif %}{% endfor %}.</p>{% endfor %}
-        </section>
-    {% endif %}
     <div class="week" data-clock-scope{% if not show_weekends %} style="--days: 5"{% endif %}>
         <div class="week-main">
+            <div class="week-bar">
+            {% if week_flags %}
+                <section class="week-flags" aria-labelledby="week-flags-title">
+                    <h2 id="week-flags-title" class="sr-only">Needs attention this week</h2>
+                    {% if week_flags.open_rides %}<p class="my-day-flag">{% if week_flags.open_rides == 1 %}1 ride still needs a driver{% else %}{{ week_flags.open_rides }} rides still need a driver{% endif %}: {% for day in week_flags.open_days %}<a href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ day|date:'Y-m-d' }}">{{ day|date:"D j" }}<span class="sr-only"> day view</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+                    {% for flag in week_flags.double_booked %}<p class="my-day-flag"><span translate="no">{{ flag.member.user|person }}</span> is double-booked on {% for day in flag.days %}<a href="{% url 'events:workspace_list' workspace.pk %}?view=day&amp;date={{ day|date:'Y-m-d' }}">{{ day|date:"D j" }}<span class="sr-only"> day view</span></a>{% if forloop.revcounter0 == 1 %} and {% elif not forloop.last %}, {% endif %}{% endfor %}.</p>{% endfor %}
+                </section>
+            {% endif %}
+                {% include "events/_period_nav.html" %}
+            </div>
             <div class="days" aria-hidden="true"><span></span>{% for day in week.days %}<span{% if day.is_today %} class="is-today"{% endif %}>{{ day.date|date:"D j" }}</span>{% endfor %}</div>
             <div class="week-cards">
             {% for row in week.rows %}

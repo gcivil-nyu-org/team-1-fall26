@@ -7,13 +7,14 @@ day, and cuts it to the hours worth showing: 07:00 to midnight, earlier when a p
 needs it.
 """
 
+from django.utils import timezone
 from django.utils.dateformat import format as date_format
 from syncmily.localtime import localtime_or_utc as localtime
 
 from syncmily.limits import RENDER
 from syncmily.text import truncate_graphemes
 
-from .drives import overlap_titles
+from .drives import leg_day, legs, overlap_titles
 from .templatetags.paint import person
 from .week import place_side_by_side
 
@@ -115,13 +116,13 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR, parent_view=True):
     span = 100 - start
     min_percent = MIN_MINUTES / 60 * hour_share / span * 100
 
-    plans = {item["event"].pk for item in timeline["all_day"]}
+    plans = {item["event"].pk: item["event"] for item in timeline["all_day"]}
     lanes, double_booked = [], []
     for lane in timeline["lanes"]:
         drives = lane.get("drives", []) if parent_view else []
         slots = []
         for item in lane["items"]:
-            plans.add(item["event"].pk)
+            plans[item["event"].pk] = item["event"]
             top = max(item["left"], start)
             label, clock = time_range(
                 item["event"], tz, item["starts_before"], item["ends_after"]
@@ -198,6 +199,17 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR, parent_view=True):
         summary += f", {_names(double_booked)} double-booked"
     elif count > 1 and len(members) > 1:
         summary += ", nobody double-booked"
+    if parent_view:
+        # The same legs the week's flags count, for this day only.
+        today, now = localtime(hours[0]["starts_at"], tz).date(), timezone.now()
+        open_rides = sum(
+            driver_id is None and at >= now and leg_day(name, at, tz) == today
+            for event in plans.values()
+            for name, driver_id, at in legs(event)
+        )
+        if open_rides:
+            needs = "needs" if open_rides == 1 else "need"
+            summary += f", {_count(open_rides, 'ride')} still {needs} a driver"
     free_note = ""
     if free and len(free) < len(members):
         free_note = (
