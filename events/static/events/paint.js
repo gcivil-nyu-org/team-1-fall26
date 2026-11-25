@@ -521,4 +521,20 @@
         window.addEventListener("scroll", function () { close(false); }, { passive: true });
         window.addEventListener("resize", function () { close(false); });
     });
+
+    // ---- Checklist: ticking, adding or removing an item reloads the page. Come back to the same
+    // spot instead of the top, unless the reload carries an error to read. ----
+    ready(function () {
+        var list = document.querySelector(".checklist");
+        if (!list) return;
+        var key = "syncmily-scroll:" + window.location.pathname;
+        try {
+            var saved = window.sessionStorage.getItem(key);
+            window.sessionStorage.removeItem(key);
+            if (saved !== null && !document.querySelector(".flash-error")) window.scrollTo(0, Number(saved));
+            list.addEventListener("submit", function () {
+                window.sessionStorage.setItem(key, String(Math.round(window.scrollY)));
+            });
+        } catch (error) { /* storage is off: the page still works, it just opens at the top */ }
+    });
 })();
