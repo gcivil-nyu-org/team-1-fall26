@@ -2,12 +2,15 @@
 
 import re
 from datetime import date, datetime, timedelta
+from unittest import mock
 
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+
+from syncmily.limits import RENDER
 
 from ..day import lane_note, vertical_day
 from ..models import Event
@@ -160,12 +163,28 @@ class DayDrivesTests(FamilyMixin, TestCase):
         self.ride(
             "Soccer game", at(29, 10), 90, [self.lucia], dropoff_driver=self.mateo
         )
-        parent = self.lane(self.page(), "Lucía")
+        # The badge marks a leg that is still ahead, so the day has not started yet.
+        with mock.patch("django.utils.timezone.now", return_value=at(29, 8)):
+            parent = self.lane(self.page(), "Lucía")
+            kid = self.lane(self.page(self.lucia), "Lucía")
         self.assertIn('<span class="ride-open">No driver yet</span>', parent)
         self.assertNotIn("Not assigned", parent)
-        kid = self.lane(self.page(self.lucia), "Lucía")
         self.assertIn("Not assigned", kid)
         self.assertNotIn("ride-open", kid)
+
+    def test_a_lane_lists_at_most_30_ride_notes_and_counts_the_rest(self):
+        for number in range(RENDER.plans_per_lane + 2):
+            self.ride(
+                f"Ride {number}",
+                at(29, 6) + timedelta(minutes=20 * number),
+                15,
+                [self.lucia],
+                dropoff_driver=self.mateo,
+            )
+        mateo = self.lane(self.page(), "Mateo")
+        self.assertEqual(mateo.count('class="drive-note"'), RENDER.plans_per_lane)
+        self.assertIn(">+2 more</a>", mateo)
+        self.assertIn("Drives 32 rides", mateo)
 
     def test_kids_read_the_day_as_before(self):
         """D1: no ride notes, no overlap words, no taller headers for a kid."""

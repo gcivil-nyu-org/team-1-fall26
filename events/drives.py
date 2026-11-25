@@ -7,8 +7,8 @@ driver's own row, and `overlapping` finds the plans that book one person twice (
 week flags in events/flags.py build on both).
 """
 
+from bisect import bisect_left, bisect_right
 from datetime import time, timedelta
-from itertools import combinations
 
 DROP_OFF = "Drop-off"
 PICKUP = "Pickup"
@@ -80,21 +80,50 @@ def day_drives(events, user_pk, day_start, day_end, own_ids):
 
 
 def overlapping(events):
-    """Pairs of timed plans that happen at the same time (plans that only touch do
-    not). `events` are one person's plans; all-day plans must be left out.
+    """One person's timed plans in time order, each as (plan, earlier, later): how many
+    plans that began before it are still on when it starts, and how many more start
+    before it ends (plans that only touch do not overlap). All-day plans must be left
+    out.
+
+    Sorted once and counted with bisect, so a week of 2,000 plans costs n log n, not
+    the two million pairs it holds.
     """
     ordered = sorted(events, key=lambda event: (event.starts_at, event.pk))
+    starts = [event.starts_at for event in ordered]
+    ends = sorted(event.ends_at for event in ordered)
     return [
-        (first, second)
-        for first, second in combinations(ordered, 2)
-        if second.starts_at < first.ends_at
+        (
+            event,
+            # Every plan that ended by this start began before it, so the rest of the
+            # plans ahead of it in the order are still on.
+            index - bisect_right(ends, event.starts_at),
+            bisect_left(starts, event.ends_at) - index - 1,
+        )
+        for index, event in enumerate(ordered)
     ]
 
 
-def overlap_titles(events):
-    """{event pk: [titles of the plans it overlaps]} for one person's timed plans."""
+def overlap_titles(events, limit):
+    """{event pk: [titles of the plans it overlaps]} for one person's timed plans: the
+    first `limit` in time order, then "N more".
+    """
+    counted = overlapping(events)
     titles = {}
-    for first, second in overlapping(events):
-        titles.setdefault(first.pk, []).append(second.title)
-        titles.setdefault(second.pk, []).append(first.title)
+    still_on = []  # earlier plans, in time order, dropped once they are seen to be over
+    for index, (event, earlier, later) in enumerate(counted):
+        names = []
+        position = 0
+        while position < len(still_on) and len(names) < limit:
+            if still_on[position].ends_at > event.starts_at:
+                names.append(still_on[position].title)
+                position += 1
+            else:
+                # Over for good: every plan still to come starts later.
+                del still_on[position]
+        still_on.append(event)
+        following = counted[index + 1 : index + 1 + min(later, limit - len(names))]
+        names += [other.title for other, _, _ in following]
+        rest = earlier + later - len(names)
+        if earlier or later:
+            titles[event.pk] = names + ([f"{rest} more"] if rest else [])
     return titles

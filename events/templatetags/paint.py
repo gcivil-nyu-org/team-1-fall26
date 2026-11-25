@@ -127,6 +127,12 @@ def leave_marker(event):
 
 
 @register.filter
+def ahead(moment):
+    """True while a moment is still to come: the week's flags count the same legs."""
+    return moment >= timezone.now()
+
+
+@register.filter
 def has_person(people, user):
     """True when `user` is among the member dicts in `people`."""
     return any(getattr(person.get("user"), "pk", None) == user.pk for person in people)

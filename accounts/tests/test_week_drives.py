@@ -374,6 +374,27 @@ class WeekDrivesTests(TestCase):
         self.assertEqual(wednesday.count("<a "), 1)  # only the chip's own link
         self.assertNotIn("<button", wednesday)
 
+    def test_a_leg_already_past_is_not_badged_so_chips_agree_with_the_flags(self):
+        for title, kid, hour in (("Breakfast", self.lucia, 8), ("Art", self.tomas, 9)):
+            self.plan(
+                title,
+                at(WEDNESDAY, hour),
+                at(WEDNESDAY, hour + 1, 30),
+                [kid],
+                requires_transport=True,
+            )
+        response = self.page(self.ana)  # 10:00: Breakfast is over, Art under way
+        over = chip(card(response, "Lucia"), WEDNESDAY)
+        self.assertNotIn("ride-open", over)
+        self.assertIn("Not assigned", over)
+        under_way = chip(card(response, "Tomas"), WEDNESDAY)
+        self.assertIn(
+            'Drop-off: <span translate="no">Not assigned</span> · Pickup: '
+            '<span class="ride-open">No driver yet</span>',
+            under_way,
+        )
+        self.assertIn("1 ride still needs a driver", text(flags(response)))
+
     def test_a_midnight_pickup_reads_midnight_in_the_chip(self):
         self.plan(
             "Late movie",

@@ -42,6 +42,7 @@
                     {% for drive in lane.drives %}
                         <li class="drive-note">Drives {{ drive.event.title }}: {% for leg in drive.legs %}{{ leg.name|lower }} {% if leg.midnight %}midnight (end of day){% else %}<time data-clock="{{ leg.at|date:'H:i' }}">{{ leg.at|date:"g:i A" }}</time>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</li>
                     {% endfor %}
+                    {% if lane.more_drives %}<li class="lane-more"><a href="?{{ week_query }}">+{{ lane.more_drives }} more</a></li>{% endif %}
                 </ul>
                 {% endif %}
                 <div class="track" data-rail{% if shell.add_event_url %} tabindex="0" role="group" aria-label="{% if lane.user %}{{ lane.user|person }}’s day{% else %}Whole family’s day{% endif %}. Right-click a time, or press Shift+F10, to add an event." aria-keyshortcuts="Shift+F10"{% endif %}>

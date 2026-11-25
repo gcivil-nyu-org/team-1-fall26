@@ -240,7 +240,7 @@ def build_week(events, members, week_start, tz, today, show_weekends=True):
                     "count": len(items),
                     "drives": drives,
                     "more_drives": max(len(drives) - VISIBLE_DRIVES, 0),
-                    "overlap": bool(overlapping(named)),
+                    "overlap": any(earlier for _, earlier, _ in overlapping(named)),
                     # A day whose only plans are unconfirmed gets a dashed edge.
                     "tentative": (
                         bool(items or drives)

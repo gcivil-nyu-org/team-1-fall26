@@ -139,16 +139,14 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR, parent_view=True):
                 }
             )
         # The family lane holds whole-family plans, which book no one twice.
+        # A plan names a few of the plans it overlaps; the rest are counted.
         titles = (
-            overlap_titles([slot["event"] for slot in slots]) if lane["user"] else {}
+            overlap_titles([slot["event"] for slot in slots], RENDER.summary_names)
+            if lane["user"]
+            else {}
         )
         for slot in slots:
-            others = titles.get(slot["event"].pk, []) if parent_view else []
-            # A plan names a few of the plans it overlaps; the rest are counted.
-            if len(others) > RENDER.summary_names:
-                rest = len(others) - RENDER.summary_names
-                others = others[: RENDER.summary_names] + [f"{rest} more"]
-            slot["overlaps"] = others
+            slot["overlaps"] = titles.get(slot["event"].pk, []) if parent_view else []
         if titles:
             double_booked.append(lane)
         # A lane draws at most 30 plans; the rest are counted ("+N more").
@@ -161,7 +159,9 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR, parent_view=True):
                 "slots": slots,
                 "total": total,
                 "more": total - len(slots),
-                "drives": drives,
+                # Ride notes are capped like the plans, and the rest counted too.
+                "drives": drives[: RENDER.plans_per_lane],
+                "more_drives": max(len(drives) - RENDER.plans_per_lane, 0),
                 "note": lane_note(total, drives),
             }
         )

@@ -44,23 +44,24 @@ def build_week_flags(events, members, week_start, tz, now):
     for member in members:
         pk = member["user"].pk
         mine = [event for event in in_week if pk in lane_user_ids(event, member_ids)]
-        clash_days = set()
-        for first, second in overlapping(mine):
-            if second.ends_at <= now:
-                continue
-            start = max(first.starts_at, second.starts_at)
-            end = min(first.ends_at, second.ends_at)
-            for day in days:
-                day_start, day_end = bounds[day]
-                if (
-                    start < day_end
-                    and end > day_start
-                    and not _all_day(first, day_start, day_end)
-                    and not _all_day(second, day_start, day_end)
-                ):
-                    clash_days.add(day)
+        clash_days = []
+        for day in days:
+            day_start, day_end = bounds[day]
+            # Two plans that both touch a day and overlap do so on that day.
+            timed = [
+                event
+                for event in mine
+                if event.starts_at < day_end
+                and event.ends_at > day_start
+                and not _all_day(event, day_start, day_end)
+            ]
+            if any(
+                earlier and event.ends_at > now
+                for event, earlier, _ in overlapping(timed)
+            ):
+                clash_days.append(day)
         if clash_days:
-            double_booked.append({"member": member, "days": sorted(clash_days)})
+            double_booked.append({"member": member, "days": clash_days})
 
     if not open_rides and not double_booked:
         return None
