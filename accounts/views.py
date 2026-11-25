@@ -1157,7 +1157,10 @@ def family_home(request, workspace_id):
             update_fields=["home_location", "home_latitude", "home_longitude"]
         )
         messages.success(request, "Family home saved. Trips can now start from home.")
-        return redirect("accounts:family_home", workspace_id=workspace.pk)
+        # Back to the Family page, which only the primary admin has.
+        if workspace.primary_admin_id == request.user.pk:
+            return redirect("accounts:workspace_detail", workspace_id=workspace.pk)
+        return redirect("accounts:dashboard")
     return render(
         request,
         "accounts/family_home.html",

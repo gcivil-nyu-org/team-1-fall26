@@ -522,10 +522,10 @@
         window.addEventListener("resize", function () { close(false); });
     });
 
-    // ---- Checklist: ticking, adding or removing an item reloads the page. Come back to the same
+    // ---- Checklist items and the Automatic sync switch reload the page. Come back to the same
     // spot instead of the top, unless the reload carries an error to read. ----
     ready(function () {
-        var list = document.querySelector(".checklist");
+        var list = document.querySelector(".checklist, .auto-sync");
         if (!list) return;
         var key = "syncmily-scroll:" + window.location.pathname;
         try {

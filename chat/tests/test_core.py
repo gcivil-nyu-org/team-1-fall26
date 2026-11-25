@@ -184,7 +184,7 @@ class HouseholdChatWebSocketTests(TransactionTestCase):
 
         self.client.force_login(self.admin)
         history_url = reverse("chat:workspace_chat", args=[self.workspace.id])
-        badge = '<span class="msg-priority">High priority</span>'
+        badge = '<span class="msg-priority">Urgent</span>'
         cases = (
             ({"content": "Dinner is ready", "priority": "normal"}, "normal"),
             ({"content": "See you soon"}, "normal"),

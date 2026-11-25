@@ -78,6 +78,9 @@ def _shell(user):
             if workspace
             else reverse("chat:home")
         ),
+        "checklists_url": (
+            reverse("checklists:list", args=[workspace.pk]) if workspace else None
+        ),
         # Only the primary admin has a family page today; everyone else sees the family
         # on the week.
         "family_url": (

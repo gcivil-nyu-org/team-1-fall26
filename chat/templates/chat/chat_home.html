@@ -1,6 +1,6 @@
 {% extends "events/_paint_page.html" %}
 {% load static paint %}
-{% block title %}{% if workspace %}Chat, {{ workspace.name }}{% else %}Household chat{% endif %} | Syncmily{% endblock %}
+{% block title %}{% if workspace %}Chat, {{ workspace.name }}{% else %}Chat{% endif %} | Syncmily{% endblock %}
 {% block main_class %}page page-chat{% endblock %}
 {% block scripts %}{% if workspace %}<script src="{% asset 'chat/chat_home.js' %}" defer></script>{% endif %}{% endblock %}
 {% block content %}
@@ -8,7 +8,7 @@
     <div class="chat">
         <section class="thread" aria-labelledby="chat-title">
             <div class="thread-head">
-                <h1 id="chat-title">Household chat</h1>
+                <h1 id="chat-title">Chat</h1>
                 <span class="span">{{ workspace.name }}, {{ members|length }} member{{ members|length|pluralize }}</span>
                 <span class="chat-status" id="chat-status" role="status">Connecting…</span>
             </div>
@@ -22,7 +22,7 @@
                         <div class="msg-body">
                             <p class="msg-meta">
                                 <b translate="no">{% if message.sender_id == request.user.id %}You{% else %}{{ message.sender|person }}{% endif %}</b> {{ message.created_at|clock }}
-                                {% if message.priority == "high" %}<span class="msg-priority">High priority</span>{% endif %}
+                                {% if message.priority == "high" %}<span class="msg-priority">Urgent</span>{% endif %}
                             </p>
                             <p class="bubble">{{ message.content }}</p>
                         </div>
@@ -36,11 +36,7 @@
             <form class="compose" id="chat-form">
                 <label class="sr-only" for="chat-input">Message</label>
                 <input id="chat-input" type="text" placeholder="Message {{ workspace.name }}…" maxlength="2000" autocomplete="off" disabled>
-                <label class="sr-only" for="chat-priority">Message priority</label>
-                <select id="chat-priority" autocomplete="off" disabled>
-                    <option value="normal" selected>Normal</option>
-                    <option value="high">High</option>
-                </select>
+                <label class="check chat-urgent"><input id="chat-priority" type="checkbox" autocomplete="off" disabled> Mark as urgent</label>
                 <button class="btn" id="chat-send" type="submit" disabled>Send</button>
             </form>
             {{ workspace.id|json_script:"chat-workspace-id" }}
@@ -73,7 +69,7 @@
     </div>
 {% else %}
     <div class="head">
-        <h1>Household chat</h1>
+        <h1>Chat</h1>
     </div>
     <section class="{% if workspaces %}cards{% else %}panel{% endif %}" aria-label="Families">
         {% for item in workspaces %}

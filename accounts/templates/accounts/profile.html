@@ -26,7 +26,7 @@
                 </form>
             </details>
             <details class="setting"{% if password_form.errors %} open{% endif %}>
-                <summary><span class="grow"><b>Password</b><small>{% if request.user.has_usable_password %}Set{% else %}Not set yet. You sign in with Google.{% endif %}</small></span><span class="setting-btn">{% if request.user.has_usable_password %}Change{% else %}Set one{% endif %}</span></summary>
+                <summary><span class="grow"><b>Password</b><small>{% if request.user.has_usable_password %}<span aria-hidden="true">••••••••••</span><span class="sr-only">Set</span>{% else %}Not set yet. You sign in with Google.{% endif %}</small></span><span class="setting-btn">{% if request.user.has_usable_password %}Change{% else %}Set one{% endif %}</span></summary>
                 <form class="setting-form" method="post">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="password">
