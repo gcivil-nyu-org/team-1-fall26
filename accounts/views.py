@@ -36,7 +36,9 @@ from calendars.models import CalendarConnection
 from events.access import family_events, family_workspaces
 from events.briefing import build_family_briefing, build_kid_briefing
 from events.timeline import editable_members, family_members
+from events.flags import build_week_flags
 from events.week import build_today_rail, build_week, local_day_bounds, week_start_for
+from events.nav import period_nav, show_weekends
 
 from syncmily import limits, ratelimit, seclog
 from syncmily.ratelimit import rate_limit
@@ -222,8 +224,32 @@ def dashboard(request):
             family_workspaces(request.user).filter(pk=workspace.pk).exists()
         ),
     }
-    context.update(_week_context(request, workspace))
-    if family["role"] == Membership.Role.KID:
+    is_kid = family["role"] == Membership.Role.KID
+    context.update(
+        _week_context(
+            request,
+            workspace,
+            weekends=is_kid or show_weekends(request),
+            flags=not is_kid,
+        )
+    )
+    context["period_nav"] = period_nav(
+        request,
+        view="week",
+        # This week opens Day, Month and List on today, not on its Monday.
+        date=context["today"] if context["is_this_week"] else context["week_start"],
+        start=context["week_start"],
+        last=context["week_last"],
+        workspace=workspace,
+        previous_url=f"?week={context['previous_week']}",
+        next_url=f"?week={context['next_week']}",
+        today_url=reverse("accounts:dashboard"),
+        is_current=context["is_this_week"],
+        weekends_toggle=not is_kid,
+    )
+    # Kids page through their own week only, so they get Today and the arrows, no menu.
+    context["kid_nav"] = {**context["period_nav"], "links": []}
+    if is_kid:
         context.update(_kid_context(request, context))
         return render(request, "accounts/kid_dashboard.html", context)
     context.update(
@@ -298,9 +324,10 @@ def day_seen(request):
     return redirect("accounts:dashboard")
 
 
-def _week_context(request, workspace):
+def _week_context(request, workspace, weekends=True, flags=False):
     """The paint-chip week for one family: ?week=YYYY-MM-DD picks the week, default this
-    one.
+    one. Parents also get the week's flags (open rides, double-bookings), worked out
+    from the same events.
     """
     tz = timezone.get_current_timezone()
     today = timezone.localdate()
@@ -325,7 +352,13 @@ def _week_context(request, workspace):
     )
     members = family_members([workspace])
     return {
-        "week": build_week(events, members, week_start, tz, today),
+        "week": build_week(events, members, week_start, tz, today, weekends),
+        "week_flags": (
+            build_week_flags(events, members, week_start, tz, timezone.now())
+            if flags
+            else None
+        ),
+        "show_weekends": weekends,
         "week_start": week_start,
         "week_last": week_end - timedelta(days=1),
         "is_this_week": week_start == week_start_for(today),

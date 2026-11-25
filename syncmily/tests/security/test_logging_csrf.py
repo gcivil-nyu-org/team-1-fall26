@@ -1080,6 +1080,7 @@ def route_table(w):
         "events:timezones": (r("events:timezones"), {}),
         "events:place_suggestions": (r("events:place_suggestions"), {"q": "park"}),
         "events:place_details": (r("events:place_details"), {"id": "ChIJabcdefghij"}),
+        "events:weekends": (r("events:weekends"), {}),
         "events:detail": (
             r("events:detail", args=[ev]),
             {"dropoff_driver": str(w.parent.pk), "pickup_driver": str(w.parent.pk)},
@@ -1397,7 +1398,8 @@ class CsrfAndMethodSweepTests(TestCase):
 
     def test_control_GAP4_duplicate_next_cannot_split_check_and_use(self):
         """GAP4-DUP-001 / V15.3.7: `next` sent twice (body, query, either order) never makes
-        the redirect leave the site, on login, transport mode and the palette routes."""
+        the redirect leave the site, on login, transport mode, weekends and the palette
+        routes."""
         evil = "https://evil.gap4.example/steal"
         good = "/accounts/dashboard/"
         bad = []
@@ -1427,6 +1429,7 @@ class CsrfAndMethodSweepTests(TestCase):
                 )
             for name in (
                 "events:set_transport_mode",
+                "events:weekends",
                 "accounts:set_palette",
                 "accounts:set_my_palette",
             ):

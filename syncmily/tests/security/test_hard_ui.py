@@ -280,7 +280,8 @@ class UnboundedTextAndVolume(HardUiBase):
         html = self.client.get(
             reverse("events:list") + f"?view=day&date={self.today}"
         ).content.decode()
-        span = re.search(r'<span class="span">(.*?)</span>', html, re.S).group(1)
+        # Parents see the line in the flag style when someone is double-booked.
+        span = re.search(r'<span class="span[^"]*">(.*?)</span>', html, re.S).group(1)
         self.assertLessEqual(
             len(re.sub(r"<[^>]+>", "", span)),
             160,

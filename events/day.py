@@ -13,6 +13,7 @@ from syncmily.localtime import localtime_or_utc as localtime
 from syncmily.limits import RENDER
 from syncmily.text import truncate_graphemes
 
+from .drives import overlap_titles
 from .templatetags.paint import person
 from .week import place_side_by_side
 
@@ -67,21 +68,27 @@ def _names(lanes):
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
-def _overlaps(slots):
-    """True when two of one person's plans happen at the same time (by their real
-    times).
-    """
-    latest_end = None
-    for slot in sorted(slots, key=lambda slot: slot["event"].starts_at):
-        if latest_end is not None and slot["event"].starts_at < latest_end:
-            return True
-        latest_end = max(latest_end or slot["event"].ends_at, slot["event"].ends_at)
-    return False
+def _count(number, noun):
+    return f"{number} {noun}{'s' if number != 1 else ''}"
 
 
-def vertical_day(timeline, tz, first_hour=FIRST_HOUR):
+def lane_note(plans, drives):
+    """The small text in a lane's header: its plans, the rides it drives, or "Free"."""
+    rides = _count(len(drives), "ride")
+    if plans and drives:
+        return f"{_count(plans, 'plan')}, drives {rides}"
+    if drives:
+        return f"Drives {rides}"
+    return _count(plans, "plan") if plans else "Free"
+
+
+def vertical_day(timeline, tz, first_hour=FIRST_HOUR, parent_view=True):
     """Lanes with `slots` placed by `top`/`height` (% of the shown hours), hour labels,
     and a summary line.
+
+    Parents also see the rides each lane drives and which plans overlap; with
+    `parent_view` off (a kid's page) the lanes read as they did before: plan counts,
+    "Free", no ride notes and no overlap words.
     """
     hour_share = 100 / timeline["hour_count"]
     hours = timeline["hours"]
@@ -111,6 +118,7 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR):
     plans = {item["event"].pk for item in timeline["all_day"]}
     lanes, double_booked = [], []
     for lane in timeline["lanes"]:
+        drives = lane.get("drives", []) if parent_view else []
         slots = []
         for item in lane["items"]:
             plans.add(item["event"].pk)
@@ -130,14 +138,32 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR):
                     "time_clock": clock,
                 }
             )
-        if lane["user"] and _overlaps(slots):
+        # The family lane holds whole-family plans, which book no one twice.
+        # A plan names a few of the plans it overlaps; the rest are counted.
+        titles = (
+            overlap_titles([slot["event"] for slot in slots], RENDER.summary_names)
+            if lane["user"]
+            else {}
+        )
+        for slot in slots:
+            slot["overlaps"] = titles.get(slot["event"].pk, []) if parent_view else []
+        if titles:
             double_booked.append(lane)
         # A lane draws at most 30 plans; the rest are counted ("+N more").
         total = len(slots)
         slots = slots[: RENDER.plans_per_lane]
         place_side_by_side(slots, min_percent)
         lanes.append(
-            {**lane, "slots": slots, "total": total, "more": total - len(slots)}
+            {
+                **lane,
+                "slots": slots,
+                "total": total,
+                "more": total - len(slots),
+                # Ride notes are capped like the plans, and the rest counted too.
+                "drives": drives[: RENDER.plans_per_lane],
+                "more_drives": max(len(drives) - RENDER.plans_per_lane, 0),
+                "note": lane_note(total, drives),
+            }
         )
 
     members = [lane for lane in lanes if lane["user"]]
@@ -153,7 +179,9 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR):
         else [
             lane
             for lane in members
-            if not lane["slots"] and lane["user"].pk not in busy_all_day
+            if not lane["slots"]
+            and not lane["drives"]
+            and lane["user"].pk not in busy_all_day
         ]
     )
 
@@ -196,6 +224,8 @@ def vertical_day(timeline, tz, first_hour=FIRST_HOUR):
             else None
         ),
         "plans": count,
+        "clash": bool(double_booked) and parent_view,
+        "has_drives": any(lane["drives"] for lane in lanes),
         "summary": summary,
         "free_note": free_note,
     }

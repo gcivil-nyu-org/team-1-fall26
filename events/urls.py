@@ -27,6 +27,7 @@ urlpatterns = [
     path("timezones/", views.timezone_names, name="timezones"),
     path("places/", views.place_suggestions, name="place_suggestions"),
     path("places/details/", views.place_details, name="place_details"),
+    path("weekends/", views.toggle_weekends, name="weekends"),
     path("<int:pk>/", views.event_detail, name="detail"),
     path("<int:pk>/edit/", views.edit_event, name="edit"),
     path("<int:pk>/delete/", views.delete_event, name="delete"),
