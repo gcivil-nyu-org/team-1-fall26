@@ -365,5 +365,6 @@ body button.tz-all { display: none; justify-self: start; margin: 2px 0 0; paddin
 [data-js] body button.tz-all { display: inline-block; }
 body button.tz-all:hover { color: var(--ink); }
 body button.tz-all[disabled] { cursor: progress; opacity: .6; }
+@media (max-width: 900px) { body button.tz-all { min-height: 44px; } }
 /* Just above the phone layout the bar is tight; closer controls keep it on screen. */
 @media (min-width: 901px) and (max-width: 960px) { .bar .bar-end { gap: 8px; } }

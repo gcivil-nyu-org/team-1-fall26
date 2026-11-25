@@ -651,7 +651,8 @@ body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
 @media (max-width: 900px) {
   body.paint .auth .btn { min-height: 44px; height: auto; }
   .auth-form .mark { min-height: 44px; }
-  .tz-note > summary { min-height: 44px; }
+  .tz-note > summary, .when-edit > summary, .check-inline { min-height: 44px; }
+  .when-edit > summary { align-content: center; }
   .paint .rail .row { min-height: 48px; }
 }
 
