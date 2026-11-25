@@ -11,7 +11,7 @@
     }
 
     // ---- Confirm before a destructive form submits (inline onsubmit is blocked by the CSP) ----
-    function askConfirm(form, submitter) {
+    function confirmBox(heading, text, keepLabel, goLabel, onGo) {
         var confirmDialog = document.getElementById("confirm");
         if (!confirmDialog || !confirmDialog.showModal) return false;
         if (!confirmDialog.dataset.ready) {
@@ -20,21 +20,32 @@
                 button.addEventListener("click", function () { confirmDialog.close(); });
             });
         }
-        confirmDialog.querySelector("#confirm-title").textContent = form.dataset.confirmTitle || "Are you sure?";
-        confirmDialog.querySelector("#confirm-text").textContent = form.dataset.confirm;
-        confirmDialog.querySelector("[data-keep]").textContent = form.dataset.confirmKeep || "Keep it";
+        confirmDialog.querySelector("#confirm-title").textContent = heading;
+        confirmDialog.querySelector("#confirm-text").textContent = text;
+        confirmDialog.querySelector("[data-keep]").textContent = keepLabel;
         var go = confirmDialog.querySelector("[data-go]");
-        go.textContent = (submitter && submitter.textContent.trim()) || "Delete";
+        go.textContent = goLabel;
         go.onclick = function () {
             confirmDialog.close();
-            form.dataset.confirmed = "yes";
-            if (form.requestSubmit) form.requestSubmit(submitter || undefined);
-            else form.submit();
-            delete form.dataset.confirmed;
+            onGo();
         };
         confirmDialog.showModal();
         confirmDialog.querySelector("[data-keep]").focus();
         return true;
+    }
+    function askConfirm(form, submitter) {
+        return confirmBox(
+            form.dataset.confirmTitle || "Are you sure?",
+            form.dataset.confirm,
+            form.dataset.confirmKeep || "Keep it",
+            (submitter && submitter.textContent.trim()) || "Delete",
+            function () {
+                form.dataset.confirmed = "yes";
+                if (form.requestSubmit) form.requestSubmit(submitter || undefined);
+                else form.submit();
+                delete form.dataset.confirmed;
+            }
+        );
     }
     document.addEventListener("submit", function (event) {
         var form = event.target;
@@ -52,8 +63,30 @@
         var body = document.getElementById("sheet-body");
         var title = document.getElementById("sheet-title");
         var status = document.getElementById("sheet-status");
-        var current = "", returnFocus = null, changed = false, request = null, saving = false;
+        var current = "", returnFocus = null, changed = false, request = null, saving = false, dirty = false;
         title.tabIndex = -1;
+
+        // Typing into a form that saves marks the sheet as holding a draft: closing then asks first.
+        function markDirty(event) {
+            var form = event.target.closest && event.target.closest("form");
+            if (form && (form.getAttribute("method") || "get").toLowerCase() === "post") dirty = true;
+        }
+        body.addEventListener("input", markDirty);
+        body.addEventListener("change", markDirty);
+
+        function closeSheet() {
+            if (saving) return;
+            if (!dirty) {
+                sheet.close();
+                return;
+            }
+            var discard = function () {
+                dirty = false;
+                sheet.close();
+            };
+            if (!confirmBox("Discard what you typed?", "This hasn’t been saved yet.", "Keep editing", "Discard", discard)
+                && window.confirm("Discard what you typed?")) discard();
+        }
 
         function setBusy(busy, posting) {
             saving = busy && posting;
@@ -141,6 +174,7 @@
                             : "Something went wrong. Your details are still here, so try again.");
                     }
                     if (posting && response.redirected) changed = true;
+                    if (!posting || response.redirected) dirty = false;
                     return response.text().then(function (html) {
                         if (request === mine && sheet.open) render(html, response.url);
                     });
@@ -160,6 +194,7 @@
         function open(link) {
             returnFocus = link;
             changed = false;
+            dirty = false;
             title.textContent = link.dataset.sheetTitle || "Opening…";
             body.replaceChildren();
             sheet.showModal();
@@ -193,12 +228,16 @@
             }
         });
 
-        sheet.querySelector("[data-close]").addEventListener("click", function () { sheet.close(); });
-        sheet.addEventListener("cancel", function (event) { if (saving) event.preventDefault(); });
+        sheet.querySelector("[data-close]").addEventListener("click", closeSheet);
+        sheet.addEventListener("cancel", function (event) {
+            if (!saving && !dirty) return;
+            event.preventDefault();
+            closeSheet();
+        });
         sheet.addEventListener("click", function (event) {
             if (event.target !== sheet || saving) return;
             var box = sheet.getBoundingClientRect();
-            if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) sheet.close();
+            if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) closeSheet();
         });
         sheet.addEventListener("close", function () {
             if (request) request.abort();
