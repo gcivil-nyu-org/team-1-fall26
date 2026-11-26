@@ -17,6 +17,7 @@ from chat.tests.ws_refusal import connect_and_check
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db import close_old_connections, connections
 from django.db.backends.postgresql.base import DatabaseWrapper
 from django.test import Client, TransactionTestCase, override_settings
 from django.utils import timezone
@@ -121,7 +122,14 @@ def count_db_work():
 
 
 async def in_thread(fn, *args):
-    return await asyncio.get_running_loop().run_in_executor(None, fn, *args)
+    def call():
+        close_old_connections()
+        try:
+            return fn(*args)
+        finally:
+            connections.close_all()
+
+    return await asyncio.get_running_loop().run_in_executor(None, call)
 
 
 class WsBase(TransactionTestCase):
@@ -214,9 +222,16 @@ class HandshakeAccessTests(WsBase):
         async def run():
             c = socket_for(self.ws_a, cookie)
             await c.connect()
-            await in_thread(lambda: Membership.objects.filter(user=self.kid_a).delete())
-            await c.send_json_to({"type": "chat_message", "content": "after removal"})
-            return await is_closed(c)
+            try:
+                await in_thread(
+                    lambda: Membership.objects.filter(user=self.kid_a).delete()
+                )
+                await c.send_json_to(
+                    {"type": "chat_message", "content": "after removal"}
+                )
+                return await is_closed(c)
+            finally:
+                await c.disconnect()
 
         self.assertTrue(async_to_sync(run)())
         self.assertFalse(ChatMessage.objects.filter(content="after removal").exists())
@@ -230,12 +245,18 @@ class HandshakeAccessTests(WsBase):
             parent = socket_for(self.ws_a, cp)
             await kid.connect()
             await parent.connect()
-            await in_thread(lambda: Membership.objects.filter(user=self.kid_a).delete())
-            await parent.send_json_to(
-                {"type": "chat_message", "content": "private-after"}
-            )
-            await drain(parent)
-            return await drain(kid)
+            try:
+                await in_thread(
+                    lambda: Membership.objects.filter(user=self.kid_a).delete()
+                )
+                await parent.send_json_to(
+                    {"type": "chat_message", "content": "private-after"}
+                )
+                await drain(parent)
+                return await drain(kid)
+            finally:
+                await kid.disconnect()
+                await parent.disconnect()
 
         frames = async_to_sync(run)()
         self.assertFalse(any(f.get("content") == "private-after" for f in frames))
@@ -250,9 +271,12 @@ class SessionLifetimeTests(WsBase):
         async def run():
             c = socket_for(self.ws_a, cookie)
             self.assertTrue((await c.connect())[0])
-            await in_thread(mutate, client)
-            await c.send_json_to({"type": "chat_message", "content": content})
-            return await is_closed(c, timeout=1.0)
+            try:
+                await in_thread(mutate, client)
+                await c.send_json_to({"type": "chat_message", "content": content})
+                return await is_closed(c, timeout=1.0)
+            finally:
+                await c.disconnect()
 
         return async_to_sync(run)()
 
@@ -275,12 +299,16 @@ class SessionLifetimeTests(WsBase):
             p = socket_for(self.ws_a, pcookie)
             await c.connect()
             await p.connect()
-            await in_thread(client.logout)
-            await p.send_json_to(
-                {"type": "chat_message", "content": "for members only"}
-            )
-            await drain(p)
-            return await drain(c)
+            try:
+                await in_thread(client.logout)
+                await p.send_json_to(
+                    {"type": "chat_message", "content": "for members only"}
+                )
+                await drain(p)
+                return await drain(c)
+            finally:
+                await c.disconnect()
+                await p.disconnect()
 
         frames = async_to_sync(run)()
         self.assertFalse(
@@ -324,21 +352,51 @@ class SessionLifetimeTests(WsBase):
             p = socket_for(self.ws_a, cp)
             await k.connect()
             await p.connect()
-            await in_thread(
-                lambda: get_user_model()
-                .objects.filter(pk=self.kid_a.pk)
-                .update(is_active=False)
-            )
-            await p.send_json_to(
-                {"type": "chat_message", "content": "deactivated reads this"}
-            )
-            await drain(p)
-            return await drain(k)
+            try:
+                await in_thread(
+                    lambda: get_user_model()
+                    .objects.filter(pk=self.kid_a.pk)
+                    .update(is_active=False)
+                )
+                await p.send_json_to(
+                    {"type": "chat_message", "content": "deactivated reads this"}
+                )
+                await drain(p)
+                return await drain(k)
+            finally:
+                await k.disconnect()
+                await p.disconnect()
 
         frames = async_to_sync(run)()
         self.assertFalse(
             any(f.get("content") == "deactivated reads this" for f in frames)
         )
+
+    def test_in_thread_closes_database_connections_on_success_and_error(self):
+        pool = connections["default"]._connection_pools.get("default")
+        before = (
+            pool.get_stats().get("pool_size", 0)
+            - pool.get_stats().get("pool_available", 0)
+            if pool
+            else 0
+        )
+
+        def ok_query():
+            return Workspace.objects.filter(pk=self.ws_a.pk).count()
+
+        def failing_query():
+            Workspace.objects.filter(pk=self.ws_a.pk).count()
+            raise RuntimeError("boom")
+
+        self.assertEqual(async_to_sync(in_thread)(ok_query), 1)
+        with self.assertRaises(RuntimeError):
+            async_to_sync(in_thread)(failing_query)
+
+        if pool:
+            after = pool.get_stats().get("pool_size", 0) - pool.get_stats().get(
+                "pool_available", 0
+            )
+            self.assertLessEqual(after, before)
 
     def test_poc_ws_04_socket_lifetime_must_be_bounded(self):
         """
@@ -364,18 +422,23 @@ class MalformedFrameTests(WsBase):
         async def run():
             c = socket_for(self.ws_a, cookie)
             await c.connect()
-            if send_kwargs.get("text_data") == "":
-                # send_to() refuses an empty string; send the raw ASGI event instead
-                await c.send_input({"type": "websocket.receive", "text": ""})
-            else:
-                await c.send_to(**send_kwargs)
             try:
-                out = await c.receive_output(timeout=1.0)
-                return ("output", out)
-            except asyncio.TimeoutError:
-                return ("silent", None)
-            except BaseException as exc:  # app exception surfaced by the communicator
-                return ("exception", repr(exc))
+                if send_kwargs.get("text_data") == "":
+                    # send_to() refuses an empty string; send the raw ASGI event instead
+                    await c.send_input({"type": "websocket.receive", "text": ""})
+                else:
+                    await c.send_to(**send_kwargs)
+                try:
+                    out = await c.receive_output(timeout=1.0)
+                    return ("output", out)
+                except asyncio.TimeoutError:
+                    return ("silent", None)
+                except (
+                    BaseException
+                ) as exc:  # app exception surfaced by the communicator
+                    return ("exception", repr(exc))
+            finally:
+                await c.disconnect()
 
         return async_to_sync(run)()
 
@@ -487,20 +550,23 @@ class RateLimitTests(WsBase):
         async def run():
             c = socket_for(self.ws_a, cookie)
             await c.connect()
-            blob = "x" * 9000
-            replies = 0
-            closed = False
-            for _ in range(200):
-                await c.send_to(text_data=blob)
-                try:
-                    msg = await c.receive_output(timeout=0.5)
-                except asyncio.TimeoutError:
-                    break
-                if msg["type"] == "websocket.close":
-                    closed = True
-                    break
-                replies += 1
-            return replies, closed
+            try:
+                blob = "x" * 9000
+                replies = 0
+                closed = False
+                for _ in range(200):
+                    await c.send_to(text_data=blob)
+                    try:
+                        msg = await c.receive_output(timeout=0.5)
+                    except asyncio.TimeoutError:
+                        break
+                    if msg["type"] == "websocket.close":
+                        closed = True
+                        break
+                    replies += 1
+                return replies, closed
+            finally:
+                await c.disconnect()
 
         replies, closed = async_to_sync(run)()
         self.assertTrue(
