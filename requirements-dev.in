@@ -5,5 +5,5 @@
 #     -c requirements.txt -o requirements-dev.txt
 black==26.10.1
 flake8==7.5.0
-coverage==7.17.0
+coverage==7.17.3
 hypothesis==6.170.15
