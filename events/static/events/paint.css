@@ -367,6 +367,11 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 
 @container plan (height < 64px) {
   .plan .maybe { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .plan b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+}
+/* A one-hour plan in a narrow column: both ride legs take two lines, so the time (already on the hour axis) stays for screen readers only. */
+@container plan (44px <= height < 64px) and (width < 260px) {
+  .plan:has(.driver-summary) time { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @container plan (height < 44px) {
   .plan { white-space: nowrap; text-overflow: ellipsis; }
@@ -399,6 +404,10 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
   .plan { position: absolute; inset: 0; display: block; overflow: hidden; padding: 5px 8px; background: var(--s3); font-size: 12px; line-height: 16px; }
   .paint .plan { color: var(--s3t, var(--paint-ink)); }
   .plan b, .plan time, .plan .maybe { display: block; }
+  /* Sized so a one-hour plan (52px) holds its title, both ride legs and its time. */
+  .plan { padding: 4px 8px; line-height: 15px; }
+  .plan .driver-summary, .plan time { font-size: 11px; line-height: 13px; }
+  .plan .ride-open { display: inline-block; padding: 0 3px; line-height: 11px; }
   /* Short plans keep the title and time on one line; "Not confirmed" stays for screen readers (the dashed edge shows it). */
   .plans li { container: plan / size; }
   .plan.cont { border-top-left-radius: 0; border-top-right-radius: 0; }
@@ -451,11 +460,11 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .check-inline:hover { color: var(--ink); }
 .field-end-date { margin-top: 10px; margin-bottom: 0; }
 
-.who-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--card); min-height: 44px; margin-top: 4px; }
-.who-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.who-selected-avatars { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.who-avatar-chip { font-size: 12px; padding: 2px 8px; }
-.who-toggle-btn { flex: none; }
+.who-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; padding: 6px 12px; border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--card); min-height: 44px; margin-top: 4px; }
+.who-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.who-selected-avatars { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.who-avatar-chip { font-size: 12px; padding: 2px 8px; white-space: normal; }
+.who-toggle-btn { flex: none; margin-left: auto; }
 .who-drawer { margin-top: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
 .who-drawer .who-list { margin-bottom: 8px; }
 
@@ -512,7 +521,7 @@ dialog.sheet[open], dialog.confirm[open] { animation: rise .22s cubic-bezier(.16
 .panel .note .code { font-size: 11px; overflow-wrap: anywhere; }
 .panel > .note:last-child { margin-top: 12px; }
 
-/* ===== Household chat ===== */
+/* ===== Chat ===== */
 .chat { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 .thread { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: var(--radius); background: var(--card); }
 .thread-head .span { overflow-wrap: anywhere; min-width: 0; }
@@ -536,8 +545,8 @@ body.paint .msg .dot { width: 28px; height: 28px; font-size: 12px; }
 .paint .chat-error { padding: 0 20px; color: var(--danger); font-size: 13px; }
 .paint .chat-error:empty { display: none; }
 .compose { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
-.paint .compose input { flex: 1; min-width: 0; }
-.paint .compose select { width: auto; flex: none; }
+.paint .compose input[type="text"] { flex: 1; min-width: 0; }
+.compose .chat-urgent { display: flex; align-items: center; gap: 6px; flex: none; margin: 0; white-space: nowrap; font-size: 14px; }
 .chat-side .row[aria-current] b { text-decoration: underline; text-underline-offset: 3px; }
 @container page (width >= 900px) {
   .chat { grid-template-columns: minmax(0, 1fr) 300px; height: calc(100vh - 60px - 72px); min-height: 480px; }
@@ -651,7 +660,8 @@ body.paint .family-dots .dot { width: 56px; height: 56px; font-size: 22px; }
 @media (max-width: 900px) {
   body.paint .auth .btn { min-height: 44px; height: auto; }
   .auth-form .mark { min-height: 44px; }
-  .tz-note > summary { min-height: 44px; }
+  .tz-note > summary, .when-edit > summary, .check-inline { min-height: 44px; }
+  .when-edit > summary { align-content: center; }
   .paint .rail .row { min-height: 48px; }
 }
 
@@ -791,9 +801,9 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
 .leave-mark[hidden] { display: none; }
 .leave-mark.is-late, .leave-mark.has-alerts { color: var(--warning); font-weight: 600; }
 .leave-mark .trip-live-dot { margin-right: 0; flex: none; }
-.rail-leave { position: absolute; z-index: 0; left: 8px; right: 4px; top: var(--top, 0); height: var(--h, 0); min-height: 18px; align-items: flex-start; border-left: 2px dashed var(--line); background: linear-gradient(to bottom, var(--raised), transparent); pointer-events: none; }
+.rail-leave { position: absolute; z-index: 0; left: 8px; right: 4px; top: var(--top, 0); height: var(--h, 0); min-height: 18px; align-items: flex-start; border-left: 2px dashed var(--line); background: color-mix(in srgb, var(--raised) 60%, transparent); pointer-events: none; }
 @container day (width >= 720px) {
-  .plans li.leave-mark { z-index: 0; align-items: flex-start; border-left: 2px dashed var(--line); background: linear-gradient(to bottom, var(--raised), transparent); pointer-events: none; }
+  .plans li.leave-mark { z-index: 0; align-items: flex-start; border-left: 2px dashed var(--line); background: color-mix(in srgb, var(--raised) 60%, transparent); pointer-events: none; }
 }
 .home-form { display: grid; gap: 8px; max-width: 520px; margin-top: 12px; position: relative; }
 /* Keep the label readable over short gaps: float it on the right, above the plans. */
@@ -1042,6 +1052,10 @@ body.paint .time-entry-half button[aria-checked="true"], .time-entry-half button
 /* Drives and flags. A badge inside a chip or a plan takes the block's own ink and draws an outline, never a new fill, so it
  * reads on every member colour and level in light and dark. */
 .week-flags { display: grid; justify-items: start; gap: 8px; margin-bottom: 16px; }
+/* Week: flags on the left, the period bar on the right, straight above the last day columns. */
+.week-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }
+.week-bar .week-flags { margin-bottom: 0; }
+.head .week-tools { width: auto; margin-left: auto; }
 .week-flags .my-day-flag, .head .my-day-flag { margin: 0; }
 .my-day-flag a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 /* minmax(0, 1fr): a long word in a title wraps inside the chip instead of widening the column. */

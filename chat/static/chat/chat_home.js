@@ -1,4 +1,4 @@
-// Household chat: live messages over the workspace WebSocket.
+// Chat: live messages over the workspace WebSocket.
 // Loaded as a file (not inline) so the Content-Security-Policy can forbid inline scripts.
 (function () {
     const workspaceId = JSON.parse(
@@ -97,7 +97,7 @@
         if (data.priority === "high") {
             const badge = document.createElement("span");
             badge.className = "msg-priority";
-            badge.textContent = "High priority";
+            badge.textContent = "Urgent";
             meta.append(" ", badge);
         }
         const bubble = document.createElement("p");
@@ -229,7 +229,7 @@
                 if (pendingText !== null && String(data.sender_id) === String(currentUserId)
                         && data.content === pendingText) {
                     if (input.value.trim() === pendingText) input.value = "";
-                    priority.value = "normal";
+                    priority.checked = false;
                     pendingText = null;
                 }
             } else if (data.type === "error") {
@@ -296,7 +296,7 @@
         socket.send(JSON.stringify({
             type: "chat_message",
             content: content,
-            priority: priority.value,
+            priority: priority.checked ? "high" : "normal",
         }));
 
         input.focus();
