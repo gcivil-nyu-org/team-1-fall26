@@ -801,9 +801,9 @@ body.paint .my-day-actions .btn { min-height: 56px; padding: 0 32px; font-size: 
 .leave-mark[hidden] { display: none; }
 .leave-mark.is-late, .leave-mark.has-alerts { color: var(--warning); font-weight: 600; }
 .leave-mark .trip-live-dot { margin-right: 0; flex: none; }
-.rail-leave { position: absolute; z-index: 0; left: 8px; right: 4px; top: var(--top, 0); height: var(--h, 0); min-height: 18px; align-items: flex-start; border-left: 2px dashed var(--line); background: linear-gradient(to bottom, var(--raised), transparent); pointer-events: none; }
+.rail-leave { position: absolute; z-index: 0; left: 8px; right: 4px; top: var(--top, 0); height: var(--h, 0); min-height: 18px; align-items: flex-start; border-left: 2px dashed var(--line); background: color-mix(in srgb, var(--raised) 60%, transparent); pointer-events: none; }
 @container day (width >= 720px) {
-  .plans li.leave-mark { z-index: 0; align-items: flex-start; border-left: 2px dashed var(--line); background: linear-gradient(to bottom, var(--raised), transparent); pointer-events: none; }
+  .plans li.leave-mark { z-index: 0; align-items: flex-start; border-left: 2px dashed var(--line); background: color-mix(in srgb, var(--raised) 60%, transparent); pointer-events: none; }
 }
 .home-form { display: grid; gap: 8px; max-width: 520px; margin-top: 12px; position: relative; }
 /* Keep the label readable over short gaps: float it on the right, above the plans. */
